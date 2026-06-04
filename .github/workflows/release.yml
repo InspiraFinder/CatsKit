@@ -54,8 +54,9 @@ jobs:
         uses: softprops/action-gh-release@v1
         with:
           name: "CatsKit ${{ steps.version.outputs.TAG }}"
+          prerelease: true
           body: |
-            ## 🎉 新版本发布
+            ## 🎉 第一个测试版本发布
             
             **版本：** ${{ steps.version.outputs.TAG }}  
             **日期：** ${{ steps.version.outputs.DATE }}
