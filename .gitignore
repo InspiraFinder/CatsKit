@@ -1,5 +1,10 @@
+# ============================================
+# 基础排除（本地 + GitHub 合并）
+# ============================================
+
 # Miscellaneous
 *.class
+*.lock
 *.log
 *.pyc
 *.swp
@@ -18,33 +23,120 @@ migrate_working_dir/
 *.iws
 .idea/
 
-# The .vscode folder contains launch configuration and tasks you configure in
-# VS Code which you may wish to be included in version control, so this line
-# is commented out by default.
+# VS Code（默认注释，需要时取消）
 #.vscode/
 
-# Flutter/Dart/Pub related
+# ============================================
+# Flutter/Dart/Pub 相关
+# ============================================
+
 **/doc/api/
 **/ios/Flutter/.last_build_id
 .dart_tool/
+.flutter-plugins
 .flutter-plugins-dependencies
+**/generated_plugin_registrant.dart
+.packages
+.packages.generated
 .pub-cache/
+.pub-preload-cache/
 .pub/
-/build/
+build/
 /coverage/
+flutter_*.png
+linked_*.ds
+unlinked.ds
+unlinked_spec.ds
 
-# Symbolication related
-app.*.symbols
+# ============================================
+# Android 相关
+# ============================================
 
-# Obfuscation related
-app.*.map.json
+**/android/**/gradle-wrapper.jar
+.gradle/
+**/android/captures/
+**/android/gradlew
+**/android/gradlew.bat
+**/android/local.properties
+**/android/**/GeneratedPluginRegistrant.java
+**/android/key.properties
+*.jks
 
-# Android Studio will place build artifacts here
+# Android Studio 构建产物
 /android/app/debug
 /android/app/profile
 /android/app/release
 
-# === 排除诊断脚本和工具 ===
+# ============================================
+# iOS/XCode 相关
+# ============================================
+
+**/ios/**/*.mode1v3
+**/ios/**/*.mode2v3
+**/ios/**/*.moved-aside
+**/ios/**/*.pbxuser
+**/ios/**/*.perspectivev3
+**/ios/**/*sync/
+**/ios/**/.sconsign.dblite
+**/ios/**/.tags*
+**/ios/**/.vagrant/
+**/ios/**/DerivedData/
+**/ios/**/Icon?
+**/ios/**/Pods/
+**/ios/**/.symlinks/
+**/ios/**/profile
+**/ios/**/xcuserdata
+**/ios/.generated/
+**/ios/Flutter/App.framework
+**/ios/Flutter/Flutter.framework
+**/ios/Flutter/Flutter.podspec
+**/ios/Flutter/Generated.xcconfig
+**/ios/Flutter/ephemeral
+**/ios/Flutter/app.flx
+**/ios/Flutter/app.zip
+**/ios/Flutter/flutter_assets/
+**/ios/Flutter/flutter_export_environment.sh
+**/ios/ServiceDefinitions.json
+**/ios/Runner/GeneratedPluginRegistrant.*
+
+# ============================================
+# macOS
+# ============================================
+
+**/Flutter/ephemeral/
+**/Pods/
+**/macos/Flutter/GeneratedPluginRegistrant.swift
+**/macos/Flutter/ephemeral
+**/xcuserdata/
+
+# ============================================
+# Windows
+# ============================================
+
+**/windows/flutter/generated_plugin_registrant.cc
+**/windows/flutter/generated_plugin_registrant.h
+**/windows/flutter/generated_plugins.cmake
+
+# ============================================
+# Linux
+# ============================================
+
+**/linux/flutter/generated_plugin_registrant.cc
+**/linux/flutter/generated_plugin_registrant.h
+**/linux/flutter/generated_plugins.cmake
+
+# ============================================
+# Symbolication / Obfuscation
+# ============================================
+
+app.*.symbols
+app.*.map.json
+
+# ============================================
+# 项目特定排除（你本地添加的）
+# ============================================
+
+# 诊断脚本和工具
 *.ps1
 *.bat
 *.sh
@@ -56,7 +148,7 @@ setup_flutter_env.ps1
 run.bat
 run.sh
 
-# === 排除多余文档（只保留 README.md）===
+# 多余文档（只保留 README.md 和 CHANGELOG.md）
 ENV_DIAGNOSIS.md
 FLUTTER_PATH_FIX.md
 HELP.md
@@ -65,25 +157,34 @@ SCRIPT_ENCODING_FIX.md
 SETUP.md
 TROUBLESHOOTING.md
 
-# === 排除 IDE 配置 ===
+# IDE 配置
 .vscode/
 
-# === 排除测试 ===
+# 测试
 test/
 
-# === 排除密钥相关 ===
+# 密钥相关
 keystore_base64.txt
 *.base64
 
-# === 排除其他平台（如不需要）===
+# 其他平台（如不需要）
 ios/
 linux/
 macos/
 web/
 windows/
 
-# === 排除 lock 文件 ===
+# lock 文件
 pubspec.lock
 
-# === 排除 metadata ===
+# metadata
 .metadata
+
+# ============================================
+# 例外规则（GitHub 原版保留）
+# ============================================
+
+!**/ios/**/default.mode1v3
+!**/ios/**/default.mode2v3
+!**/ios/**/default.pbxuser
+!**/ios/**/default.perspectivev3
