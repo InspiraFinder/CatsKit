@@ -56,10 +56,16 @@ jobs:
           name: "CatsKit ${{ steps.version.outputs.TAG }}"
           prerelease: true
           body: |
-            ## 🎉 第一个测试版本发布
-            
-            **版本：** ${{ steps.version.outputs.TAG }}  
-            **日期：** ${{ steps.version.outputs.DATE }}
+            ## 预发行版本 - ${{ steps.version.outputs.TAG }}
+              - 发布日期：${{ steps.version.outputs.DATE }}
+              - 这是一个预发行版本，可能包含未完全测试的功能。
+              
+              ### 🆕 新功能
+              - 添加了统计相关内容。
+              - 操作提示可设置为可选。
+              
+              ### 🐞 已修复的问题
+              - 调整相关UI。
             
             ### 📱 下载安装
             | 文件 | 适用设备 |
