@@ -1,0 +1,89 @@
+# Miscellaneous
+*.class
+*.log
+*.pyc
+*.swp
+.DS_Store
+.atom/
+.build/
+.buildlog/
+.history
+.svn/
+.swiftpm/
+migrate_working_dir/
+
+# IntelliJ related
+*.iml
+*.ipr
+*.iws
+.idea/
+
+# The .vscode folder contains launch configuration and tasks you configure in
+# VS Code which you may wish to be included in version control, so this line
+# is commented out by default.
+#.vscode/
+
+# Flutter/Dart/Pub related
+**/doc/api/
+**/ios/Flutter/.last_build_id
+.dart_tool/
+.flutter-plugins-dependencies
+.pub-cache/
+.pub/
+/build/
+/coverage/
+
+# Symbolication related
+app.*.symbols
+
+# Obfuscation related
+app.*.map.json
+
+# Android Studio will place build artifacts here
+/android/app/debug
+/android/app/profile
+/android/app/release
+
+# === 排除诊断脚本和工具 ===
+*.ps1
+*.bat
+*.sh
+diagnose_flutter.ps1
+fix_pub_get.bat
+fix_pub_get.ps1
+setup_flutter_env.bat
+setup_flutter_env.ps1
+run.bat
+run.sh
+
+# === 排除多余文档（只保留 README.md）===
+ENV_DIAGNOSIS.md
+FLUTTER_PATH_FIX.md
+HELP.md
+QUICK_START.md
+SCRIPT_ENCODING_FIX.md
+SETUP.md
+TROUBLESHOOTING.md
+
+# === 排除 IDE 配置 ===
+.vscode/
+
+# === 排除测试 ===
+test/
+
+# === 排除密钥相关 ===
+keystore_base64.txt
+*.base64
+
+# === 排除其他平台（如不需要）===
+ios/
+linux/
+macos/
+web/
+windows/
+
+# === 排除 lock 文件 ===
+pubspec.lock
+
+# === 排除 metadata ===
+.metadata
