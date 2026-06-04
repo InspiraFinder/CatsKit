@@ -1,0 +1,74 @@
+name: Build and Release APK
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build-android:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+      
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.22.0'
+          channel: 'stable'
+      
+      - name: Restore keystore
+        run: |
+          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > android/app/myapp_key.jks
+      
+      - name: Create signing config
+        run: |
+          cat > android/local.properties << EOF
+          flutter.sdk=/opt/hostedtoolcache/flutter/stable-3.22.0-x64
+          sdk.dir=/usr/local/lib/android/sdk
+          storePassword=${{ secrets.KEYSTORE_PASSWORD }}
+          keyPassword=${{ secrets.KEY_PASSWORD }}
+          EOF
+      
+      - name: Get dependencies
+        run: flutter pub get
+      
+      - name: Build APK
+        run: flutter build apk --split-per-abi
+      
+      - name: Get version info
+        id: version
+        run: |
+          echo "TAG=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+          echo "DATE=$(date +%Y-%m-%d)" >> $GITHUB_OUTPUT
+      
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          name: "CatsKit ${{ steps.version.outputs.TAG }}"
+          body: |
+            ## 🎉 新版本发布
+            
+            **版本：** ${{ steps.version.outputs.TAG }}  
+            **日期：** ${{ steps.version.outputs.DATE }}
+            
+            ### 📱 下载安装
+            | 文件 | 适用设备 |
+            |------|---------|
+            | `app-arm64-v8a-release.apk` | 主流手机（推荐） |
+            | `app-armeabi-v7a-release.apk` | 老旧设备 |
+            | `app-x86_64-release.apk` | 模拟器 |
+            
+            ### 🔧 系统要求
+            - Android 5.0 及以上
+          files: build/app/outputs/flutter-apk/*.apk
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
