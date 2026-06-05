@@ -3,7 +3,6 @@ plugins {
     id("dev.flutter.flutter-gradle-plugin")
 }
 
-// ========== 读取 local.properties ==========
 import java.io.FileInputStream
 import java.util.Properties
 
