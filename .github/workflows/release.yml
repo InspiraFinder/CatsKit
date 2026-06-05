@@ -28,6 +28,17 @@ jobs:
       - name: Restore keystore
         run: |
           echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > android/app/catskit_keystore.jks
+          if [ -s android/app/catskit_keystore.jks ]; then
+            echo "Keystore file exists and is not empty"
+            if [ $(stat -c%s android/app/catskit_keystore.jks) -gt 1000 ]; then
+              echo "File size is valid (>1KB)"
+            else
+              echo "File size is too small"
+            fi
+          else
+            echo "Keystore file is empty or missing"
+            exit 1
+          fi
       
       - name: Create signing config
         run: |
