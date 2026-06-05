@@ -27,7 +27,7 @@ jobs:
       
       - name: Restore keystore
         run: |
-          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > android/app/myapp_key.jks
+          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > android/app/catskit_keystore.jks
       
       - name: Create signing config
         run: |
