@@ -15,7 +15,7 @@ if (localPropertiesFile.exists()) {
 }
 
 android {
-    namespace = "com.example.catskit"
+    namespace = "com.tcits.inspira.catskit"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
@@ -34,7 +34,7 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.example.catskit"
+        applicationId = "com.tcits.inspira.catskit"
         minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
