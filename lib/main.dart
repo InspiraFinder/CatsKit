@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -5,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 void main() {
+  WidgetsFlutterBinding.ensureInitialized();
   SystemChrome.setPreferredOrientations([
     DeviceOrientation.portraitUp,
     DeviceOrientation.portraitDown,
@@ -40,6 +42,7 @@ class _MainScreenState extends State<MainScreen> {
   String _locale = 'zh';
   bool _showSnackBar = false; // 默认不显示提示
   String githubUpdateUrl = 'https://github.com/InspiraFinder/CatsKit/releases';
+  String _mirrorUrl = '';
 
   String _t(String zh, String en) => _locale == 'zh' ? zh : en;
 
@@ -511,6 +514,7 @@ class _MainScreenState extends State<MainScreen> {
           currentLocale: _locale,
           currentShowSnackBar: _showSnackBar,
           currentGithubUpdateUrl: githubUpdateUrl,
+          currentMirrorUrl: _mirrorUrl,
         ),
       ),
     );
@@ -519,6 +523,7 @@ class _MainScreenState extends State<MainScreen> {
         _locale = result['locale'];
         _showSnackBar = result['showSnackBar'];
         githubUpdateUrl = result['githubUpdateUrl'] ?? githubUpdateUrl;
+        _mirrorUrl = result['mirrorUrl'] ?? _mirrorUrl;
       });
       _showMessage('语言已切换', 'Language changed');
     }
@@ -586,6 +591,7 @@ class MainMenuScreen extends StatelessWidget {
                       currentShowSnackBar: false,
                       currentGithubUpdateUrl:
                           'https://github.com/InspiraFinder/CatsKit/releases',
+                      currentMirrorUrl: '',
                     ),
                   ),
                 ),
@@ -621,10 +627,16 @@ class MainMenuScreen extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Icon(icon, size: 28),
-            const SizedBox(width: 16),
-            Text(
-              label,
-              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+            const SizedBox(width: 12),
+            Flexible(
+              child: Text(
+                label,
+                style: const TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                ),
+                overflow: TextOverflow.ellipsis,
+              ),
             ),
           ],
         ),
@@ -662,6 +674,7 @@ class BuildToolScreen extends StatelessWidget {
                     currentShowSnackBar: false,
                     currentGithubUpdateUrl:
                         'https://github.com/InspiraFinder/CatsKit/releases',
+                    currentMirrorUrl: '',
                   ),
                 ),
               );
@@ -704,12 +717,14 @@ class SettingsScreen extends StatefulWidget {
   final String currentLocale;
   final bool currentShowSnackBar;
   final String currentGithubUpdateUrl;
+  final String currentMirrorUrl;
 
   const SettingsScreen({
     super.key,
     required this.currentLocale,
     required this.currentShowSnackBar,
     required this.currentGithubUpdateUrl,
+    required this.currentMirrorUrl,
   });
 
   @override
@@ -720,7 +735,31 @@ class _SettingsScreenState extends State<SettingsScreen> {
   late String locale;
   late bool showSnackBar;
   late TextEditingController _updateUrlController;
+  late TextEditingController _mirrorController;
   bool _isDownloading = false;
+  bool _isPaused = false;
+  bool _isCheckingUpdate = false;
+  double _downloadProgress = 0;
+  String _downloadSpeed = '';
+  String _downloadedSize = '';
+  int _lastReceivedBytes = 0;
+  int _lastSpeedTime = 0;
+  StreamSubscription? _streamSub;
+  bool _cancelRequested = false;
+  HttpClientResponse? _downloadResponse;
+  int _totalDownloadBytes = 0;
+  final List<List<int>> _downloadChunks = [];
+
+  static const List<String> _presetMirrors = [
+    '',
+    'https://ghproxy.com/', // 可用
+    'https://ghproxy.net/', // 部分情况可用
+    'https://gh-proxy.com/',
+  ];
+
+  // 网页工具（非API代理，仅做参考）
+  // https://github.ur1.fun/
+  // https://github.akams.cn/
 
   @override
   void initState() {
@@ -730,19 +769,32 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _updateUrlController = TextEditingController(
       text: widget.currentGithubUpdateUrl,
     );
+    _mirrorController = TextEditingController(text: widget.currentMirrorUrl);
   }
 
   @override
   void dispose() {
     _updateUrlController.dispose();
+    _mirrorController.dispose();
     super.dispose();
+  }
+
+  String _getMirrorUrl(String originalUrl) {
+    final mirror = _mirrorController.text.trim();
+    if (mirror.isEmpty) return originalUrl;
+    // 确保 mirror 以 / 结尾
+    final base = mirror.endsWith('/') ? mirror : '$mirror/';
+    return '$base$originalUrl';
   }
 
   Future<void> _checkForUpdate() async {
     const apiUrl =
         'https://api.github.com/repos/InspiraFinder/CatsKit/releases/latest';
 
-    setState(() => _isDownloading = true);
+    setState(() {
+      _isDownloading = true;
+      _isCheckingUpdate = true;
+    });
 
     showDialog<void>(
       context: context,
@@ -756,86 +808,146 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
 
     try {
-      final client = HttpClient();
-      final request = await client.getUrl(Uri.parse(apiUrl));
+      final client = HttpClient()
+        ..connectionTimeout = const Duration(seconds: 15)
+        ..badCertificateCallback = (_, _, _) => true;
+
+      final request = await client.getUrl(Uri.parse(_getMirrorUrl(apiUrl)));
       request.headers.set('User-Agent', 'CatsKit');
       request.headers.set('Accept', 'application/vnd.github+json');
-      final response = await request.close();
+      request.headers.set('Accept-Language', 'zh-CN,zh;q=0.9');
+      final response = await request.close().timeout(
+        const Duration(seconds: 20),
+        onTimeout: () => throw TimeoutException('请求超时'),
+      );
+
+      String body;
+      if (response.statusCode == 404) {
+        // /releases/latest 返回 404 ＝ 还没有任何 release
+        // 尝试获取 releases 列表
+        final listUrl =
+            'https://api.github.com/repos/InspiraFinder/CatsKit/releases';
+        final listRequest = await client.getUrl(
+          Uri.parse(_getMirrorUrl(listUrl)),
+        );
+        listRequest.headers.set('User-Agent', 'CatsKit');
+        listRequest.headers.set('Accept', 'application/vnd.github+json');
+        final listResponse = await listRequest.close();
+
+        if (listResponse.statusCode == HttpStatus.ok) {
+          body = await listResponse.transform(utf8.decoder).join();
+          final list = jsonDecode(body) as List<dynamic>;
+          if (list.isEmpty) {
+            if (!mounted) return;
+            Navigator.of(context, rootNavigator: true).pop();
+            setState(() {
+              _isDownloading = false;
+              _isCheckingUpdate = false;
+            });
+            ScaffoldMessenger.of(
+              context,
+            ).showSnackBar(const SnackBar(content: Text('仓库中暂无任何发布版本')));
+            return;
+          }
+          // 取列表中的第一个（最新）
+          final json = list.first as Map<String, dynamic>;
+          _processReleaseJson(json);
+        } else {
+          if (!mounted) return;
+          Navigator.of(context, rootNavigator: true).pop();
+          setState(() {
+            _isDownloading = false;
+            _isCheckingUpdate = false;
+          });
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(const SnackBar(content: Text('仓库中暂无发布版本')));
+        }
+        return;
+      }
 
       if (response.statusCode != HttpStatus.ok) {
         throw HttpException('HTTP ${response.statusCode}');
       }
 
-      final body = await response.transform(utf8.decoder).join();
+      body = await response.transform(utf8.decoder).join();
       final json = jsonDecode(body) as Map<String, dynamic>;
-      final tagName = json['tag_name'] as String? ?? 'unknown';
-      final assets = json['assets'] as List<dynamic>? ?? [];
-
-      if (!mounted) return;
-      Navigator.of(context, rootNavigator: true).pop();
-      setState(() => _isDownloading = false);
-
-      if (assets.isEmpty) {
-        // 没有 asset 时，直接填入 release 页面地址
-        _updateUrlController.text =
-            'https://github.com/InspiraFinder/CatsKit/releases/tag/$tagName';
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('发现最新版 $tagName，已填入 release 页面地址')),
-          );
-        }
-        return;
-      }
-
-      // 有 asset 时，取第一个可下载的文件
-      final firstAsset = assets.first as Map<String, dynamic>;
-      final downloadUrl = firstAsset['browser_download_url'] as String? ?? '';
-      final assetName = firstAsset['name'] as String? ?? '';
-
-      if (downloadUrl.isEmpty) {
-        _updateUrlController.text =
-            'https://github.com/InspiraFinder/CatsKit/releases/tag/$tagName';
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('发现最新版 $tagName，但无法获取直链，已填入 release 页面')),
-        );
-        return;
-      }
-
-      _updateUrlController.text = downloadUrl;
-
-      if (!mounted) return;
-      showDialog<void>(
-        context: context,
-        builder: (ctx) => AlertDialog(
-          title: const Text('发现新版本'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('版本: $tagName'),
-              if (assetName.isNotEmpty) Text('文件: $assetName'),
-              const SizedBox(height: 8),
-              const Text('下载地址已自动填入，点击"下载更新包"开始下载。'),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('确定'),
-            ),
-          ],
-        ),
-      );
+      _processReleaseJson(json);
     } catch (e) {
       if (mounted && Navigator.of(context, rootNavigator: true).canPop()) {
         Navigator.of(context, rootNavigator: true).pop();
       }
-      setState(() => _isDownloading = false);
+      setState(() {
+        _isDownloading = false;
+        _isCheckingUpdate = false;
+      });
       if (!mounted) return;
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text('检查更新失败: $e')));
     }
+  }
+
+  void _processReleaseJson(Map<String, dynamic> json) {
+    final tagName = json['tag_name'] as String? ?? 'unknown';
+    final assets = json['assets'] as List<dynamic>? ?? [];
+
+    if (!mounted) return;
+    Navigator.of(context, rootNavigator: true).pop();
+    setState(() {
+      _isDownloading = false;
+      _isCheckingUpdate = false;
+    });
+
+    if (assets.isEmpty) {
+      _updateUrlController.text =
+          'https://github.com/InspiraFinder/CatsKit/releases/tag/$tagName';
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('发现最新版 $tagName，已填入 release 页面地址')),
+        );
+      }
+      return;
+    }
+
+    final firstAsset = assets.first as Map<String, dynamic>;
+    final downloadUrl = firstAsset['browser_download_url'] as String? ?? '';
+    final assetName = firstAsset['name'] as String? ?? '';
+
+    if (downloadUrl.isEmpty) {
+      _updateUrlController.text =
+          'https://github.com/InspiraFinder/CatsKit/releases/tag/$tagName';
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('发现最新版 $tagName，但无法获取直链，已填入 release 页面')),
+      );
+      return;
+    }
+
+    _updateUrlController.text = downloadUrl;
+
+    if (!mounted) return;
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('发现新版本'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('版本: $tagName'),
+            if (assetName.isNotEmpty) Text('文件: $assetName'),
+            const SizedBox(height: 8),
+            const Text('下载地址已自动填入，点击"下载更新包"开始下载。'),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('确定'),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _downloadUpdatePackage() async {
@@ -855,34 +967,106 @@ class _SettingsScreenState extends State<SettingsScreen> {
       return;
     }
 
+    _cancelRequested = false;
+    _isPaused = false;
+    _downloadChunks.clear();
+    _totalDownloadBytes = 0;
+
     setState(() {
       _isDownloading = true;
+      _downloadProgress = 0;
+      _downloadSpeed = '';
+      _downloadedSize = '';
+      _lastReceivedBytes = 0;
+      _lastSpeedTime = 0;
     });
 
-    showDialog<void>(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => const AlertDialog(
-        content: SizedBox(
-          height: 80,
-          child: Center(child: CircularProgressIndicator()),
-        ),
-      ),
-    );
-
     try {
-      final client = HttpClient();
-      final request = await client.getUrl(uri);
+      final client = HttpClient()
+        ..connectionTimeout = const Duration(seconds: 15)
+        ..badCertificateCallback = (_, _, _) => true;
+
+      final request = await client.getUrl(Uri.parse(_getMirrorUrl(url)));
       request.headers.set('User-Agent', 'CatsKit');
-      final response = await request.close();
+      request.headers.set('Accept-Language', 'zh-CN,zh;q=0.9');
+      final response = await request.close().timeout(
+        const Duration(minutes: 5),
+        onTimeout: () => throw TimeoutException('下载超时'),
+      );
 
       if (response.statusCode != HttpStatus.ok) {
         throw HttpException('HTTP ${response.statusCode}');
       }
 
-      final bytes = await response.fold<List<int>>(<int>[], (buffer, data) {
-        buffer.addAll(data);
-        return buffer;
+      _downloadResponse = response;
+      final totalBytes = response.contentLength ?? -1;
+      _lastReceivedBytes = 0;
+      _lastSpeedTime = DateTime.now().millisecondsSinceEpoch;
+
+      final completer = Completer<void>();
+      _streamSub = response.listen(
+        (chunk) {
+          if (_cancelRequested) {
+            _streamSub?.cancel();
+            _downloadResponse = null;
+            completer.complete();
+            return;
+          }
+
+          _downloadChunks.add(chunk);
+          _totalDownloadBytes += chunk.length;
+
+          final now = DateTime.now().millisecondsSinceEpoch;
+          final elapsed = now - _lastSpeedTime;
+
+          if (elapsed >= 1000) {
+            final deltaBytes = _totalDownloadBytes - _lastReceivedBytes;
+            final speedBps = deltaBytes / (elapsed / 1000);
+            _downloadSpeed = speedBps >= 1024 * 1024
+                ? '${(speedBps / (1024 * 1024)).toStringAsFixed(1)} MB/s'
+                : '${(speedBps / 1024).toStringAsFixed(0)} KB/s';
+            _lastReceivedBytes = _totalDownloadBytes;
+            _lastSpeedTime = now;
+          }
+
+          _downloadedSize = _totalDownloadBytes >= 1024 * 1024
+              ? '${(_totalDownloadBytes / (1024 * 1024)).toStringAsFixed(1)} MB'
+              : '${(_totalDownloadBytes / 1024).toStringAsFixed(0)} KB';
+
+          if (totalBytes > 0) {
+            _downloadProgress = _totalDownloadBytes / totalBytes;
+          }
+
+          if (mounted) setState(() {});
+        },
+        onDone: () {
+          if (totalBytes < 0) _downloadProgress = 1;
+          completer.complete();
+        },
+        onError: (e) {
+          if (!completer.isCompleted) completer.completeError(e);
+        },
+        cancelOnError: false,
+      );
+
+      await completer.future;
+
+      if (_cancelRequested) {
+        if (mounted) {
+          setState(() {
+            _isDownloading = false;
+            _isPaused = false;
+          });
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(const SnackBar(content: Text('下载已取消')));
+        }
+        return;
+      }
+
+      final bytes = _downloadChunks.fold<List<int>>(<int>[], (a, b) {
+        a.addAll(b);
+        return a;
       });
 
       final fileName =
@@ -902,14 +1086,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
       await outputFile.writeAsBytes(bytes, flush: true);
 
       if (!mounted) return;
-      Navigator.of(context, rootNavigator: true).pop();
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text('更新包已下载到: ${outputFile.path}')));
     } catch (e) {
-      if (mounted && Navigator.of(context, rootNavigator: true).canPop()) {
-        Navigator.of(context, rootNavigator: true).pop();
-      }
       if (!mounted) return;
       ScaffoldMessenger.of(
         context,
@@ -918,9 +1098,54 @@ class _SettingsScreenState extends State<SettingsScreen> {
       if (mounted) {
         setState(() {
           _isDownloading = false;
+          _isPaused = false;
         });
       }
     }
+  }
+
+  void _onPauseResume() {
+    if (_isPaused) {
+      _streamSub?.resume();
+    } else {
+      _streamSub?.pause();
+    }
+    setState(() {
+      _isPaused = !_isPaused;
+    });
+  }
+
+  void _onStopDownload() {
+    _cancelRequested = true;
+    _streamSub?.cancel();
+    _downloadResponse = null;
+    setState(() {
+      _isDownloading = false;
+      _isPaused = false;
+    });
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('下载已停止')));
+  }
+
+  Widget _buildControlButton({
+    required IconData icon,
+    required String label,
+    required Color color,
+    required VoidCallback onPressed,
+  }) {
+    return ElevatedButton.icon(
+      onPressed: onPressed,
+      icon: Icon(icon, size: 18),
+      label: Text(label, style: const TextStyle(fontSize: 14)),
+      style: ElevatedButton.styleFrom(
+        backgroundColor: color,
+        foregroundColor: Colors.white,
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        minimumSize: const Size(100, 40),
+      ),
+    );
   }
 
   @override
@@ -1058,6 +1283,114 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ),
             ),
           ),
+          if (_isDownloading) ...[
+            const SizedBox(height: 12),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16.0),
+              child: Column(
+                children: [
+                  LinearProgressIndicator(
+                    value: _downloadProgress > 0 ? _downloadProgress : null,
+                    minHeight: 6,
+                    borderRadius: BorderRadius.circular(3),
+                  ),
+                  const SizedBox(height: 6),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        '$_downloadedSize${_downloadProgress > 0 ? ' (${(_downloadProgress * 100).toStringAsFixed(1)}%)' : ''}',
+                        style: const TextStyle(fontSize: 13),
+                      ),
+                      Text(
+                        _downloadSpeed,
+                        style: const TextStyle(
+                          fontSize: 13,
+                          color: Colors.blue,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  if (!_isCheckingUpdate)
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        _buildControlButton(
+                          icon: _isPaused ? Icons.play_arrow : Icons.pause,
+                          label: _isPaused ? '继续' : '暂停',
+                          color: Colors.orange,
+                          onPressed: _onPauseResume,
+                        ),
+                        const SizedBox(width: 16),
+                        _buildControlButton(
+                          icon: Icons.stop,
+                          label: '停止',
+                          color: Colors.redAccent,
+                          onPressed: _onStopDownload,
+                        ),
+                      ],
+                    ),
+                ],
+              ),
+            ),
+          ],
+          const SizedBox(height: 16),
+          const Divider(),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16.0),
+            child: Text(
+              locale == 'zh' ? '镜像加速地址（可选）' : 'Mirror URL (optional)',
+              style: const TextStyle(fontWeight: FontWeight.bold),
+            ),
+          ),
+          const SizedBox(height: 4),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16.0),
+            child: Text(
+              locale == 'zh'
+                  ? '如果无法连接 GitHub，可使用镜像加速。留空则直连。'
+                  : 'If GitHub is unreachable, use a mirror. Leave empty for direct.',
+              style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+            ),
+          ),
+          const SizedBox(height: 8),
+          // 预设镜像快速选择
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16.0),
+            child: Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children: _presetMirrors.map((mirror) {
+                final label = mirror.isEmpty
+                    ? (locale == 'zh' ? '直连' : 'Direct')
+                    : mirror.replaceAll('https://', '').replaceAll('/', '');
+                final isActive = _mirrorController.text.trim() == mirror;
+                return ActionChip(
+                  label: Text(label, style: const TextStyle(fontSize: 11)),
+                  backgroundColor: isActive ? Colors.blue[100] : null,
+                  onPressed: () {
+                    setState(() {
+                      _mirrorController.text = mirror;
+                    });
+                  },
+                );
+              }).toList(),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16.0),
+            child: TextField(
+              controller: _mirrorController,
+              decoration: InputDecoration(
+                border: const OutlineInputBorder(),
+                hintText: locale == 'zh'
+                    ? 'https://ghproxy.net/'
+                    : 'https://ghproxy.net/',
+              ),
+            ),
+          ),
           const SizedBox(height: 20),
           Padding(
             padding: const EdgeInsets.all(16.0),
@@ -1067,6 +1400,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   'locale': locale,
                   'showSnackBar': showSnackBar,
                   'githubUpdateUrl': _updateUrlController.text.trim(),
+                  'mirrorUrl': _mirrorController.text.trim(),
                 });
               },
               child: Text(locale == 'zh' ? '保存' : 'Save'),
