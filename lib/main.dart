@@ -8,7 +8,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import 'parts_data.dart';
 
-const String appVersion = '0.2.3';
+const String appVersion = '0.2.4';
 
 /// 获取部件在当前语言下的显示名称
 String pn(PartData part, String? locale) {
