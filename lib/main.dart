@@ -8,7 +8,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import 'parts_data.dart';
 
-const String appVersion = '0.3.0';
+const String appVersion = '0.3.1';
 
 /// 获取部件在当前语言下的显示名称
 String pn(PartData part, String? locale) {
@@ -585,7 +585,7 @@ class MainMenuScreen extends StatelessWidget {
               _buildMenuItem(
                 context,
                 icon: Icons.build,
-                label: '组车工具（开发中）',
+                label: '组车工具',
                 color: Colors.orange,
                 onTap: () => Navigator.push(
                   context,
@@ -2315,9 +2315,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
           uri.pathSegments.isNotEmpty && uri.pathSegments.last.isNotEmpty
           ? uri.pathSegments.last
           : 'catskit_update_package.bin';
-      final downloadDir = Directory(
-        '${Platform.environment['USERPROFILE'] ?? Platform.environment['HOME'] ?? Directory.current.path}${Platform.pathSeparator}Downloads',
-      );
+      // 获取可写下载目录（Android 用系统临时目录，桌面用 Downloads）
+      final isAndroid = Platform.isAndroid;
+      final downloadDir = isAndroid
+          ? Directory(
+              '${Directory.systemTemp.path}${Platform.pathSeparator}CatsKit',
+            )
+          : Directory(
+              '${Platform.environment['USERPROFILE'] ?? Platform.environment['HOME'] ?? Directory.current.path}${Platform.pathSeparator}Downloads',
+            );
       if (!await downloadDir.exists()) {
         await downloadDir.create(recursive: true);
       }
@@ -2794,10 +2800,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
           ),
           const Divider(),
-          // ---- 支持本项目 ----
+          // ---- 项目主页 ----
           ListTile(
             leading: const Icon(Icons.favorite, color: Colors.red),
-            title: Text(locale == 'zh' ? '支持本项目' : 'Support this project'),
+            title: Text(locale == 'zh' ? '项目主页' : 'Project Homepage'),
+            subtitle: Text(
+              locale == 'zh'
+                  ? 'CatsKit — 猫猫车工具\n请在 GitHub 上 Star (点赞) 以支持本项目'
+                  : 'CatsKit — Cat Car Builder\nPlease ⭐ on GitHub to support',
+            ),
             trailing: const Icon(Icons.open_in_new, size: 18),
             onTap: () async {
               final uri = Uri.parse('https://github.com/InspiraFinder/CatsKit');
