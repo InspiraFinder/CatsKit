@@ -4,8 +4,11 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import 'parts_data.dart';
+
+const String appVersion = '0.2.1';
 
 /// 获取部件在当前语言下的显示名称
 String pn(PartData part, String? locale) {
@@ -1759,12 +1762,61 @@ class _SettingsScreenState extends State<SettingsScreen> {
     super.dispose();
   }
 
+  /// 获取镜像 URL
   String _getMirrorUrl(String originalUrl) {
     final mirror = _mirrorController.text.trim();
     if (mirror.isEmpty) return originalUrl;
-    // 确保 mirror 以 / 结尾
     final base = mirror.endsWith('/') ? mirror : '$mirror/';
     return '$base$originalUrl';
+  }
+
+  /// 尝试多个 URL（直连+镜像），遇到 SocketException 自动重试下一个
+  Future<HttpClientResponse> _tryFetchUrls(
+    HttpClient client,
+    List<String> urls, {
+    Map<String, String>? headers,
+  }) async {
+    String? lastError;
+    for (final url in urls) {
+      try {
+        final request = await client
+            .getUrl(Uri.parse(url))
+            .timeout(const Duration(seconds: 15));
+        if (headers != null) {
+          for (final e in headers.entries) {
+            request.headers.set(e.key, e.value);
+          }
+        }
+        return await request.close();
+      } catch (e) {
+        lastError = e.toString();
+        // SocketException (DNS 失败) 时继续尝试下一个镜像
+        if (e is SocketException) {
+          continue;
+        }
+        // 非 DNS 错误也继续尝试
+        continue;
+      }
+    }
+    throw Exception('所有连接均失败，最后错误: $lastError');
+  }
+
+  /// 生成直连 + 所有可用镜像的 URL 列表
+  List<String> _urlCandidates(String originalUrl) {
+    final candidates = <String>[_getMirrorUrl(originalUrl)]; // 当前配置
+    for (final m in _presetMirrors) {
+      if (m.isEmpty) continue; // 空 = 直连，已包含
+      final base = m.endsWith('/') ? m : '$m/';
+      final mirrored = '$base$originalUrl';
+      if (!candidates.contains(mirrored)) {
+        candidates.add(mirrored);
+      }
+    }
+    // 确保直连也在列表里
+    if (!candidates.contains(originalUrl)) {
+      candidates.add(originalUrl);
+    }
+    return candidates;
   }
 
   Future<void> _checkForUpdate() async {
@@ -1792,13 +1844,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
         ..connectionTimeout = const Duration(seconds: 15)
         ..badCertificateCallback = (_, _, _) => true;
 
-      final request = await client.getUrl(Uri.parse(_getMirrorUrl(apiUrl)));
-      request.headers.set('User-Agent', 'CatsKit');
-      request.headers.set('Accept', 'application/vnd.github+json');
-      request.headers.set('Accept-Language', 'zh-CN,zh;q=0.9');
-      final response = await request.close().timeout(
-        const Duration(seconds: 20),
-        onTimeout: () => throw TimeoutException('请求超时'),
+      final headers = <String, String>{
+        'User-Agent': 'CatsKit',
+        'Accept': 'application/vnd.github+json',
+        'Accept-Language': 'zh-CN,zh;q=0.9',
+      };
+
+      final response = await _tryFetchUrls(
+        client,
+        _urlCandidates(apiUrl),
+        headers: headers,
       );
 
       String body;
@@ -1807,12 +1862,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
         // 尝试获取 releases 列表
         final listUrl =
             'https://api.github.com/repos/InspiraFinder/CatsKit/releases';
-        final listRequest = await client.getUrl(
-          Uri.parse(_getMirrorUrl(listUrl)),
+        final listResponse = await _tryFetchUrls(
+          client,
+          _urlCandidates(listUrl),
+          headers: headers,
         );
-        listRequest.headers.set('User-Agent', 'CatsKit');
-        listRequest.headers.set('Accept', 'application/vnd.github+json');
-        final listResponse = await listRequest.close();
 
         if (listResponse.statusCode == HttpStatus.ok) {
           body = await listResponse.transform(utf8.decoder).join();
@@ -1966,12 +2020,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
         ..connectionTimeout = const Duration(seconds: 15)
         ..badCertificateCallback = (_, _, _) => true;
 
-      final request = await client.getUrl(Uri.parse(_getMirrorUrl(url)));
-      request.headers.set('User-Agent', 'CatsKit');
-      request.headers.set('Accept-Language', 'zh-CN,zh;q=0.9');
-      final response = await request.close().timeout(
-        const Duration(minutes: 5),
-        onTimeout: () => throw TimeoutException('下载超时'),
+      final headers = <String, String>{
+        'User-Agent': 'CatsKit',
+        'Accept-Language': 'zh-CN,zh;q=0.9',
+      };
+
+      final response = await _tryFetchUrls(
+        client,
+        _urlCandidates(url),
+        headers: headers,
       );
 
       if (response.statusCode != HttpStatus.ok) {
@@ -2370,6 +2427,62 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     : 'https://ghproxy.net/',
               ),
             ),
+          ),
+          const SizedBox(height: 16),
+          const Divider(),
+          // ---- 版本信息 ----
+          ListTile(
+            leading: const Icon(Icons.info_outline, color: Colors.grey),
+            title: Text(locale == 'zh' ? '当前版本' : 'Version'),
+            trailing: Text(
+              'v$appVersion',
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            ),
+          ),
+          const Divider(),
+          // ---- 支持本项目 ----
+          ListTile(
+            leading: const Icon(Icons.favorite, color: Colors.red),
+            title: Text(locale == 'zh' ? '支持本项目' : 'Support this project'),
+            trailing: const Icon(Icons.open_in_new, size: 18),
+            onTap: () async {
+              final uri = Uri.parse('https://github.com/InspiraFinder/CatsKit');
+              if (await canLaunchUrl(uri)) {
+                await launchUrl(uri, mode: LaunchMode.externalApplication);
+              } else if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      '${locale == 'zh' ? '无法打开链接' : 'Cannot open link'}: $uri',
+                    ),
+                  ),
+                );
+              }
+            },
+          ),
+          const Divider(),
+          // ---- 鸣谢 ----
+          ListTile(
+            leading: const Icon(Icons.emoji_events, color: Colors.amber),
+            title: Text(locale == 'zh' ? '鸣谢' : 'Acknowledgments'),
+            subtitle: Text('Navimoe C.A.T.S. Engine'),
+            trailing: const Icon(Icons.open_in_new, size: 18),
+            onTap: () async {
+              final uri = Uri.parse(
+                'https://github.com/ProjectNavimoe/Navimoe',
+              );
+              if (await canLaunchUrl(uri)) {
+                await launchUrl(uri, mode: LaunchMode.externalApplication);
+              } else if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      '${locale == 'zh' ? '无法打开链接' : 'Cannot open link'}: $uri',
+                    ),
+                  ),
+                );
+              }
+            },
           ),
           const SizedBox(height: 20),
           Padding(
