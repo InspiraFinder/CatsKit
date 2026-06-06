@@ -5,6 +5,15 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import 'parts_data.dart';
+
+/// 获取部件在当前语言下的显示名称
+String pn(PartData part, String? locale) {
+  if (locale == 'zh' && part.nameZh.isNotEmpty) return part.nameZh;
+  if (locale == 'ja' && part.nameJa.isNotEmpty) return part.nameJa;
+  return part.name;
+}
+
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
   SystemChrome.setPreferredOrientations([
@@ -22,7 +31,7 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'CatsKit',
       theme: ThemeData(primarySwatch: Colors.blue, useMaterial3: true),
-      home: const MainMenuScreen(),
+      home: const MainMenuScreen(locale: 'zh'),
     );
   }
 }
@@ -91,7 +100,9 @@ class _MainScreenState extends State<MainScreen> {
             } else if (value == 'build') {
               Navigator.push(
                 context,
-                MaterialPageRoute(builder: (_) => const BuildToolScreen()),
+                MaterialPageRoute(
+                  builder: (_) => BuildToolScreen(locale: _locale),
+                ),
               );
             } else if (value == 'settings') {
               _openSettings();
@@ -532,7 +543,8 @@ class _MainScreenState extends State<MainScreen> {
 
 // ==================== 主菜单 ====================
 class MainMenuScreen extends StatelessWidget {
-  const MainMenuScreen({super.key});
+  final String locale;
+  const MainMenuScreen({super.key, this.locale = 'zh'});
 
   @override
   Widget build(BuildContext context) {
@@ -574,7 +586,9 @@ class MainMenuScreen extends StatelessWidget {
                 color: Colors.orange,
                 onTap: () => Navigator.push(
                   context,
-                  MaterialPageRoute(builder: (_) => const BuildToolScreen()),
+                  MaterialPageRoute(
+                    builder: (_) => BuildToolScreen(locale: locale),
+                  ),
                 ),
               ),
               const SizedBox(height: 16),
@@ -645,12 +659,42 @@ class MainMenuScreen extends StatelessWidget {
   }
 }
 
-// ==================== 组车工具（占位） ====================
-class BuildToolScreen extends StatelessWidget {
-  const BuildToolScreen({super.key});
+// ==================== 组车工具 ====================
+class BuildToolScreen extends StatefulWidget {
+  final String locale;
+  const BuildToolScreen({super.key, this.locale = 'zh'});
+
+  @override
+  State<BuildToolScreen> createState() => _BuildToolScreenState();
+}
+
+class _BuildToolScreenState extends State<BuildToolScreen> {
+  bool _isAssemblyMode = true;
+  PartCategory _selectedCategory = PartCategory.body;
+  PartData? _body;
+  final List<PartData> _weapons = [];
+  final List<PartData> _wheels = [];
+  final List<PartData> _gadgets = [];
+  final Map<String, int> _partLevels = {};
+
+  // ---- Navimoe 验证数据 ----
+  CarValidation _validation = CarValidation.empty();
+
+  void _recalc() {
+    _validation = CarValidation.compute(
+      _body,
+      _weapons,
+      _wheels,
+      _gadgets,
+      _partLevels,
+    );
+  }
+
+  int _level(PartData p) => _partLevels[p.id] ?? 1;
 
   @override
   Widget build(BuildContext context) {
+    _recalc();
     return Scaffold(
       appBar: AppBar(
         title: const Text('组车工具'),
@@ -680,35 +724,971 @@ class BuildToolScreen extends StatelessWidget {
               );
             }
           },
-          itemBuilder: (context) => [
-            const PopupMenuItem(value: 'menu', child: Text('返回主菜单')),
-            const PopupMenuItem(value: 'vehicle', child: Text('查车工具')),
-            const PopupMenuItem(value: 'settings', child: Text('通用设置')),
+          itemBuilder: (context) => const [
+            PopupMenuItem(value: 'menu', child: Text('返回主菜单')),
+            PopupMenuItem(value: 'vehicle', child: Text('查车工具')),
+            PopupMenuItem(value: 'settings', child: Text('通用设置')),
           ],
         ),
       ),
-      body: Center(
+      body: Column(
+        children: [
+          _buildAssemblyArea(),
+          const Divider(height: 1),
+          _buildButtonRow(),
+          const Divider(height: 1),
+          _buildPartsSelector(),
+        ],
+      ),
+    );
+  }
+
+  // ==================== 组车区 ====================
+  Widget _buildAssemblyArea() {
+    final v = _validation;
+    final powerOk = v.powerSupply >= v.powerConsumption;
+    return Container(
+      padding: const EdgeInsets.all(6),
+      color: Colors.blue[50],
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // ---- 状态行 ----
+          Row(
+            children: [
+              Icon(
+                v.ok ? Icons.check_circle : Icons.error,
+                size: 16,
+                color: v.ok ? Colors.green : Colors.red,
+              ),
+              const SizedBox(width: 4),
+              Expanded(
+                child: Text(
+                  v.error.isNotEmpty ? v.error : '状态 OK',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: v.ok ? Colors.green : Colors.red,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          // ---- 属性行 ----
+          Row(
+            children: [
+              _statChip('HP', '${v.hp.floor()}', Colors.blue),
+              const SizedBox(width: 4),
+              _statChip('ATK', '${v.atk.floor()}', Colors.red),
+              const SizedBox(width: 4),
+              _statChip(
+                '电力',
+                '${v.powerConsumption}/${v.powerSupply}',
+                powerOk ? Colors.green : Colors.red,
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          // ---- 插槽与加成行 ----
+          Row(
+            children: [
+              _statChip(
+                '插槽',
+                '武${v.numWeapons}/${v.numWeaponSlots} 轮${v.numWheels}/${v.numWheelSlots} 装${v.numGadgets}/${v.numGadgetSlots}',
+                Colors.grey,
+              ),
+            ],
+          ),
+          if (v.bodyBonusPct > 0 ||
+              v.weaponBonusPct > 0 ||
+              v.wheelBonusPct > 0 ||
+              v.gadgetBonusPct > 0 ||
+              v.sponsorBonusPct > 0) ...[
+            const SizedBox(height: 2),
+            Row(
+              children: [
+                if (v.bodyBonusPct > 0)
+                  _statChip('身体+${v.bodyBonusPct}%', '', Colors.orange),
+                if (v.weaponBonusPct > 0) const SizedBox(width: 4),
+                if (v.weaponBonusPct > 0)
+                  _statChip('武器+${v.weaponBonusPct}%', '', Colors.red),
+                if (v.wheelBonusPct > 0) const SizedBox(width: 4),
+                if (v.wheelBonusPct > 0)
+                  _statChip('车轮+${v.wheelBonusPct}%', '', Colors.green),
+                if (v.gadgetBonusPct > 0) const SizedBox(width: 4),
+                if (v.gadgetBonusPct > 0)
+                  _statChip('装置+${v.gadgetBonusPct}%', '', Colors.purple),
+                if (v.sponsorBonusPct > 0) const SizedBox(width: 4),
+                if (v.sponsorBonusPct > 0)
+                  _statChip('赞助+${v.sponsorBonusPct}%', '', Colors.teal),
+              ],
+            ),
+          ],
+          const SizedBox(height: 6),
+          // ---- 插槽行 ----
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final totalSlots =
+                  1 + v.numWeaponSlots + v.numWheelSlots + v.numGadgetSlots;
+              final slotWidth =
+                  ((constraints.maxWidth - 6 * totalSlots) / totalSlots).clamp(
+                    70.0,
+                    120.0,
+                  );
+              return SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  children: [
+                    _buildSlot(
+                      '车身',
+                      _body,
+                      Colors.orange,
+                      () => setState(() => _body = null),
+                      slotWidth,
+                    ),
+                    const SizedBox(width: 6),
+                    ...List.generate(
+                      v.numWeaponSlots,
+                      (i) => Padding(
+                        padding: const EdgeInsets.only(right: 6),
+                        child: _buildSlot(
+                          '武${i + 1}',
+                          i < _weapons.length ? _weapons[i] : null,
+                          Colors.red,
+                          () {
+                            if (i < _weapons.length)
+                              setState(() => _weapons.removeAt(i));
+                          },
+                          slotWidth,
+                        ),
+                      ),
+                    ),
+                    ...List.generate(
+                      v.numWheelSlots,
+                      (i) => Padding(
+                        padding: const EdgeInsets.only(right: 6),
+                        child: _buildSlot(
+                          '轮${i + 1}',
+                          i < _wheels.length ? _wheels[i] : null,
+                          Colors.green,
+                          () {
+                            if (i < _wheels.length)
+                              setState(() => _wheels.removeAt(i));
+                          },
+                          slotWidth,
+                        ),
+                      ),
+                    ),
+                    ...List.generate(
+                      v.numGadgetSlots,
+                      (i) => Padding(
+                        padding: const EdgeInsets.only(right: 6),
+                        child: _buildSlot(
+                          '装${i + 1}',
+                          i < _gadgets.length ? _gadgets[i] : null,
+                          Colors.purple,
+                          () {
+                            if (i < _gadgets.length)
+                              setState(() => _gadgets.removeAt(i));
+                          },
+                          slotWidth,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _statChip(String label, String value, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(4),
+      ),
+      child: Text(
+        '$label${value.isNotEmpty ? ' $value' : ''}',
+        style: TextStyle(
+          fontSize: 10,
+          color: color,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSlot(
+    String label,
+    PartData? part,
+    Color color,
+    VoidCallback onRemove,
+    double w,
+  ) {
+    return GestureDetector(
+      onTap: part != null ? onRemove : null,
+      child: Container(
+        width: w,
+        decoration: BoxDecoration(
+          border: Border.all(color: color, width: part != null ? 2 : 1),
+          borderRadius: BorderRadius.circular(6),
+          color: part != null ? color.withValues(alpha: 0.15) : Colors.white,
+        ),
+        child: part != null
+            ? _buildSlotContent(part, color)
+            : Center(
+                child: Text(
+                  label,
+                  style: TextStyle(fontSize: 11, color: Colors.grey[500]),
+                ),
+              ),
+      ),
+    );
+  }
+
+  Widget _buildSlotContent(PartData part, Color color) {
+    final lv = _level(part);
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Text(
+          pn(part, widget.locale),
+          style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold),
+          textAlign: TextAlign.center,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
+        Text(
+          'Lv$lv HP${part.hp(lv).floor()} ATK${part.atk(lv).floor()}',
+          style: TextStyle(fontSize: 8, color: Colors.grey[700]),
+        ),
+        SizedBox(
+          width: 60,
+          height: 18,
+          child: DropdownButtonHideUnderline(
+            child: DropdownButton<int>(
+              value: lv.clamp(1, part.maxLevel),
+              isDense: true,
+              isExpanded: true,
+              style: const TextStyle(fontSize: 10, color: Colors.black),
+              items: List.generate(
+                part.maxLevel,
+                (i) =>
+                    DropdownMenuItem(value: i + 1, child: Text('Lv${i + 1}')),
+              ),
+              onChanged: (v) => setState(() => _partLevels[part.id] = v!),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildButtonRow() {
+    /* unchanged - same as before */
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+      child: Row(
+        children: [
+          Expanded(
+            child: ElevatedButton.icon(
+              onPressed: () => setState(() => _isAssemblyMode = true),
+              icon: const Icon(Icons.handyman, size: 20),
+              label: const Text('组车', style: TextStyle(fontSize: 16)),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: _isAssemblyMode ? Colors.blue : Colors.grey,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 12),
+              ),
+            ),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: ElevatedButton.icon(
+              onPressed: () => setState(() => _isAssemblyMode = false),
+              icon: const Icon(Icons.bar_chart, size: 20),
+              label: const Text('数据展示', style: TextStyle(fontSize: 16)),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: !_isAssemblyMode ? Colors.teal : Colors.grey,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 12),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ==================== 部件备选区 ====================
+  Widget _buildPartsSelector() {
+    final parts = PartDatabase.filterByCategory(_selectedCategory);
+    return Expanded(
+      child: Column(
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(vertical: 4),
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: PartCategory.values.map((cat) {
+                  const labels = {
+                    PartCategory.body: '车身',
+                    PartCategory.weapon: '武器',
+                    PartCategory.wheel: '车轮',
+                    PartCategory.gadget: '装置',
+                  };
+                  const icons = {
+                    PartCategory.body: Icons.directions_car,
+                    PartCategory.weapon: Icons.gps_fixed,
+                    PartCategory.wheel: Icons.radio_button_checked,
+                    PartCategory.gadget: Icons.build,
+                  };
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 4),
+                    child: ChoiceChip(
+                      label: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(icons[cat]!, size: 16),
+                          const SizedBox(width: 4),
+                          Text(labels[cat]!),
+                        ],
+                      ),
+                      selected: _selectedCategory == cat,
+                      onSelected: (_) =>
+                          setState(() => _selectedCategory = cat),
+                    ),
+                  );
+                }).toList(),
+              ),
+            ),
+          ),
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              child: GridView.builder(
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 3,
+                  childAspectRatio: 1.3,
+                  crossAxisSpacing: 6,
+                  mainAxisSpacing: 6,
+                ),
+                itemCount: parts.length,
+                itemBuilder: (_, i) => _buildPartCard(parts[i]),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPartCard(PartData part) {
+    final isUsed = part.category == PartCategory.body
+        ? _body?.id == part.id
+        : part.category == PartCategory.weapon
+        ? _weapons.any((p) => p.id == part.id)
+        : part.category == PartCategory.wheel
+        ? _wheels.any((p) => p.id == part.id)
+        : _gadgets.any((p) => p.id == part.id);
+    return GestureDetector(
+      onTap: () => _isAssemblyMode ? _tryAddPart(part) : _showPartData(part),
+      child: Card(
+        color: _isAssemblyMode && isUsed
+            ? Colors.green[100]
+            : !_isAssemblyMode
+            ? Colors.teal[50]
+            : null,
+        elevation: isUsed ? 4 : 1,
         child: Padding(
-          padding: const EdgeInsets.all(32),
+          padding: const EdgeInsets.all(4),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(Icons.construction, size: 80, color: Colors.orange[300]),
-              const SizedBox(height: 24),
-              const Text(
-                '组车工具',
-                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 16),
               Text(
-                '功能开发中，敬请期待...',
-                style: TextStyle(fontSize: 16, color: Colors.grey[600]),
+                pn(part, widget.locale),
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                ),
+                textAlign: TextAlign.center,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
               ),
+              const SizedBox(height: 2),
+              if (part.hp1 > 0)
+                Text(
+                  'HP ${part.hp1}',
+                  style: TextStyle(fontSize: 10, color: Colors.grey[700]),
+                ),
+              if (part.atk1 > 0)
+                Text(
+                  'ATK ${part.atk1}',
+                  style: TextStyle(fontSize: 10, color: Colors.grey[700]),
+                ),
+              if (part.bonus != null)
+                Text(
+                  part.bonusLabel,
+                  style: TextStyle(fontSize: 9, color: Colors.orange[800]),
+                ),
+              if (!_isAssemblyMode)
+                const Icon(Icons.info_outline, size: 14, color: Colors.teal),
             ],
           ),
         ),
       ),
     );
+  }
+
+  void _tryAddPart(PartData part) {
+    setState(() {
+      switch (part.category) {
+        case PartCategory.body:
+          if (_body?.id == part.id) {
+            // 点击已装备的车身 → 移除车身和所有部件
+            _body = null;
+            _weapons.clear();
+            _wheels.clear();
+            _gadgets.clear();
+          } else {
+            // 更换车身 → 移除所有不兼容的部件
+            _body = part;
+            _partLevels[part.id] ??= 1;
+            _weapons.clear();
+            _wheels.clear();
+            _gadgets.clear();
+          }
+        case PartCategory.weapon:
+          if (_weapons.any((p) => p.id == part.id)) {
+            _weapons.removeWhere((p) => p.id == part.id);
+          } else {
+            _weapons.add(part);
+            _partLevels[part.id] ??= 1;
+          }
+        case PartCategory.wheel:
+          if (_wheels.any((p) => p.id == part.id)) {
+            _wheels.removeWhere((p) => p.id == part.id);
+          } else {
+            _wheels.add(part);
+            _partLevels[part.id] ??= 1;
+          }
+        case PartCategory.gadget:
+          if (_gadgets.any((p) => p.id == part.id)) {
+            _gadgets.removeWhere((p) => p.id == part.id);
+          } else {
+            _gadgets.add(part);
+            _partLevels[part.id] ??= 1;
+          }
+      }
+    });
+  }
+
+  void _showPartData(PartData part) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => _PartDataScreen(part: part, locale: widget.locale),
+      ),
+    );
+  }
+}
+
+// ==================== Navimoe 验证逻辑 ====================
+class CarValidation {
+  final bool ok;
+  final String error;
+  final double hp;
+  final double atk;
+  final int powerSupply;
+  final int powerConsumption;
+  final int numBodies;
+  final int numWeapons;
+  final int numWheels;
+  final int numGadgets;
+  final int numBodySlots;
+  final int numWeaponSlots;
+  final int numWheelSlots;
+  final int numGadgetSlots;
+  final int bodyBonusPct;
+  final int weaponBonusPct;
+  final int wheelBonusPct;
+  final int gadgetBonusPct;
+  final int sponsorBonusPct;
+
+  const CarValidation({
+    required this.ok,
+    required this.error,
+    required this.hp,
+    required this.atk,
+    required this.powerSupply,
+    required this.powerConsumption,
+    required this.numBodies,
+    required this.numWeapons,
+    required this.numWheels,
+    required this.numGadgets,
+    required this.numBodySlots,
+    required this.numWeaponSlots,
+    required this.numWheelSlots,
+    required this.numGadgetSlots,
+    required this.bodyBonusPct,
+    required this.weaponBonusPct,
+    required this.wheelBonusPct,
+    required this.gadgetBonusPct,
+    required this.sponsorBonusPct,
+  });
+
+  factory CarValidation.empty() => CarValidation(
+    ok: true,
+    error: '',
+    hp: 0,
+    atk: 0,
+    powerSupply: 0,
+    powerConsumption: 0,
+    numBodies: 0,
+    numWeapons: 0,
+    numWheels: 0,
+    numGadgets: 0,
+    numBodySlots: 0,
+    numWeaponSlots: 0,
+    numWheelSlots: 0,
+    numGadgetSlots: 0,
+    bodyBonusPct: 0,
+    weaponBonusPct: 0,
+    wheelBonusPct: 0,
+    gadgetBonusPct: 0,
+    sponsorBonusPct: 0,
+  );
+
+  factory CarValidation.compute(
+    PartData? body,
+    List<PartData> weapons,
+    List<PartData> wheels,
+    List<PartData> gadgets,
+    Map<String, int> levels,
+  ) {
+    final allParts = <PartData>[];
+    if (body != null) allParts.add(body);
+    allParts.addAll(weapons);
+    allParts.addAll(wheels);
+    allParts.addAll(gadgets);
+
+    int lv(PartData p) => (levels[p.id] ?? 1).clamp(1, p.maxLevel);
+
+    // Slot limits from body
+    final numBodies = body != null ? 1 : 0;
+    final numWeapons = weapons.length;
+    final numWheels = wheels.length;
+    final numGadgets = gadgets.length;
+    final numBodySlots = 1;
+    final numWeaponSlots = body?.slots?.weapon ?? 0;
+    final numWheelSlots = body?.slots?.wheel ?? 0;
+    final numGadgetSlots = body?.slots?.gadget ?? 0;
+
+    // Power
+    final powerSupply = allParts.fold(
+      0,
+      (s, p) => s + (p.power > 0 ? p.power : 0),
+    );
+    final powerConsumption = allParts.fold(
+      0,
+      (s, p) => s + (p.power < 0 ? -p.power : 0),
+    );
+
+    // Bonuses
+    final bodyBonusPct = allParts.fold(
+      0,
+      (s, p) =>
+          s + (p.bonus?.category == PartCategory.body ? p.bonus!.percent : 0),
+    );
+    final weaponBonusPct = allParts.fold(
+      0,
+      (s, p) =>
+          s + (p.bonus?.category == PartCategory.weapon ? p.bonus!.percent : 0),
+    );
+    final wheelBonusPct = allParts.fold(
+      0,
+      (s, p) =>
+          s + (p.bonus?.category == PartCategory.wheel ? p.bonus!.percent : 0),
+    );
+    final gadgetBonusPct = allParts.fold(
+      0,
+      (s, p) =>
+          s + (p.bonus?.category == PartCategory.gadget ? p.bonus!.percent : 0),
+    );
+
+    // Sponsor bonus: 3+ same sponsor → 10% + (count-3)*5%
+    final sponsorCounts = <Sponsor, int>{};
+    for (final p in allParts)
+      if (p.sponsor != Sponsor.none)
+        sponsorCounts[p.sponsor] = (sponsorCounts[p.sponsor] ?? 0) + 1;
+    int sponsorBonusPct = 0;
+    for (final cnt in sponsorCounts.values) {
+      if (cnt >= 3) sponsorBonusPct += 10 + (cnt - 3) * 5;
+    }
+
+    // HP: bodyHp*(1+bodyBonus/100) + wheelHp*(1+wheelBonus/100) + gadgetHp*(1+gadgetBonus/100)
+    double bodyHp = 0, wheelHp = 0, gadgetHp = 0, weaponAtk = 0, wheelAtk = 0;
+    for (final p in allParts) {
+      final hp = p.hp(lv(p));
+      final atk = p.atk(lv(p));
+      if (p.category == PartCategory.body) bodyHp += hp;
+      if (p.category == PartCategory.wheel) {
+        wheelHp += hp;
+        wheelAtk += atk;
+      }
+      if (p.category == PartCategory.gadget) gadgetHp += hp;
+      if (p.category == PartCategory.weapon) weaponAtk += atk;
+    }
+    double hp =
+        bodyHp * (1 + bodyBonusPct / 100.0) +
+        wheelHp * (1 + wheelBonusPct / 100.0) +
+        gadgetHp * (1 + gadgetBonusPct / 100.0);
+    double atk =
+        weaponAtk * (1 + weaponBonusPct / 100.0) +
+        wheelAtk * (1 + wheelBonusPct / 100.0);
+    hp *= 1 + sponsorBonusPct / 100.0;
+    atk *= 1 + sponsorBonusPct / 100.0;
+
+    // Validation
+    String error = '';
+    if (numBodies == 0)
+      error = '缺少车身';
+    else if (numBodies > 1)
+      error = '车身过多';
+    else {
+      if (numWeapons > numWeaponSlots)
+        error = '武器过多 ($numWeapons/$numWeaponSlots)';
+      else if (numWheels > numWheelSlots)
+        error = '车轮过多 ($numWheels/$numWheelSlots)';
+      else if (numGadgets > numGadgetSlots)
+        error = '装置过多 ($numGadgets/$numGadgetSlots)';
+      else if (powerConsumption > powerSupply)
+        error = '电力不足 ($powerConsumption/$powerSupply)';
+    }
+    final ok = error.isEmpty;
+
+    return CarValidation(
+      ok: ok,
+      error: error,
+      hp: hp,
+      atk: atk,
+      powerSupply: powerSupply,
+      powerConsumption: powerConsumption,
+      numBodies: numBodies,
+      numWeapons: numWeapons,
+      numWheels: numWheels,
+      numGadgets: numGadgets,
+      numBodySlots: numBodySlots,
+      numWeaponSlots: numWeaponSlots,
+      numWheelSlots: numWheelSlots,
+      numGadgetSlots: numGadgetSlots,
+      bodyBonusPct: bodyBonusPct,
+      weaponBonusPct: weaponBonusPct,
+      wheelBonusPct: wheelBonusPct,
+      gadgetBonusPct: gadgetBonusPct,
+      sponsorBonusPct: sponsorBonusPct,
+    );
+  }
+}
+
+// ==================== 部件数据展示界面 ====================
+class _PartDataScreen extends StatelessWidget {
+  final PartData part;
+  final String locale;
+  const _PartDataScreen({required this.part, this.locale = 'zh'});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: Text(pn(part, locale)), centerTitle: true),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          children: [
+            // ---- 概览卡片 ----
+            Card(
+              color: _categoryColor(part.category).withValues(alpha: 0.08),
+              child: Padding(
+                padding: const EdgeInsets.all(12),
+                child: Row(
+                  children: [
+                    Icon(
+                      _categoryIcon(part.category),
+                      size: 40,
+                      color: _categoryColor(part.category),
+                    ),
+                    const SizedBox(width: 12),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          pn(part, locale),
+                          style: const TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        Text(
+                          '${part.categoryLabel} · ${part.rarityLabel} · ${part.sponsorLabel.isNotEmpty ? part.sponsorLabel : "无赞助"}',
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: Colors.grey[600],
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'EN: ${part.name}${part.nameZh.isNotEmpty ? '  ·  ZH: ${part.nameZh}' : ''}${part.nameJa.isNotEmpty ? '  ·  JA: ${part.nameJa}' : ''}',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey[500],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 8),
+            // ---- 基础属性 ----
+            if (part.hp1 > 0) _chip('HP 基础', part.hp1.toString(), Colors.blue),
+            if (part.atk1 > 0)
+              _chip('ATK 基础', part.atk1.toString(), Colors.red),
+            _chip(
+              '电力',
+              part.power >= 0 ? '+${part.power}' : part.power.toString(),
+              Colors.amber[800]!,
+            ),
+            if (part.slots != null) _chip('插槽', part.slotsLabel, Colors.grey),
+            if (part.bonus != null) _chip('加成', part.bonusLabel, Colors.orange),
+            if (part.partClass != PartClass.none)
+              _chip('类型', part.classLabel, Colors.brown),
+            if (part.mHp1 > 0)
+              _chip('随从HP基础', part.mHp1.toString(), Colors.teal),
+            const SizedBox(height: 12),
+            // ---- 等级数据 + 升级费用表 ----
+            const Text(
+              '各等级数据与升级费用',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: DataTable(
+                columnSpacing: 12,
+                headingRowColor: WidgetStateProperty.all(Colors.blue[50]),
+                columns: const [
+                  DataColumn(
+                    label: Text(
+                      'Lv',
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                  DataColumn(
+                    label: Text(
+                      'Stats',
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                  DataColumn(
+                    label: Text(
+                      'Increment',
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                  DataColumn(
+                    label: Text(
+                      '碎片',
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                  DataColumn(
+                    label: Text(
+                      '紫票',
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                  DataColumn(
+                    label: Text(
+                      '代币',
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                  DataColumn(
+                    label: Text(
+                      'Inc./kCash',
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                  DataColumn(
+                    label: Text(
+                      'Inc./Token',
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                ],
+                rows: () {
+                  final costs = upgradeCosts[part.rarity] ?? [];
+                  final rows = <DataRow>[];
+                  final showHp = part.hp1 > 0;
+                  double? prevStats;
+
+                  for (int i = 0; i < part.maxLevel; i++) {
+                    final lv = i + 1;
+                    final stats = showHp ? part.hp(lv) : part.atk(lv);
+                    final inc = prevStats != null ? stats - prevStats : 0;
+                    final cost = lv < costs.length ? costs[lv] : costs.last;
+
+                    // costs[i] 已经是 Navimoe 的每级增量，直接用
+                    final incPieces = cost.pieces;
+                    final incCash = cost.cash;
+                    final incToken = cost.token;
+
+                    final incPerKCash = incCash > 0
+                        ? (inc / incCash * 1000).toStringAsFixed(2)
+                        : 'N/A';
+                    final incPerToken = incToken > 0
+                        ? (inc / incToken).toStringAsFixed(2)
+                        : 'N/A';
+
+                    rows.add(
+                      DataRow(
+                        cells: [
+                          DataCell(
+                            Text(
+                              '$lv',
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                          DataCell(
+                            Text(
+                              '${stats.floor()}',
+                              style: const TextStyle(fontSize: 13),
+                            ),
+                          ),
+                          DataCell(
+                            Text(
+                              i == 0 ? '${stats.floor()}' : '+${inc.floor()}',
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: i > 0 ? Colors.green : Colors.grey,
+                              ),
+                            ),
+                          ),
+                          DataCell(
+                            Text(
+                              '$incPieces',
+                              style: const TextStyle(fontSize: 13),
+                            ),
+                          ),
+                          DataCell(
+                            Text(
+                              '$incCash',
+                              style: const TextStyle(fontSize: 13),
+                            ),
+                          ),
+                          DataCell(
+                            Text(
+                              '$incToken',
+                              style: const TextStyle(fontSize: 13),
+                            ),
+                          ),
+                          DataCell(
+                            Text(
+                              incPerKCash,
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: incCash > 0 ? Colors.black : Colors.grey,
+                              ),
+                            ),
+                          ),
+                          DataCell(
+                            Text(
+                              incPerToken,
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: incToken > 0
+                                    ? Colors.black
+                                    : Colors.grey,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+
+                    prevStats = stats;
+                  }
+                  return rows;
+                }(),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _chip(String label, String value, Color color) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2),
+      child: Row(
+        children: [
+          SizedBox(
+            width: 100,
+            child: Text(
+              label,
+              style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+            ),
+          ),
+          Expanded(
+            child: Text(
+              value,
+              style: TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.bold,
+                color: color,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  IconData _categoryIcon(PartCategory c) {
+    switch (c) {
+      case PartCategory.body:
+        return Icons.directions_car;
+      case PartCategory.weapon:
+        return Icons.gps_fixed;
+      case PartCategory.wheel:
+        return Icons.radio_button_checked;
+      case PartCategory.gadget:
+        return Icons.build;
+    }
+  }
+
+  Color _categoryColor(PartCategory c) {
+    switch (c) {
+      case PartCategory.body:
+        return Colors.orange;
+      case PartCategory.weapon:
+        return Colors.red;
+      case PartCategory.wheel:
+        return Colors.green;
+      case PartCategory.gadget:
+        return Colors.purple;
+    }
   }
 }
 
@@ -1184,7 +2164,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (_) => const BuildToolScreen(),
+                          builder: (_) => BuildToolScreen(locale: locale),
                         ),
                       );
                     },
