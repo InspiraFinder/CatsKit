@@ -8,7 +8,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import 'parts_data.dart';
 
-const String appVersion = '0.2.1';
+const String appVersion = '0.2.2';
 
 /// 获取部件在当前语言下的显示名称
 String pn(PartData part, String? locale) {
@@ -1735,9 +1735,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   static const List<String> _presetMirrors = [
     '',
-    'https://ghproxy.com/', // 可用
-    'https://ghproxy.net/', // 部分情况可用
+    'https://ghproxy.com/',
+    'https://ghproxy.net/',
     'https://gh-proxy.com/',
+    'https://gh.xiu2.xyz/',
+    'https://mirror.ghproxy.com/',
   ];
 
   // 网页工具（非API代理，仅做参考）
@@ -1770,18 +1772,43 @@ class _SettingsScreenState extends State<SettingsScreen> {
     return '$base$originalUrl';
   }
 
-  /// 尝试多个 URL（直连+镜像），遇到 SocketException 自动重试下一个
+  /// 手动解析域名（先试系统默认，失败则强制 IPv4），兼容 Android DNS 问题
+  Future<String> _resolveHost(String host) async {
+    try {
+      final list = await InternetAddress.lookup(host);
+      if (list.isNotEmpty) return list.first.address;
+    } catch (_) {}
+    // 默认失败时尝试仅 IPv4
+    try {
+      final list = await InternetAddress.lookup(
+        host,
+        type: InternetAddressType.IPv4,
+      );
+      if (list.isNotEmpty) return list.first.address;
+    } catch (_) {}
+    throw SocketException('无法解析域名: $host');
+  }
+
+  /// 尝试多个 URL，自动 DNS 回退 + 镜像轮询
   Future<HttpClientResponse> _tryFetchUrls(
     HttpClient client,
     List<String> urls, {
     Map<String, String>? headers,
   }) async {
     String? lastError;
+    int dnsFailures = 0;
     for (final url in urls) {
       try {
+        final uri = Uri.parse(url);
+        // 先手动解析 DNS（兼容 Android 上 HttpClient 内部 DNS 失败的情况）
+        final ip = await _resolveHost(uri.host);
+        final ipUri = uri.replace(host: ip);
+
         final request = await client
-            .getUrl(Uri.parse(url))
+            .getUrl(ipUri)
             .timeout(const Duration(seconds: 15));
+        // 保留原始 Host 头，避免 CDN / 反向代理校验失败
+        request.headers.set('Host', uri.host);
         if (headers != null) {
           for (final e in headers.entries) {
             request.headers.set(e.key, e.value);
@@ -1790,15 +1817,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
         return await request.close();
       } catch (e) {
         lastError = e.toString();
-        // SocketException (DNS 失败) 时继续尝试下一个镜像
-        if (e is SocketException) {
-          continue;
-        }
-        // 非 DNS 错误也继续尝试
+        if (e is SocketException) dnsFailures++;
         continue;
       }
     }
-    throw Exception('所有连接均失败，最后错误: $lastError');
+    final hint = dnsFailures > 0
+        ? '（所有域名均无法解析，可能是网络环境限制，'
+              '请尝试使用 VPN 或切换 Wi-Fi/移动网络）'
+        : '';
+    throw Exception('下载失败: $lastError$hint');
   }
 
   /// 生成直连 + 所有可用镜像的 URL 列表
@@ -2468,9 +2495,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             subtitle: Text('Navimoe C.A.T.S. Engine'),
             trailing: const Icon(Icons.open_in_new, size: 18),
             onTap: () async {
-              final uri = Uri.parse(
-                'https://github.com/ProjectNavimoe/Navimoe',
-              );
+              final uri = Uri.parse('https://github.com/SAK-20744/Navimoe');
               if (await canLaunchUrl(uri)) {
                 await launchUrl(uri, mode: LaunchMode.externalApplication);
               } else if (context.mounted) {
