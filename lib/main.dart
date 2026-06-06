@@ -8,7 +8,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import 'parts_data.dart';
 
-const String appVersion = '0.2.2';
+const String appVersion = '0.2.3';
 
 /// 获取部件在当前语言下的显示名称
 String pn(PartData part, String? locale) {
@@ -1772,13 +1772,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
     return '$base$originalUrl';
   }
 
-  /// 手动解析域名（先试系统默认，失败则强制 IPv4），兼容 Android DNS 问题
+  /// 解析域名 -> IP，含 DNS-over-HTTPS 回退（绕过 Android 系统 DNS 缺陷）
   Future<String> _resolveHost(String host) async {
+    // 1) 系统 DNS
     try {
       final list = await InternetAddress.lookup(host);
       if (list.isNotEmpty) return list.first.address;
     } catch (_) {}
-    // 默认失败时尝试仅 IPv4
     try {
       final list = await InternetAddress.lookup(
         host,
@@ -1786,6 +1786,27 @@ class _SettingsScreenState extends State<SettingsScreen> {
       );
       if (list.isNotEmpty) return list.first.address;
     } catch (_) {}
+    // 2) DNS-over-HTTPS 回退（硬编码 IP 直连 Google/Cloudflare DoH）
+    for (final dohIp in ['8.8.8.8', '1.1.1.1']) {
+      try {
+        final dohClient = HttpClient()
+          ..connectionTimeout = const Duration(seconds: 10)
+          ..badCertificateCallback = (_, _, _) => true;
+        final dohUri = Uri.parse('https://$dohIp/resolve?name=$host&type=A');
+        final req = await dohClient.getUrl(dohUri);
+        req.headers.set('Accept', 'application/dns-json');
+        final res = await req.close().timeout(const Duration(seconds: 10));
+        final body = await res.transform(utf8.decoder).join();
+        dohClient.close(force: true);
+        final json = jsonDecode(body) as Map<String, dynamic>;
+        if (json['Answer'] != null) {
+          for (final a in json['Answer'] as List<dynamic>) {
+            final m = a as Map<String, dynamic>;
+            if (m['type'] == 1) return m['data'] as String;
+          }
+        }
+      } catch (_) {}
+    }
     throw SocketException('无法解析域名: $host');
   }
 
@@ -1796,18 +1817,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
     Map<String, String>? headers,
   }) async {
     String? lastError;
-    int dnsFailures = 0;
     for (final url in urls) {
       try {
         final uri = Uri.parse(url);
-        // 先手动解析 DNS（兼容 Android 上 HttpClient 内部 DNS 失败的情况）
         final ip = await _resolveHost(uri.host);
         final ipUri = uri.replace(host: ip);
 
         final request = await client
             .getUrl(ipUri)
             .timeout(const Duration(seconds: 15));
-        // 保留原始 Host 头，避免 CDN / 反向代理校验失败
         request.headers.set('Host', uri.host);
         if (headers != null) {
           for (final e in headers.entries) {
@@ -1817,15 +1835,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
         return await request.close();
       } catch (e) {
         lastError = e.toString();
-        if (e is SocketException) dnsFailures++;
         continue;
       }
     }
-    final hint = dnsFailures > 0
-        ? '（所有域名均无法解析，可能是网络环境限制，'
-              '请尝试使用 VPN 或切换 Wi-Fi/移动网络）'
-        : '';
-    throw Exception('下载失败: $lastError$hint');
+    throw Exception('下载失败: $lastError');
   }
 
   /// 生成直连 + 所有可用镜像的 URL 列表
