@@ -119,7 +119,7 @@ class PartData {
       case PartCategory.wheel:
         return '车轮';
       case PartCategory.gadget:
-        return '装置';
+        return '配件';
     }
   }
 
@@ -159,18 +159,18 @@ class PartData {
 
   String get slotsLabel {
     if (slots == null) return '';
-    return '武${slots!.weapon} 轮${slots!.wheel} 装${slots!.gadget}';
+    return '武${slots!.weapon} 轮${slots!.wheel} 配${slots!.gadget}';
   }
 
   String get bonusLabel {
     if (bonus == null) return '';
     final cat = bonus!.category == PartCategory.body
-        ? '身体'
+        ? '车身'
         : bonus!.category == PartCategory.weapon
         ? '武器'
         : bonus!.category == PartCategory.wheel
         ? '车轮'
-        : '装置';
+        : '配件';
     return '$cat +${bonus!.percent}%';
   }
 }

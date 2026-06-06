@@ -8,7 +8,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import 'parts_data.dart';
 
-const String appVersion = '0.2.4';
+const String appVersion = '0.3.0';
 
 /// 获取部件在当前语言下的显示名称
 String pn(PartData part, String? locale) {
@@ -671,29 +671,77 @@ class BuildToolScreen extends StatefulWidget {
   State<BuildToolScreen> createState() => _BuildToolScreenState();
 }
 
+/// 单个组车区的数据
+class _VehicleBuild {
+  PartData? body;
+  final weapons = <PartData>[];
+  final wheels = <PartData>[];
+  final gadgets = <PartData>[];
+
+  /// 该车辆中是否使用了指定部件
+  bool usesPart(PartData p) =>
+      body?.id == p.id ||
+      weapons.any((x) => x.id == p.id) ||
+      wheels.any((x) => x.id == p.id) ||
+      gadgets.any((x) => x.id == p.id);
+
+  void clear() {
+    body = null;
+    weapons.clear();
+    wheels.clear();
+    gadgets.clear();
+  }
+}
+
 class _BuildToolScreenState extends State<BuildToolScreen> {
   bool _isAssemblyMode = true;
   PartCategory _selectedCategory = PartCategory.body;
-  PartData? _body;
-  final List<PartData> _weapons = [];
-  final List<PartData> _wheels = [];
-  final List<PartData> _gadgets = [];
+  final List<_VehicleBuild> _vehicles = [_VehicleBuild()];
+  int _activeIndex = 0;
   final Map<String, int> _partLevels = {};
 
-  // ---- Navimoe 验证数据 ----
+  _VehicleBuild get _activeVehicle => _vehicles[_activeIndex];
   CarValidation _validation = CarValidation.empty();
 
   void _recalc() {
     _validation = CarValidation.compute(
-      _body,
-      _weapons,
-      _wheels,
-      _gadgets,
+      _activeVehicle.body,
+      _activeVehicle.weapons,
+      _activeVehicle.wheels,
+      _activeVehicle.gadgets,
       _partLevels,
     );
   }
 
   int _level(PartData p) => _partLevels[p.id] ?? 1;
+
+  /// 检查部件是否已被任意车辆使用
+  bool _isPartUsedAnywhere(PartData part) =>
+      _vehicles.any((v) => v.usesPart(part));
+
+  /// 新增车辆
+  void _addVehicle() {
+    setState(() {
+      _vehicles.add(_VehicleBuild());
+      _activeIndex = _vehicles.length - 1;
+    });
+  }
+
+  /// 删除车辆（至少保留一辆）
+  void _removeVehicle(int index) {
+    if (_vehicles.length <= 1) return;
+    setState(() {
+      // 清理被删车辆中部件记录的等级
+      final v = _vehicles[index];
+      for (final p in [v.body, ...v.weapons, ...v.wheels, ...v.gadgets]) {
+        if (p != null) _partLevels.remove(p.id);
+      }
+      _vehicles.removeAt(index);
+      if (_activeIndex >= _vehicles.length) {
+        _activeIndex = _vehicles.length - 1;
+      }
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -734,21 +782,41 @@ class _BuildToolScreenState extends State<BuildToolScreen> {
           ],
         ),
       ),
-      body: Column(
-        children: [
-          _buildAssemblyArea(),
-          const Divider(height: 1),
-          _buildButtonRow(),
-          const Divider(height: 1),
-          _buildPartsSelector(),
-        ],
+      body: SingleChildScrollView(
+        child: Column(
+          children: [
+            _buildAssemblyArea(),
+            _buildButtonRow(),
+            const Divider(height: 1),
+            _buildPartsSelector(),
+          ],
+        ),
       ),
     );
   }
 
   // ==================== 组车区 ====================
   Widget _buildAssemblyArea() {
-    final v = _validation;
+    return Column(
+      children: [
+        for (int i = 0; i < _vehicles.length; i++) ...[
+          _buildSingleVehicleArea(_vehicles[i], i),
+          if (i < _vehicles.length - 1) const Divider(height: 8),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildSingleVehicleArea(_VehicleBuild vh, int vi) {
+    final v = vi == _activeIndex
+        ? _validation
+        : CarValidation.compute(
+            vh.body,
+            vh.weapons,
+            vh.wheels,
+            vh.gadgets,
+            _partLevels,
+          );
     final powerOk = v.powerSupply >= v.powerConsumption;
     return Container(
       padding: const EdgeInsets.all(6),
@@ -756,6 +824,23 @@ class _BuildToolScreenState extends State<BuildToolScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // —— 删除按钮 ——
+          if (_vehicles.length > 1)
+            Align(
+              alignment: Alignment.centerRight,
+              child: TextButton.icon(
+                icon: const Icon(
+                  Icons.delete_outline,
+                  size: 16,
+                  color: Colors.red,
+                ),
+                label: const Text(
+                  '删除组车区',
+                  style: TextStyle(fontSize: 12, color: Colors.red),
+                ),
+                onPressed: () => _removeVehicle(vi),
+              ),
+            ),
           // ---- 状态行 ----
           Row(
             children: [
@@ -798,7 +883,7 @@ class _BuildToolScreenState extends State<BuildToolScreen> {
             children: [
               _statChip(
                 '插槽',
-                '武${v.numWeapons}/${v.numWeaponSlots} 轮${v.numWheels}/${v.numWheelSlots} 装${v.numGadgets}/${v.numGadgetSlots}',
+                '武${v.numWeapons}/${v.numWeaponSlots} 轮${v.numWheels}/${v.numWheelSlots} 配${v.numGadgets}/${v.numGadgetSlots}',
                 Colors.grey,
               ),
             ],
@@ -812,19 +897,23 @@ class _BuildToolScreenState extends State<BuildToolScreen> {
             Row(
               children: [
                 if (v.bodyBonusPct > 0)
-                  _statChip('身体+${v.bodyBonusPct}%', '', Colors.orange),
-                if (v.weaponBonusPct > 0) const SizedBox(width: 4),
-                if (v.weaponBonusPct > 0)
+                  _statChip('车身+${v.bodyBonusPct}%', '', Colors.orange),
+                if (v.weaponBonusPct > 0) ...[
+                  const SizedBox(width: 4),
                   _statChip('武器+${v.weaponBonusPct}%', '', Colors.red),
-                if (v.wheelBonusPct > 0) const SizedBox(width: 4),
-                if (v.wheelBonusPct > 0)
+                ],
+                if (v.wheelBonusPct > 0) ...[
+                  const SizedBox(width: 4),
                   _statChip('车轮+${v.wheelBonusPct}%', '', Colors.green),
-                if (v.gadgetBonusPct > 0) const SizedBox(width: 4),
-                if (v.gadgetBonusPct > 0)
-                  _statChip('装置+${v.gadgetBonusPct}%', '', Colors.purple),
-                if (v.sponsorBonusPct > 0) const SizedBox(width: 4),
-                if (v.sponsorBonusPct > 0)
+                ],
+                if (v.gadgetBonusPct > 0) ...[
+                  const SizedBox(width: 4),
+                  _statChip('配件+${v.gadgetBonusPct}%', '', Colors.purple),
+                ],
+                if (v.sponsorBonusPct > 0) ...[
+                  const SizedBox(width: 4),
                   _statChip('赞助+${v.sponsorBonusPct}%', '', Colors.teal),
+                ],
               ],
             ),
           ],
@@ -845,9 +934,9 @@ class _BuildToolScreenState extends State<BuildToolScreen> {
                   children: [
                     _buildSlot(
                       '车身',
-                      _body,
+                      vh.body,
                       Colors.orange,
-                      () => setState(() => _body = null),
+                      () => setState(() => vh.body = null),
                       slotWidth,
                     ),
                     const SizedBox(width: 6),
@@ -857,11 +946,11 @@ class _BuildToolScreenState extends State<BuildToolScreen> {
                         padding: const EdgeInsets.only(right: 6),
                         child: _buildSlot(
                           '武${i + 1}',
-                          i < _weapons.length ? _weapons[i] : null,
+                          i < vh.weapons.length ? vh.weapons[i] : null,
                           Colors.red,
                           () {
-                            if (i < _weapons.length)
-                              setState(() => _weapons.removeAt(i));
+                            if (i < vh.weapons.length)
+                              setState(() => vh.weapons.removeAt(i));
                           },
                           slotWidth,
                         ),
@@ -873,11 +962,11 @@ class _BuildToolScreenState extends State<BuildToolScreen> {
                         padding: const EdgeInsets.only(right: 6),
                         child: _buildSlot(
                           '轮${i + 1}',
-                          i < _wheels.length ? _wheels[i] : null,
+                          i < vh.wheels.length ? vh.wheels[i] : null,
                           Colors.green,
                           () {
-                            if (i < _wheels.length)
-                              setState(() => _wheels.removeAt(i));
+                            if (i < vh.wheels.length)
+                              setState(() => vh.wheels.removeAt(i));
                           },
                           slotWidth,
                         ),
@@ -888,12 +977,12 @@ class _BuildToolScreenState extends State<BuildToolScreen> {
                       (i) => Padding(
                         padding: const EdgeInsets.only(right: 6),
                         child: _buildSlot(
-                          '装${i + 1}',
-                          i < _gadgets.length ? _gadgets[i] : null,
+                          '配${i + 1}',
+                          i < vh.gadgets.length ? vh.gadgets[i] : null,
                           Colors.purple,
                           () {
-                            if (i < _gadgets.length)
-                              setState(() => _gadgets.removeAt(i));
+                            if (i < vh.gadgets.length)
+                              setState(() => vh.gadgets.removeAt(i));
                           },
                           slotWidth,
                         ),
@@ -994,7 +1083,6 @@ class _BuildToolScreenState extends State<BuildToolScreen> {
   }
 
   Widget _buildButtonRow() {
-    /* unchanged - same as before */
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
       child: Row(
@@ -1011,7 +1099,7 @@ class _BuildToolScreenState extends State<BuildToolScreen> {
               ),
             ),
           ),
-          const SizedBox(width: 16),
+          const SizedBox(width: 8),
           Expanded(
             child: ElevatedButton.icon(
               onPressed: () => setState(() => _isAssemblyMode = false),
@@ -1019,6 +1107,19 @@ class _BuildToolScreenState extends State<BuildToolScreen> {
               label: const Text('数据展示', style: TextStyle(fontSize: 16)),
               style: ElevatedButton.styleFrom(
                 backgroundColor: !_isAssemblyMode ? Colors.teal : Colors.grey,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 12),
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: ElevatedButton.icon(
+              onPressed: _addVehicle,
+              icon: const Icon(Icons.add, size: 20),
+              label: const Text('新增车辆', style: TextStyle(fontSize: 16)),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.green,
                 foregroundColor: Colors.white,
                 padding: const EdgeInsets.symmetric(vertical: 12),
               ),
@@ -1032,75 +1133,66 @@ class _BuildToolScreenState extends State<BuildToolScreen> {
   // ==================== 部件备选区 ====================
   Widget _buildPartsSelector() {
     final parts = PartDatabase.filterByCategory(_selectedCategory);
-    return Expanded(
-      child: Column(
-        children: [
-          Container(
-            padding: const EdgeInsets.symmetric(vertical: 4),
-            child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Row(
-                children: PartCategory.values.map((cat) {
-                  const labels = {
-                    PartCategory.body: '车身',
-                    PartCategory.weapon: '武器',
-                    PartCategory.wheel: '车轮',
-                    PartCategory.gadget: '装置',
-                  };
-                  const icons = {
-                    PartCategory.body: Icons.directions_car,
-                    PartCategory.weapon: Icons.gps_fixed,
-                    PartCategory.wheel: Icons.radio_button_checked,
-                    PartCategory.gadget: Icons.build,
-                  };
-                  return Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 4),
-                    child: ChoiceChip(
-                      label: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(icons[cat]!, size: 16),
-                          const SizedBox(width: 4),
-                          Text(labels[cat]!),
-                        ],
-                      ),
-                      selected: _selectedCategory == cat,
-                      onSelected: (_) =>
-                          setState(() => _selectedCategory = cat),
+    return Column(
+      children: [
+        Container(
+          padding: const EdgeInsets.symmetric(vertical: 4),
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: PartCategory.values.map((cat) {
+                const labels = {
+                  PartCategory.body: '车身',
+                  PartCategory.weapon: '武器',
+                  PartCategory.wheel: '车轮',
+                  PartCategory.gadget: '配件',
+                };
+                const icons = {
+                  PartCategory.body: Icons.directions_car,
+                  PartCategory.weapon: Icons.gps_fixed,
+                  PartCategory.wheel: Icons.radio_button_checked,
+                  PartCategory.gadget: Icons.build,
+                };
+                return Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 4),
+                  child: ChoiceChip(
+                    label: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(icons[cat]!, size: 16),
+                        const SizedBox(width: 4),
+                        Text(labels[cat]!),
+                      ],
                     ),
-                  );
-                }).toList(),
-              ),
+                    selected: _selectedCategory == cat,
+                    onSelected: (_) => setState(() => _selectedCategory = cat),
+                  ),
+                );
+              }).toList(),
             ),
           ),
-          Expanded(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 8),
-              child: GridView.builder(
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 3,
-                  childAspectRatio: 1.3,
-                  crossAxisSpacing: 6,
-                  mainAxisSpacing: 6,
-                ),
-                itemCount: parts.length,
-                itemBuilder: (_, i) => _buildPartCard(parts[i]),
-              ),
+        ),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 8),
+          child: GridView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 3,
+              childAspectRatio: 1.3,
+              crossAxisSpacing: 6,
+              mainAxisSpacing: 6,
             ),
+            itemCount: parts.length,
+            itemBuilder: (_, i) => _buildPartCard(parts[i]),
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
   Widget _buildPartCard(PartData part) {
-    final isUsed = part.category == PartCategory.body
-        ? _body?.id == part.id
-        : part.category == PartCategory.weapon
-        ? _weapons.any((p) => p.id == part.id)
-        : part.category == PartCategory.wheel
-        ? _wheels.any((p) => p.id == part.id)
-        : _gadgets.any((p) => p.id == part.id);
+    final isUsed = _isPartUsedAnywhere(part);
     return GestureDetector(
       onTap: () => _isAssemblyMode ? _tryAddPart(part) : _showPartData(part),
       child: Card(
@@ -1152,41 +1244,49 @@ class _BuildToolScreenState extends State<BuildToolScreen> {
 
   void _tryAddPart(PartData part) {
     setState(() {
+      final v = _activeVehicle;
+
+      // 如果已被其他车辆使用 → 先移除
+      for (final other in _vehicles) {
+        if (other == v) continue;
+        if (other.body?.id == part.id) other.body = null;
+        other.weapons.removeWhere((p) => p.id == part.id);
+        other.wheels.removeWhere((p) => p.id == part.id);
+        other.gadgets.removeWhere((p) => p.id == part.id);
+      }
+
       switch (part.category) {
         case PartCategory.body:
-          if (_body?.id == part.id) {
-            // 点击已装备的车身 → 移除车身和所有部件
-            _body = null;
-            _weapons.clear();
-            _wheels.clear();
-            _gadgets.clear();
+          if (v.body?.id == part.id) {
+            v.clear();
+            _partLevels.remove(part.id);
           } else {
-            // 更换车身 → 移除所有不兼容的部件
-            _body = part;
+            v.clear();
+            v.body = part;
             _partLevels[part.id] ??= 1;
-            _weapons.clear();
-            _wheels.clear();
-            _gadgets.clear();
           }
         case PartCategory.weapon:
-          if (_weapons.any((p) => p.id == part.id)) {
-            _weapons.removeWhere((p) => p.id == part.id);
+          if (v.weapons.any((p) => p.id == part.id)) {
+            v.weapons.removeWhere((p) => p.id == part.id);
+            _partLevels.remove(part.id);
           } else {
-            _weapons.add(part);
+            v.weapons.add(part);
             _partLevels[part.id] ??= 1;
           }
         case PartCategory.wheel:
-          if (_wheels.any((p) => p.id == part.id)) {
-            _wheels.removeWhere((p) => p.id == part.id);
+          if (v.wheels.any((p) => p.id == part.id)) {
+            v.wheels.removeWhere((p) => p.id == part.id);
+            _partLevels.remove(part.id);
           } else {
-            _wheels.add(part);
+            v.wheels.add(part);
             _partLevels[part.id] ??= 1;
           }
         case PartCategory.gadget:
-          if (_gadgets.any((p) => p.id == part.id)) {
-            _gadgets.removeWhere((p) => p.id == part.id);
+          if (v.gadgets.any((p) => p.id == part.id)) {
+            v.gadgets.removeWhere((p) => p.id == part.id);
+            _partLevels.remove(part.id);
           } else {
-            _gadgets.add(part);
+            v.gadgets.add(part);
             _partLevels[part.id] ??= 1;
           }
       }
@@ -1371,7 +1471,7 @@ class CarValidation {
       else if (numWheels > numWheelSlots)
         error = '车轮过多 ($numWheels/$numWheelSlots)';
       else if (numGadgets > numGadgetSlots)
-        error = '装置过多 ($numGadgets/$numGadgetSlots)';
+        error = '配件过多 ($numGadgets/$numGadgetSlots)';
       else if (powerConsumption > powerSupply)
         error = '电力不足 ($powerConsumption/$powerSupply)';
     }
@@ -1487,25 +1587,34 @@ class _PartDataScreen extends StatelessWidget {
               child: DataTable(
                 columnSpacing: 12,
                 headingRowColor: WidgetStateProperty.all(Colors.blue[50]),
-                columns: const [
+                columns: [
                   DataColumn(
                     label: Text(
                       'Lv',
                       style: TextStyle(fontWeight: FontWeight.bold),
                     ),
                   ),
-                  DataColumn(
-                    label: Text(
-                      'Stats',
-                      style: TextStyle(fontWeight: FontWeight.bold),
+                  if (part.hp1 > 0)
+                    DataColumn(
+                      label: Text(
+                        'HP',
+                        style: TextStyle(fontWeight: FontWeight.bold),
+                      ),
                     ),
-                  ),
-                  DataColumn(
-                    label: Text(
-                      'Increment',
-                      style: TextStyle(fontWeight: FontWeight.bold),
+                  if (part.atk1 > 0)
+                    DataColumn(
+                      label: Text(
+                        'ATK',
+                        style: TextStyle(fontWeight: FontWeight.bold),
+                      ),
                     ),
-                  ),
+                  if (part.mHp1 > 0)
+                    DataColumn(
+                      label: Text(
+                        locale == 'zh' ? '随从HP' : 'Minion HP',
+                        style: TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                    ),
                   DataColumn(
                     label: Text(
                       '碎片',
@@ -1526,13 +1635,13 @@ class _PartDataScreen extends StatelessWidget {
                   ),
                   DataColumn(
                     label: Text(
-                      'Inc./kCash',
+                      locale == 'zh' ? '提升/千紫票' : 'Inc./kCash',
                       style: TextStyle(fontWeight: FontWeight.bold),
                     ),
                   ),
                   DataColumn(
                     label: Text(
-                      'Inc./Token',
+                      locale == 'zh' ? '提升/代币' : 'Inc./Token',
                       style: TextStyle(fontWeight: FontWeight.bold),
                     ),
                   ),
@@ -1540,96 +1649,112 @@ class _PartDataScreen extends StatelessWidget {
                 rows: () {
                   final costs = upgradeCosts[part.rarity] ?? [];
                   final rows = <DataRow>[];
-                  final showHp = part.hp1 > 0;
-                  double? prevStats;
+                  final hasHp = part.hp1 > 0;
+                  final hasAtk = part.atk1 > 0;
+                  final hasMhp = part.mHp1 > 0;
+                  // 主属性用于计算效率：有HP用HP，否则用ATK
+                  double? prevMain;
 
                   for (int i = 0; i < part.maxLevel; i++) {
                     final lv = i + 1;
-                    final stats = showHp ? part.hp(lv) : part.atk(lv);
-                    final inc = prevStats != null ? stats - prevStats : 0;
+                    final hp = hasHp ? part.hp(lv) : 0.0;
+                    final atk = hasAtk ? part.atk(lv) : 0.0;
+                    final mhp = hasMhp ? part.mHp(lv) : 0.0;
+                    final prevHp = hasHp && i > 0 ? part.hp(lv - 1) : 0.0;
+                    final prevAtk = hasAtk && i > 0 ? part.atk(lv - 1) : 0.0;
+                    final mainStat = hasHp ? hp : atk;
+                    final mainInc = prevMain != null ? mainStat - prevMain : 0;
                     final cost = lv < costs.length ? costs[lv] : costs.last;
 
-                    // costs[i] 已经是 Navimoe 的每级增量，直接用
                     final incPieces = cost.pieces;
                     final incCash = cost.cash;
                     final incToken = cost.token;
 
                     final incPerKCash = incCash > 0
-                        ? (inc / incCash * 1000).toStringAsFixed(2)
+                        ? (mainInc / incCash * 1000).toStringAsFixed(2)
                         : 'N/A';
                     final incPerToken = incToken > 0
-                        ? (inc / incToken).toStringAsFixed(2)
+                        ? (mainInc / incToken).toStringAsFixed(2)
                         : 'N/A';
 
-                    rows.add(
-                      DataRow(
-                        cells: [
-                          DataCell(
-                            Text(
-                              '$lv',
-                              style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
-                          DataCell(
-                            Text(
-                              '${stats.floor()}',
-                              style: const TextStyle(fontSize: 13),
-                            ),
-                          ),
-                          DataCell(
-                            Text(
-                              i == 0 ? '${stats.floor()}' : '+${inc.floor()}',
-                              style: TextStyle(
-                                fontSize: 13,
-                                color: i > 0 ? Colors.green : Colors.grey,
-                              ),
-                            ),
-                          ),
-                          DataCell(
-                            Text(
-                              '$incPieces',
-                              style: const TextStyle(fontSize: 13),
-                            ),
-                          ),
-                          DataCell(
-                            Text(
-                              '$incCash',
-                              style: const TextStyle(fontSize: 13),
-                            ),
-                          ),
-                          DataCell(
-                            Text(
-                              '$incToken',
-                              style: const TextStyle(fontSize: 13),
-                            ),
-                          ),
-                          DataCell(
-                            Text(
-                              incPerKCash,
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: incCash > 0 ? Colors.black : Colors.grey,
-                              ),
-                            ),
-                          ),
-                          DataCell(
-                            Text(
-                              incPerToken,
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: incToken > 0
-                                    ? Colors.black
-                                    : Colors.grey,
-                              ),
-                            ),
-                          ),
-                        ],
+                    final cells = <DataCell>[
+                      DataCell(
+                        Text(
+                          '$lv',
+                          style: const TextStyle(fontWeight: FontWeight.bold),
+                        ),
                       ),
-                    );
+                    ];
 
-                    prevStats = stats;
+                    // HP 列
+                    if (hasHp) {
+                      cells.add(
+                        DataCell(
+                          Text(
+                            '${hp.floor()}${i > 0 ? ' (+${(hp - prevHp).floor()})' : ''}',
+                            style: const TextStyle(fontSize: 13),
+                          ),
+                        ),
+                      );
+                    }
+                    // ATK 列
+                    if (hasAtk) {
+                      cells.add(
+                        DataCell(
+                          Text(
+                            '${atk.floor()}${i > 0 ? ' (+${(atk - prevAtk).floor()})' : ''}',
+                            style: const TextStyle(fontSize: 13),
+                          ),
+                        ),
+                      );
+                    }
+                    // 随从HP列
+                    if (hasMhp) {
+                      cells.add(
+                        DataCell(
+                          Text(
+                            '${mhp.floor()}',
+                            style: TextStyle(fontSize: 13, color: Colors.teal),
+                          ),
+                        ),
+                      );
+                    }
+
+                    cells.addAll([
+                      DataCell(
+                        Text(
+                          '$incPieces',
+                          style: const TextStyle(fontSize: 13),
+                        ),
+                      ),
+                      DataCell(
+                        Text('$incCash', style: const TextStyle(fontSize: 13)),
+                      ),
+                      DataCell(
+                        Text('$incToken', style: const TextStyle(fontSize: 13)),
+                      ),
+                      DataCell(
+                        Text(
+                          incPerKCash,
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: incCash > 0 ? Colors.black : Colors.grey,
+                          ),
+                        ),
+                      ),
+                      DataCell(
+                        Text(
+                          incPerToken,
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: incToken > 0 ? Colors.black : Colors.grey,
+                          ),
+                        ),
+                      ),
+                    ]);
+
+                    rows.add(DataRow(cells: cells));
+                    prevMain = mainStat;
                   }
                   return rows;
                 }(),
@@ -1970,6 +2095,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
   }
 
+  /// 比较版本号字符串，返回 1 (a>b), -1 (a<b), 0 (a==b)
+  int _compareVersion(String a, String b) {
+    final pa = a.replaceFirst(RegExp(r'^v'), '').split('.');
+    final pb = b.replaceFirst(RegExp(r'^v'), '').split('.');
+    final len = pa.length > pb.length ? pa.length : pb.length;
+    for (int i = 0; i < len; i++) {
+      final va = int.tryParse(i < pa.length ? pa[i] : '0') ?? 0;
+      final vb = int.tryParse(i < pb.length ? pb[i] : '0') ?? 0;
+      if (va > vb) return 1;
+      if (va < vb) return -1;
+    }
+    return 0;
+  }
+
   void _processReleaseJson(Map<String, dynamic> json) {
     final tagName = json['tag_name'] as String? ?? 'unknown';
     final assets = json['assets'] as List<dynamic>? ?? [];
@@ -1980,6 +2119,22 @@ class _SettingsScreenState extends State<SettingsScreen> {
       _isDownloading = false;
       _isCheckingUpdate = false;
     });
+
+    // 对比版本号
+    final cmp = _compareVersion(tagName, appVersion);
+    if (cmp <= 0) {
+      // tag 版本 <= 当前版本 → 已是最新
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            locale == 'zh'
+                ? '已是最新版本 (v$appVersion)'
+                : 'Already up to date (v$appVersion)',
+          ),
+        ),
+      );
+      return;
+    }
 
     if (assets.isEmpty) {
       _updateUrlController.text =
@@ -2016,8 +2171,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('版本: $tagName'),
-            if (assetName.isNotEmpty) Text('文件: $assetName'),
+            Text('当前版本: v$appVersion'),
+            Text('最新版本: $tagName'),
+            const SizedBox(height: 4),
+            Text('文件: ${assetName.isNotEmpty ? assetName : "（无附件）"}'),
             const SizedBox(height: 8),
             const Text('下载地址已自动填入，点击"下载更新包"开始下载。'),
           ],
@@ -2237,121 +2394,128 @@ class _SettingsScreenState extends State<SettingsScreen> {
     BuildContext context,
     String locale,
   ) async {
+    // 先显示加载对话框
+    if (!context.mounted) return;
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const Center(child: CircularProgressIndicator()),
+    );
+
     final results = <String>[];
     void log(String msg) => results.add(msg);
 
-    log('===== 网络诊断 =====');
-    log('设备: Android');
-    log('');
+    try {
+      log('===== 网络诊断 =====');
+      log('设备: Android');
+      log('');
 
-    // 测试列表
-    final hosts = [
-      'api.github.com',
-      'github.com',
-      'google.com',
-      'ghproxy.com',
-      '223.5.5.5',
-      '114.114.114.114',
-    ];
+      final hosts = [
+        'api.github.com',
+        'github.com',
+        'google.com',
+        'ghproxy.com',
+        '223.5.5.5',
+        '114.114.114.114',
+      ];
 
-    // 1) InternetAddress.lookup 测试
-    log('--- 1) InternetAddress.lookup ---');
-    for (final host in hosts) {
-      try {
-        final list = await InternetAddress.lookup(host);
-        log('$host -> ${list.map((a) => a.address).join(', ')}');
-      } catch (e) {
-        log('$host -> ❌ $e');
-      }
-    }
-
-    // 2) DNS-over-HTTPS 测试
-    log('');
-    log('--- 2) DNS-over-HTTPS ---');
-    const dohList = [
-      '223.5.5.5',
-      '114.114.114.114',
-      '119.29.29.29',
-      '8.8.8.8',
-      '1.1.1.1',
-    ];
-    for (final dohIp in dohList) {
-      try {
-        final client = HttpClient()
-          ..connectionTimeout = const Duration(seconds: 8)
-          ..badCertificateCallback = (_, _, _) => true;
-        final uri = Uri.parse(
-          'https://$dohIp/resolve?name=api.github.com&type=A',
-        );
-        final req = await client.getUrl(uri);
-        req.headers.set('Accept', 'application/dns-json');
-        final res = await req.close().timeout(const Duration(seconds: 8));
-        final body = await res.transform(utf8.decoder).join();
-        client.close(force: true);
-        final json = jsonDecode(body) as Map<String, dynamic>;
-        if (json['Answer'] != null) {
-          final ips = (json['Answer'] as List)
-              .map((a) => (a as Map)['data'])
-              .join(', ');
-          log('DoH $dohIp -> $ips');
-        } else {
-          log('DoH $dohIp -> ❌ 无 Answer');
+      log('--- 1) InternetAddress.lookup ---');
+      for (final host in hosts) {
+        try {
+          final list = await InternetAddress.lookup(host);
+          log('$host -> ${list.map((a) => a.address).join(', ')}');
+        } catch (e) {
+          log('$host -> ❌ $e');
         }
-      } catch (e) {
-        log('DoH $dohIp -> ❌ $e');
       }
-    }
 
-    // 3) 实际 HTTPS 连通性测试
-    log('');
-    log('--- 3) HTTPS 连通性 (api.github.com) ---');
-    for (final dohIp in dohList) {
-      try {
-        final client = HttpClient()
-          ..connectionTimeout = const Duration(seconds: 8)
-          ..badCertificateCallback = (_, _, _) => true;
-        // 通过 DoH 获取 api.github.com 的 IP
-        final dohUri = Uri.parse(
-          'https://$dohIp/resolve?name=api.github.com&type=A',
-        );
-        final req = await client.getUrl(dohUri);
-        req.headers.set('Accept', 'application/dns-json');
-        final res = await req.close().timeout(const Duration(seconds: 8));
-        final body = await res.transform(utf8.decoder).join();
-        final json = jsonDecode(body) as Map<String, dynamic>;
-        String? ip;
-        if (json['Answer'] != null) {
-          for (final a in json['Answer'] as List) {
-            final m = a as Map<String, dynamic>;
-            if (m['type'] == 1) {
-              ip = m['data'] as String;
-              break;
+      log('');
+      log('--- 2) DNS-over-HTTPS ---');
+      const dohList = [
+        '223.5.5.5',
+        '114.114.114.114',
+        '119.29.29.29',
+        '8.8.8.8',
+        '1.1.1.1',
+      ];
+      for (final dohIp in dohList) {
+        try {
+          final client = HttpClient()
+            ..connectionTimeout = const Duration(seconds: 8)
+            ..badCertificateCallback = (_, _, _) => true;
+          final uri = Uri.parse(
+            'https://$dohIp/resolve?name=api.github.com&type=A',
+          );
+          final req = await client.getUrl(uri);
+          req.headers.set('Accept', 'application/dns-json');
+          final res = await req.close().timeout(const Duration(seconds: 8));
+          final body = await res.transform(utf8.decoder).join();
+          client.close(force: true);
+          final json = jsonDecode(body) as Map<String, dynamic>;
+          if (json['Answer'] != null) {
+            final ips = (json['Answer'] as List)
+                .map((a) => (a as Map)['data'])
+                .join(', ');
+            log('DoH $dohIp -> $ips');
+          } else {
+            log('DoH $dohIp -> ❌ 无 Answer');
+          }
+        } catch (e) {
+          log('DoH $dohIp -> ❌ $e');
+        }
+      }
+
+      log('');
+      log('--- 3) HTTPS 连通性 (api.github.com) ---');
+      for (final dohIp in dohList) {
+        try {
+          final client = HttpClient()
+            ..connectionTimeout = const Duration(seconds: 8)
+            ..badCertificateCallback = (_, _, _) => true;
+          final dohUri = Uri.parse(
+            'https://$dohIp/resolve?name=api.github.com&type=A',
+          );
+          final req = await client.getUrl(dohUri);
+          req.headers.set('Accept', 'application/dns-json');
+          final res = await req.close().timeout(const Duration(seconds: 8));
+          final body = await res.transform(utf8.decoder).join();
+          final json = jsonDecode(body) as Map<String, dynamic>;
+          String? ip;
+          if (json['Answer'] != null) {
+            for (final a in json['Answer'] as List) {
+              final m = a as Map<String, dynamic>;
+              if (m['type'] == 1) {
+                ip = m['data'] as String;
+                break;
+              }
             }
           }
+          if (ip == null) {
+            log('Via $dohIp -> ❌ 解析失败');
+            continue;
+          }
+          final testUri = Uri.parse('https://$ip');
+          final testReq = await client
+              .getUrl(testUri)
+              .timeout(const Duration(seconds: 10));
+          testReq.headers.set('Host', 'api.github.com');
+          testReq.headers.set('User-Agent', 'CatsKit');
+          testReq.headers.set('Accept', 'application/vnd.github+json');
+          final testRes = await testReq.close();
+          log('Via $dohIp (IP=$ip) -> HTTP ${testRes.statusCode}');
+          client.close(force: true);
+        } catch (e) {
+          log('Via $dohIp -> ❌ $e');
         }
-        if (ip == null) {
-          log('Via $dohIp -> ❌ 解析失败');
-          continue;
-        }
-
-        // 用解析到的 IP 直连
-        final testUri = Uri.parse('https://$ip');
-        final testReq = await client
-            .getUrl(testUri)
-            .timeout(const Duration(seconds: 10));
-        testReq.headers.set('Host', 'api.github.com');
-        testReq.headers.set('User-Agent', 'CatsKit');
-        testReq.headers.set('Accept', 'application/vnd.github+json');
-        final testRes = await testReq.close();
-        log('Via $dohIp (IP=$ip) -> HTTP ${testRes.statusCode}');
-        client.close(force: true);
-      } catch (e) {
-        log('Via $dohIp -> ❌ $e');
       }
+    } catch (e) {
+      log('');
+      log('‼️ 诊断程序异常: $e');
     }
 
-    // 显示结果
+    // 关闭加载，显示结果
     if (!context.mounted) return;
+    Navigator.of(context, rootNavigator: true).pop(); // 关加载
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
