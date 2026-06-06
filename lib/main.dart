@@ -1786,8 +1786,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
       );
       if (list.isNotEmpty) return list.first.address;
     } catch (_) {}
-    // 2) DNS-over-HTTPS 回退（硬编码 IP 直连 Google/Cloudflare DoH）
-    for (final dohIp in ['8.8.8.8', '1.1.1.1']) {
+    // 2) DNS-over-HTTPS 回退（硬编码 IP，绕过系统 DNS 缺陷）
+    // 国内可用：Alibaba(223.5.5.5), 114DNS(114.114.114.114), Tencent(119.29.29.29)
+    // 海外可用：Google(8.8.8.8), Cloudflare(1.1.1.1)
+    for (final dohIp in [
+      '223.5.5.5',
+      '114.114.114.114',
+      '119.29.29.29',
+      '8.8.8.8',
+      '1.1.1.1',
+    ]) {
       try {
         final dohClient = HttpClient()
           ..connectionTimeout = const Duration(seconds: 10)
@@ -2225,6 +2233,148 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
+  Future<void> _showNetworkDiagnosis(
+    BuildContext context,
+    String locale,
+  ) async {
+    final results = <String>[];
+    void log(String msg) => results.add(msg);
+
+    log('===== 网络诊断 =====');
+    log('设备: Android');
+    log('');
+
+    // 测试列表
+    final hosts = [
+      'api.github.com',
+      'github.com',
+      'google.com',
+      'ghproxy.com',
+      '223.5.5.5',
+      '114.114.114.114',
+    ];
+
+    // 1) InternetAddress.lookup 测试
+    log('--- 1) InternetAddress.lookup ---');
+    for (final host in hosts) {
+      try {
+        final list = await InternetAddress.lookup(host);
+        log('$host -> ${list.map((a) => a.address).join(', ')}');
+      } catch (e) {
+        log('$host -> ❌ $e');
+      }
+    }
+
+    // 2) DNS-over-HTTPS 测试
+    log('');
+    log('--- 2) DNS-over-HTTPS ---');
+    const dohList = [
+      '223.5.5.5',
+      '114.114.114.114',
+      '119.29.29.29',
+      '8.8.8.8',
+      '1.1.1.1',
+    ];
+    for (final dohIp in dohList) {
+      try {
+        final client = HttpClient()
+          ..connectionTimeout = const Duration(seconds: 8)
+          ..badCertificateCallback = (_, _, _) => true;
+        final uri = Uri.parse(
+          'https://$dohIp/resolve?name=api.github.com&type=A',
+        );
+        final req = await client.getUrl(uri);
+        req.headers.set('Accept', 'application/dns-json');
+        final res = await req.close().timeout(const Duration(seconds: 8));
+        final body = await res.transform(utf8.decoder).join();
+        client.close(force: true);
+        final json = jsonDecode(body) as Map<String, dynamic>;
+        if (json['Answer'] != null) {
+          final ips = (json['Answer'] as List)
+              .map((a) => (a as Map)['data'])
+              .join(', ');
+          log('DoH $dohIp -> $ips');
+        } else {
+          log('DoH $dohIp -> ❌ 无 Answer');
+        }
+      } catch (e) {
+        log('DoH $dohIp -> ❌ $e');
+      }
+    }
+
+    // 3) 实际 HTTPS 连通性测试
+    log('');
+    log('--- 3) HTTPS 连通性 (api.github.com) ---');
+    for (final dohIp in dohList) {
+      try {
+        final client = HttpClient()
+          ..connectionTimeout = const Duration(seconds: 8)
+          ..badCertificateCallback = (_, _, _) => true;
+        // 通过 DoH 获取 api.github.com 的 IP
+        final dohUri = Uri.parse(
+          'https://$dohIp/resolve?name=api.github.com&type=A',
+        );
+        final req = await client.getUrl(dohUri);
+        req.headers.set('Accept', 'application/dns-json');
+        final res = await req.close().timeout(const Duration(seconds: 8));
+        final body = await res.transform(utf8.decoder).join();
+        final json = jsonDecode(body) as Map<String, dynamic>;
+        String? ip;
+        if (json['Answer'] != null) {
+          for (final a in json['Answer'] as List) {
+            final m = a as Map<String, dynamic>;
+            if (m['type'] == 1) {
+              ip = m['data'] as String;
+              break;
+            }
+          }
+        }
+        if (ip == null) {
+          log('Via $dohIp -> ❌ 解析失败');
+          continue;
+        }
+
+        // 用解析到的 IP 直连
+        final testUri = Uri.parse('https://$ip');
+        final testReq = await client
+            .getUrl(testUri)
+            .timeout(const Duration(seconds: 10));
+        testReq.headers.set('Host', 'api.github.com');
+        testReq.headers.set('User-Agent', 'CatsKit');
+        testReq.headers.set('Accept', 'application/vnd.github+json');
+        final testRes = await testReq.close();
+        log('Via $dohIp (IP=$ip) -> HTTP ${testRes.statusCode}');
+        client.close(force: true);
+      } catch (e) {
+        log('Via $dohIp -> ❌ $e');
+      }
+    }
+
+    // 显示结果
+    if (!context.mounted) return;
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('网络诊断结果'),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: SingleChildScrollView(
+            child: SelectableText(
+              results.join('\n'),
+              style: const TextStyle(fontSize: 12, fontFamily: 'monospace'),
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('关闭'),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -2521,6 +2671,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 );
               }
             },
+          ),
+          const Divider(),
+          // ---- 网络诊断 ----
+          ListTile(
+            leading: const Icon(Icons.bug_report, color: Colors.deepOrange),
+            title: Text(locale == 'zh' ? '网络诊断' : 'Network Diagnosis'),
+            subtitle: Text(
+              locale == 'zh' ? '检测 DNS 解析和网络连通性' : 'Test DNS & connectivity',
+            ),
+            trailing: const Icon(Icons.chevron_right, size: 18),
+            onTap: () => _showNetworkDiagnosis(context, locale),
           ),
           const SizedBox(height: 20),
           Padding(
