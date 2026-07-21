@@ -112,7 +112,24 @@ class _TimeCalcScreenState extends State<TimeCalcScreen> {
 
   /// Android：使用 Google ML Kit 进行 OCR
   Future<Map<String, String>> _runMlKitOcr(File image) async {
-    final inputImage = InputImage.fromFilePath(image.path);
+    // 读取图片字节（支持 content:// URI）
+    final bytes = await image.readAsBytes();
+    // 解码获取图片尺寸
+    final codec = await ui.instantiateImageCodec(bytes);
+    final frame = await codec.getNextFrame();
+    final imageWidth = frame.image.width;
+    final imageHeight = frame.image.height;
+    codec.dispose();
+
+    final inputImage = InputImage.fromBytes(
+      bytes: bytes,
+      metadata: InputImageMetadata(
+        size: Size(imageWidth.toDouble(), imageHeight.toDouble()),
+        rotation: InputImageRotation.rotation0deg,
+        format: InputImageFormat.nv21,
+        bytesPerRow: imageWidth,
+      ),
+    );
     final recognizer = TextRecognizer(script: TextRecognitionScript.chinese);
     try {
       final RecognizedText recognizedText = await recognizer.processImage(
