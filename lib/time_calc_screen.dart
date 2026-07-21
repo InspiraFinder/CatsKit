@@ -1,8 +1,10 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
 import 'package:image_picker/image_picker.dart';
 
 /// 战斗时间计算界面
@@ -20,6 +22,8 @@ class _TimeCalcScreenState extends State<TimeCalcScreen> {
   File? _image;
   bool _isProcessing = false;
   String? _error;
+  int _imageWidth = 0;
+  int _imageHeight = 0;
 
   // OCR 原始字段
   String _rawMyScorePerMin = '';
@@ -49,8 +53,22 @@ class _TimeCalcScreenState extends State<TimeCalcScreen> {
       maxHeight: 1920,
     );
     if (pickedFile != null) {
+      final file = File(pickedFile.path);
+      // 获取图片尺寸
+      try {
+        final bytes = await file.readAsBytes();
+        final codec = await ui.instantiateImageCodec(bytes);
+        final frame = await codec.getNextFrame();
+        _imageWidth = frame.image.width;
+        _imageHeight = frame.image.height;
+        codec.dispose();
+      } catch (_) {
+        _imageWidth = 0;
+        _imageHeight = 0;
+      }
+
       setState(() {
-        _image = File(pickedFile.path);
+        _image = file;
         _error = null;
         _hasResult = false;
       });
@@ -92,39 +110,188 @@ class _TimeCalcScreenState extends State<TimeCalcScreen> {
     }
   }
 
+  /// Android：使用 Google ML Kit 进行 OCR
+  Future<Map<String, String>> _runMlKitOcr(File image) async {
+    final inputImage = InputImage.fromFilePath(image.path);
+    final recognizer = TextRecognizer(script: TextRecognitionScript.chinese);
+    try {
+      final RecognizedText recognizedText = await recognizer.processImage(
+        inputImage,
+      );
+      final items = <Map<String, dynamic>>[];
+      for (final block in recognizedText.blocks) {
+        for (final line in block.lines) {
+          items.add({
+            'text': line.text,
+            'x': line.boundingBox.left.toInt(),
+            'y': line.boundingBox.top.toInt(),
+            'w': line.boundingBox.width.toInt(),
+            'h': line.boundingBox.height.toInt(),
+          });
+        }
+      }
+      return _classifyFields(items, image);
+    } finally {
+      await recognizer.close();
+    }
+  }
+
+  /// Windows/桌面：使用 Python RapidOCR
+  Future<Map<String, String>> _runPythonOcr(File image) async {
+    // 从 Flutter asset bundle 提取 Python 脚本到临时目录
+    final byteData = await rootBundle.load('assets/ocr/catskit_ocr.py');
+    final tempDir = Directory.systemTemp;
+    final scriptFile = File(
+      '${tempDir.path}${Platform.pathSeparator}catskit_ocr.py',
+    );
+    await scriptFile.writeAsBytes(byteData.buffer.asUint8List(), flush: true);
+
+    final encodedPath = base64Encode(utf8.encode(image.path));
+    final result = await Process.run('python', [scriptFile.path, encodedPath]);
+
+    if (result.exitCode != 0) {
+      final stderr = result.stderr.toString().trim();
+      throw Exception(stderr.isNotEmpty ? stderr : '进程退出码: ${result.exitCode}');
+    }
+
+    final json = jsonDecode(result.stdout.toString()) as Map<String, dynamic>;
+    if (json['error'] != null) throw Exception(json['error'] as String);
+    return (json['fields'] as Map<String, dynamic>? ?? {}).map(
+      (k, v) => MapEntry(k, v as String? ?? ''),
+    );
+  }
+
+  /// 将 OCR 结果按位置分类为 6 个字段
+  Map<String, String> _classifyFields(
+    List<Map<String, dynamic>> items,
+    File image,
+  ) {
+    final result = {
+      'my_score_per_min': '',
+      'my_score': '',
+      'score_line': '',
+      'time_left': '',
+      'enemy_score': '',
+      'enemy_score_per_min': '',
+    };
+    if (items.isEmpty) return result;
+
+    final imgW = _imageWidth;
+    final imgH = _imageHeight;
+    if (imgW == 0 || imgH == 0) return result;
+
+    for (final it in items) {
+      it['cx'] = (it['x'] as int) + (it['w'] as int) ~/ 2;
+      it['cy'] = (it['y'] as int) + (it['h'] as int) ~/ 2;
+    }
+
+    // 只分析顶部 30%
+    final topItems = items
+        .where((it) => (it['cy'] as int) < imgH * 0.30)
+        .toList();
+    if (topItems.isEmpty) return result;
+
+    final lb = (imgW * 0.38).toInt();
+    final rb = (imgW * 0.62).toInt();
+    final left = topItems.where((it) => it['cx'] < lb).toList();
+    final center = topItems
+        .where((it) => it['cx'] >= lb && it['cx'] <= rb)
+        .toList();
+    final right = topItems.where((it) => it['cx'] > rb).toList();
+
+    // 取最下行
+    List<Map<String, dynamic>> bottomRow(List<Map<String, dynamic>> zone) {
+      if (zone.isEmpty) return [];
+      zone.sort((a, b) => (a['cy'] as int).compareTo(b['cy'] as int));
+      final rows = <List<Map<String, dynamic>>>[];
+      var cur = [zone.first];
+      for (var i = 1; i < zone.length; i++) {
+        final gap = (zone[i]['cy'] as int) - (cur.last['cy'] as int);
+        final avgH = ((cur.last['h'] as int) + (zone[i]['h'] as int)) / 2;
+        if (gap < avgH * 0.7) {
+          cur.add(zone[i]);
+        } else {
+          rows.add(cur);
+          cur = [zone[i]];
+        }
+      }
+      if (cur.isNotEmpty) rows.add(cur);
+      return rows.isNotEmpty ? rows.last : [];
+    }
+
+    String spm(List<Map<String, dynamic>> items) {
+      for (final it in items) {
+        final t = (it['text'] as String).trim();
+        final c = t.replaceAll('+', '').replaceAll(',', '');
+        if (t.startsWith('+') && c.isNotEmpty && int.tryParse(c) != null) {
+          return t;
+        }
+      }
+      return '';
+    }
+
+    String num(List<Map<String, dynamic>> items) {
+      final cand = <(String, int)>[];
+      for (final it in items) {
+        final t = (it['text'] as String).trim().replaceAll(',', '');
+        if (t.isNotEmpty &&
+            int.tryParse(t) != null &&
+            t.length >= 3 &&
+            t.length <= 7) {
+          cand.add((t, t.length));
+        }
+      }
+      if (cand.isNotEmpty) {
+        cand.sort((a, b) => b.$2.compareTo(a.$2));
+        return cand.first.$1;
+      }
+      return '';
+    }
+
+    String tm(List<Map<String, dynamic>> items) {
+      for (final it in items) {
+        final t = (it['text'] as String).trim();
+        if (RegExp(r'\d+\s*[hm]', caseSensitive: false).hasMatch(t) ||
+            t.contains('分') ||
+            t.contains('时')) {
+          return t;
+        }
+      }
+      return '';
+    }
+
+    result['my_score_per_min'] = spm(bottomRow(left));
+    result['my_score'] = num(bottomRow(left));
+    result['enemy_score'] = num(bottomRow(right));
+    result['enemy_score_per_min'] = spm(bottomRow(right));
+    result['time_left'] = tm(center);
+    result['score_line'] = num(center);
+
+    return result;
+  }
+
   Future<void> _calculate() async {
     if (_image == null) return;
 
     setState(() => _isProcessing = true);
 
     try {
-      final scriptPath =
-          '${Directory.current.path}${Platform.pathSeparator}assets${Platform.pathSeparator}ocr${Platform.pathSeparator}catskit_ocr.py';
-      final encodedPath = base64Encode(utf8.encode(_image!.path));
+      Map<String, String> fields = {};
 
-      final result = await Process.run('python', [
-        scriptPath,
-        encodedPath,
-      ], workingDirectory: Directory.current.path);
-
-      if (result.exitCode != 0) {
-        final stderr = result.stderr.toString().trim();
-        throw Exception(
-          stderr.isNotEmpty ? stderr : '进程退出码: ${result.exitCode}',
-        );
+      if (Platform.isAndroid) {
+        // Android：使用 Google ML Kit
+        fields = await _runMlKitOcr(_image!);
+      } else {
+        // Windows/桌面：使用 Python RapidOCR
+        fields = await _runPythonOcr(_image!);
       }
 
-      final json = jsonDecode(result.stdout.toString()) as Map<String, dynamic>;
-      if (json['error'] != null) throw Exception(json['error'] as String);
-
-      final fields = json['fields'] as Map<String, dynamic>? ?? {};
-
-      final myScorePerMin = fields['my_score_per_min'] as String? ?? '';
-      final myScore = fields['my_score'] as String? ?? '';
-      final scoreLine = fields['score_line'] as String? ?? '';
-      final timeLeft = fields['time_left'] as String? ?? '';
-      final enemyScore = fields['enemy_score'] as String? ?? '';
-      final enemyScorePerMin = fields['enemy_score_per_min'] as String? ?? '';
+      final myScorePerMin = fields['my_score_per_min'] ?? '';
+      final myScore = fields['my_score'] ?? '';
+      final scoreLine = fields['score_line'] ?? '';
+      final timeLeft = fields['time_left'] ?? '';
+      final enemyScore = fields['enemy_score'] ?? '';
+      final enemyScorePerMin = fields['enemy_score_per_min'] ?? '';
 
       // ---- 结算逻辑 ----
       final now = DateTime.now();

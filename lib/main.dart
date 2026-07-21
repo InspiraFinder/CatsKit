@@ -4,6 +4,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:open_filex/open_filex.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import 'parts_data.dart';
@@ -1858,6 +1859,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   late bool showSnackBar;
   late TextEditingController _updateUrlController;
   late TextEditingController _mirrorController;
+  late TextEditingController _downloadPathController;
   bool _isDownloading = false;
   bool _isPaused = false;
   bool _isCheckingUpdate = false;
@@ -1871,6 +1873,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   HttpClientResponse? _downloadResponse;
   int _totalDownloadBytes = 0;
   final List<List<int>> _downloadChunks = [];
+  String _downloadedFilePath = '';
 
   static const List<String> _presetMirrors = [
     '',
@@ -1894,12 +1897,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
       text: widget.currentGithubUpdateUrl,
     );
     _mirrorController = TextEditingController(text: widget.currentMirrorUrl);
+    // 初始化下载路径
+    final defaultPath = Platform.isAndroid
+        ? '${Directory.systemTemp.path}${Platform.pathSeparator}CatsKit'
+        : '${Platform.environment['USERPROFILE'] ?? Platform.environment['HOME'] ?? Directory.current.path}${Platform.pathSeparator}Downloads${Platform.pathSeparator}CatsKit';
+    _downloadPathController = TextEditingController(text: defaultPath);
   }
 
   @override
   void dispose() {
     _updateUrlController.dispose();
     _mirrorController.dispose();
+    _downloadPathController.dispose();
     super.dispose();
   }
 
@@ -2329,15 +2338,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
           uri.pathSegments.isNotEmpty && uri.pathSegments.last.isNotEmpty
           ? uri.pathSegments.last
           : 'catskit_update_package.bin';
-      // 获取可写下载目录（Android 用系统临时目录，桌面用 Downloads）
-      final isAndroid = Platform.isAndroid;
-      final downloadDir = isAndroid
-          ? Directory(
-              '${Directory.systemTemp.path}${Platform.pathSeparator}CatsKit',
-            )
-          : Directory(
-              '${Platform.environment['USERPROFILE'] ?? Platform.environment['HOME'] ?? Directory.current.path}${Platform.pathSeparator}Downloads',
-            );
+      // 获取可写下载目录（使用用户自定义路径）
+      final customPath = _downloadPathController.text.trim();
+      final downloadDir = Directory(
+        customPath.isNotEmpty
+            ? customPath
+            : (Platform.isAndroid
+                  ? '${Directory.systemTemp.path}${Platform.pathSeparator}CatsKit'
+                  : '${Platform.environment['USERPROFILE'] ?? Platform.environment['HOME'] ?? Directory.current.path}${Platform.pathSeparator}Downloads'),
+      );
       if (!await downloadDir.exists()) {
         await downloadDir.create(recursive: true);
       }
@@ -2347,10 +2356,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
       );
       await outputFile.writeAsBytes(bytes, flush: true);
 
+      _downloadedFilePath = outputFile.path;
+
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('更新包已下载到: ${outputFile.path}')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            '更新包已下载到: ${locale == 'zh' ? '${outputFile.path}，可点击安装按钮进行安装' : '${outputFile.path}, click install to proceed'}',
+          ),
+        ),
+      );
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(
@@ -2363,6 +2378,34 @@ class _SettingsScreenState extends State<SettingsScreen> {
           _isPaused = false;
         });
       }
+    }
+  }
+
+  /// 安装下载的更新包
+  Future<void> _installPackage() async {
+    final path = _downloadedFilePath;
+    if (path.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            locale == 'zh'
+                ? '没有可安装的文件，请先下载'
+                : 'No file to install, download first',
+          ),
+        ),
+      );
+      return;
+    }
+
+    try {
+      await OpenFilex.open(path);
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('${locale == 'zh' ? '安装失败' : 'Install failed'}: $e'),
+        ),
+      );
     }
   }
 
@@ -2678,20 +2721,36 @@ class _SettingsScreenState extends State<SettingsScreen> {
           const SizedBox(height: 8),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16.0),
-            child: ElevatedButton.icon(
-              onPressed: _isDownloading ? null : _downloadUpdatePackage,
-              icon: _isDownloading
-                  ? const SizedBox(
-                      width: 18,
-                      height: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Icon(Icons.system_update),
-              label: Text(
-                _isDownloading
-                    ? (locale == 'zh' ? '下载中...' : 'Downloading...')
-                    : (locale == 'zh' ? '下载更新包' : 'Download update package'),
-              ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: _isDownloading ? null : _downloadUpdatePackage,
+                    icon: _isDownloading
+                        ? const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.system_update),
+                    label: Text(
+                      _isDownloading
+                          ? (locale == 'zh' ? '下载中...' : 'Downloading...')
+                          : (locale == 'zh' ? '下载更新包' : 'Download'),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: _downloadedFilePath.isEmpty
+                        ? null
+                        : _installPackage,
+                    icon: const Icon(Icons.install_mobile),
+                    label: Text(locale == 'zh' ? '安装' : 'Install'),
+                  ),
+                ),
+              ],
             ),
           ),
           if (_isDownloading) ...[
@@ -2700,6 +2759,35 @@ class _SettingsScreenState extends State<SettingsScreen> {
               padding: const EdgeInsets.symmetric(horizontal: 16.0),
               child: Column(
                 children: [
+                  // 显示下载路径
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.grey[100],
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.folder_open,
+                          size: 16,
+                          color: Colors.grey[600],
+                        ),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: Text(
+                            '${locale == 'zh' ? '下载到' : 'Save to'}: ${_downloadPathController.text}',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey[600],
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 8),
                   LinearProgressIndicator(
                     value: _downloadProgress > 0 ? _downloadProgress : null,
                     minHeight: 6,
@@ -2800,6 +2888,84 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     ? 'https://ghproxy.net/'
                     : 'https://ghproxy.net/',
               ),
+            ),
+          ),
+          const SizedBox(height: 16),
+          const Divider(),
+          // ---- 下载保存路径 ----
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16.0),
+            child: Text(
+              locale == 'zh' ? '下载保存路径' : 'Download save path',
+              style: const TextStyle(fontWeight: FontWeight.bold),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16.0),
+            child: TextField(
+              controller: _downloadPathController,
+              decoration: InputDecoration(
+                border: const OutlineInputBorder(),
+                hintText: locale == 'zh'
+                    ? '输入下载保存路径'
+                    : 'Enter download save path',
+                suffixIcon: IconButton(
+                  icon: const Icon(Icons.restore),
+                  onPressed: () {
+                    final defaultPath = Platform.isAndroid
+                        ? '${Directory.systemTemp.path}${Platform.pathSeparator}CatsKit'
+                        : '${Platform.environment['USERPROFILE'] ?? Platform.environment['HOME'] ?? Directory.current.path}${Platform.pathSeparator}Downloads${Platform.pathSeparator}CatsKit';
+                    _downloadPathController.text = defaultPath;
+                  },
+                  tooltip: locale == 'zh' ? '恢复默认' : 'Reset default',
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16.0),
+            child: Wrap(
+              spacing: 6,
+              runSpacing: 4,
+              children: [
+                ActionChip(
+                  label: Text(
+                    locale == 'zh' ? '默认路径' : 'Default',
+                    style: const TextStyle(fontSize: 12),
+                  ),
+                  onPressed: () {
+                    final defaultPath = Platform.isAndroid
+                        ? '${Directory.systemTemp.path}${Platform.pathSeparator}CatsKit'
+                        : '${Platform.environment['USERPROFILE'] ?? Platform.environment['HOME'] ?? Directory.current.path}${Platform.pathSeparator}Downloads${Platform.pathSeparator}CatsKit';
+                    _downloadPathController.text = defaultPath;
+                  },
+                ),
+                if (Platform.isAndroid) ...[
+                  ActionChip(
+                    label: const Text(
+                      'Downloads',
+                      style: TextStyle(fontSize: 12),
+                    ),
+                    onPressed: () => _downloadPathController.text =
+                        '/storage/emulated/0/Download/CatsKit',
+                  ),
+                  ActionChip(
+                    label: const Text(
+                      'Documents',
+                      style: TextStyle(fontSize: 12),
+                    ),
+                    onPressed: () => _downloadPathController.text =
+                        '/storage/emulated/0/Documents/CatsKit',
+                  ),
+                  ActionChip(
+                    label: const Text('DCIM', style: TextStyle(fontSize: 12)),
+                    onPressed: () => _downloadPathController.text =
+                        '/storage/emulated/0/DCIM/CatsKit',
+                  ),
+                ],
+              ],
             ),
           ),
           const SizedBox(height: 16),
