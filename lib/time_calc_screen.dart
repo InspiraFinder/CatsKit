@@ -4,7 +4,7 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
+import 'package:flutter_tesseract_ocr/flutter_tesseract_ocr.dart';
 import 'package:image_picker/image_picker.dart';
 
 /// 战斗时间计算界面
@@ -122,31 +122,80 @@ class _TimeCalcScreenState extends State<TimeCalcScreen> {
     }
   }
 
-  /// Android：使用 Google ML Kit 进行 OCR
+  /// Android：使用 Tesseract OCR（无需 Google Play Services）
   Future<Map<String, String>> _runMlKitOcr(File image) async {
-    // _image 已经是真实文件路径（由 _pickImage 复制到 temp 目录）
-    final inputImage = InputImage.fromFilePath(image.path);
-    final recognizer = TextRecognizer(script: TextRecognitionScript.chinese);
-    try {
-      final RecognizedText recognizedText = await recognizer.processImage(
-        inputImage,
-      );
-      final items = <Map<String, dynamic>>[];
-      for (final block in recognizedText.blocks) {
-        for (final line in block.lines) {
-          items.add({
-            'text': line.text,
-            'x': line.boundingBox.left.toInt(),
-            'y': line.boundingBox.top.toInt(),
-            'w': line.boundingBox.width.toInt(),
-            'h': line.boundingBox.height.toInt(),
-          });
-        }
+    // Tesseract 识别，中文使用 chi_sim 语言包
+    final text = await FlutterTesseractOcr.extractText(
+      image.path,
+      language: 'chi_sim',
+      args: {
+        '--psm': '6', // 假设统一的文本块
+      },
+    );
+
+    // 解析 Tesseract 输出为 items 格式
+    final items = <Map<String, dynamic>>[];
+    // Tesseract 插件只返回纯文本，无法获取坐标
+    // 按空格和换行分词，每个词作为一个 item
+    final lines = text.split('\n');
+    for (final line in lines) {
+      final trimmed = line.trim();
+      if (trimmed.isNotEmpty) {
+        items.add({'text': trimmed, 'x': 0, 'y': 0, 'w': 0, 'h': 0});
       }
-      return _classifyFields(items);
-    } finally {
-      await recognizer.close();
     }
+
+    // 使用简化分类：不分区域，从所有文本中提取字段
+    return _classifySimple(items);
+  }
+
+  /// 简化分类：从文本列表中提取 6 个字段（不依赖坐标）
+  Map<String, String> _classifySimple(List<Map<String, dynamic>> items) {
+    final result = {
+      'my_score_per_min': '',
+      'my_score': '',
+      'score_line': '',
+      'time_left': '',
+      'enemy_score': '',
+      'enemy_score_per_min': '',
+    };
+
+    final allText = items.map((it) => it['text'] as String).join(' ');
+
+    // 提取 "+数字" 格式（每分钟得分）
+    final plusNums = RegExp(r'\+\d+').allMatches(allText).toList();
+    if (plusNums.isNotEmpty) {
+      result['my_score_per_min'] = plusNums[0].group(0) ?? '';
+      if (plusNums.length > 1) {
+        result['enemy_score_per_min'] = plusNums[1].group(0) ?? '';
+      }
+    }
+
+    // 提取时间格式
+    final timeMatch = RegExp(r'\d+\s*[hm时]').firstMatch(allText);
+    if (timeMatch != null) {
+      result['time_left'] = timeMatch.group(0) ?? '';
+    }
+
+    // 提取所有数字（3-7位）
+    final numbers = RegExp(r'\b\d{3,7}\b').allMatches(allText).toList();
+    final numValues = numbers.map((m) => m.group(0) ?? '').toList();
+
+    if (numValues.isNotEmpty) {
+      // 取最大的作为分数线
+      numValues.sort((a, b) => int.parse(b).compareTo(int.parse(a)));
+      result['score_line'] = numValues.first;
+
+      // 剩余数字：左半部分为我方，右半部分为敌方
+      if (numValues.length >= 3) {
+        result['my_score'] = numValues[1];
+        result['enemy_score'] = numValues[2];
+      } else if (numValues.length == 2) {
+        result['my_score'] = numValues[1];
+      }
+    }
+
+    return result;
   }
 
   /// Windows/桌面：使用 Python RapidOCR
@@ -175,9 +224,7 @@ class _TimeCalcScreenState extends State<TimeCalcScreen> {
   }
 
   /// 将 OCR 结果按位置分类为 6 个字段
-  Map<String, String> _classifyFields(
-    List<Map<String, dynamic>> items,
-  ) {
+  Map<String, String> _classifyFields(List<Map<String, dynamic>> items) {
     final result = {
       'my_score_per_min': '',
       'my_score': '',
