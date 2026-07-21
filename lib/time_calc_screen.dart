@@ -1,11 +1,10 @@
 import 'dart:convert';
 import 'dart:io';
-import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:native_text_recognition/native_text_recognition.dart';
 
 /// 战斗时间计算界面
 class TimeCalcScreen extends StatefulWidget {
@@ -22,8 +21,6 @@ class _TimeCalcScreenState extends State<TimeCalcScreen> {
   File? _image;
   bool _isProcessing = false;
   String? _error;
-  int _imageWidth = 0;
-  int _imageHeight = 0;
 
   // OCR 原始字段
   String _rawMyScorePerMin = '';
@@ -62,18 +59,6 @@ class _TimeCalcScreenState extends State<TimeCalcScreen> {
         '${tempDir.path}${Platform.pathSeparator}ocr_input_${DateTime.now().millisecondsSinceEpoch}.tmp',
       );
       await tempFile.writeAsBytes(bytes, flush: true);
-
-      // 获取图片尺寸
-      try {
-        final codec = await ui.instantiateImageCodec(bytes);
-        final frame = await codec.getNextFrame();
-        _imageWidth = frame.image.width;
-        _imageHeight = frame.image.height;
-        codec.dispose();
-      } catch (_) {
-        _imageWidth = 0;
-        _imageHeight = 0;
-      }
 
       if (!mounted) return;
       setState(() {
@@ -122,35 +107,57 @@ class _TimeCalcScreenState extends State<TimeCalcScreen> {
     }
   }
 
-  /// Android：使用 Google ML Kit 进行 OCR
-  Future<Map<String, String>> _runMlKitOcr(File image) async {
-    // 验证文件存在
-    if (!await image.exists()) {
-      throw Exception('临时图片文件不存在');
+  /// Android：使用原生 OCR（无需 Google Play Services）
+  Future<Map<String, String>> _runAndroidOcr(File image) async {
+    final text = await NativeTextRecognition().recognizeText(image.path);
+    return _classifyFromText(text);
+  }
+
+  /// 从纯文本中识别 6 个字段（不依赖坐标）
+  Map<String, String> _classifyFromText(String text) {
+    final result = {
+      'my_score_per_min': '',
+      'my_score': '',
+      'score_line': '',
+      'time_left': '',
+      'enemy_score': '',
+      'enemy_score_per_min': '',
+    };
+
+    // 提取 "+数字" 格式（每分钟得分）
+    final plusNums = RegExp(r'\+\d+').allMatches(text).toList();
+    if (plusNums.isNotEmpty) {
+      result['my_score_per_min'] = plusNums[0].group(0) ?? '';
+      if (plusNums.length > 1) {
+        result['enemy_score_per_min'] = plusNums[1].group(0) ?? '';
+      }
     }
 
-    final inputImage = InputImage.fromFilePath(image.path);
-    final recognizer = TextRecognizer(script: TextRecognitionScript.chinese);
-    try {
-      final RecognizedText recognizedText = await recognizer.processImage(
-        inputImage,
-      );
-      final items = <Map<String, dynamic>>[];
-      for (final block in recognizedText.blocks) {
-        for (final line in block.lines) {
-          items.add({
-            'text': line.text,
-            'x': line.boundingBox.left.toInt(),
-            'y': line.boundingBox.top.toInt(),
-            'w': line.boundingBox.width.toInt(),
-            'h': line.boundingBox.height.toInt(),
-          });
-        }
-      }
-      return _classifyFields(items);
-    } finally {
-      await recognizer.close();
+    // 提取时间格式
+    final timeMatch = RegExp(
+      r'\d+\s*[hm时]',
+      caseSensitive: false,
+    ).firstMatch(text);
+    if (timeMatch != null) {
+      result['time_left'] = timeMatch.group(0) ?? '';
     }
+
+    // 提取所有数字（3-7位）
+    final numbers = RegExp(r'\b\d{3,7}\b').allMatches(text).toList();
+    final numValues = numbers.map((m) => m.group(0) ?? '').toList();
+
+    if (numValues.isNotEmpty) {
+      numValues.sort((a, b) => int.parse(b).compareTo(int.parse(a)));
+      result['score_line'] = numValues.first;
+      if (numValues.length >= 3) {
+        result['my_score'] = numValues[1];
+        result['enemy_score'] = numValues[2];
+      } else if (numValues.length == 2) {
+        result['my_score'] = numValues[1];
+      }
+    }
+
+    return result;
   }
 
   /// Windows/桌面：使用 Python RapidOCR
@@ -178,112 +185,6 @@ class _TimeCalcScreenState extends State<TimeCalcScreen> {
     );
   }
 
-  /// 将 OCR 结果按位置分类为 6 个字段
-  Map<String, String> _classifyFields(List<Map<String, dynamic>> items) {
-    final result = {
-      'my_score_per_min': '',
-      'my_score': '',
-      'score_line': '',
-      'time_left': '',
-      'enemy_score': '',
-      'enemy_score_per_min': '',
-    };
-    if (items.isEmpty) return result;
-
-    final imgW = _imageWidth;
-    final imgH = _imageHeight;
-    if (imgW == 0 || imgH == 0) return result;
-
-    for (final it in items) {
-      it['cx'] = (it['x'] as int) + (it['w'] as int) ~/ 2;
-      it['cy'] = (it['y'] as int) + (it['h'] as int) ~/ 2;
-    }
-
-    // 只分析顶部 30%
-    final topItems = items
-        .where((it) => (it['cy'] as int) < imgH * 0.30)
-        .toList();
-    if (topItems.isEmpty) return result;
-
-    final lb = (imgW * 0.38).toInt();
-    final rb = (imgW * 0.62).toInt();
-    final left = topItems.where((it) => it['cx'] < lb).toList();
-    final center = topItems
-        .where((it) => it['cx'] >= lb && it['cx'] <= rb)
-        .toList();
-    final right = topItems.where((it) => it['cx'] > rb).toList();
-
-    // 取最下行
-    List<Map<String, dynamic>> bottomRow(List<Map<String, dynamic>> zone) {
-      if (zone.isEmpty) return [];
-      zone.sort((a, b) => (a['cy'] as int).compareTo(b['cy'] as int));
-      final rows = <List<Map<String, dynamic>>>[];
-      var cur = [zone.first];
-      for (var i = 1; i < zone.length; i++) {
-        final gap = (zone[i]['cy'] as int) - (cur.last['cy'] as int);
-        final avgH = ((cur.last['h'] as int) + (zone[i]['h'] as int)) / 2;
-        if (gap < avgH * 0.7) {
-          cur.add(zone[i]);
-        } else {
-          rows.add(cur);
-          cur = [zone[i]];
-        }
-      }
-      if (cur.isNotEmpty) rows.add(cur);
-      return rows.isNotEmpty ? rows.last : [];
-    }
-
-    String spm(List<Map<String, dynamic>> items) {
-      for (final it in items) {
-        final t = (it['text'] as String).trim();
-        final c = t.replaceAll('+', '').replaceAll(',', '');
-        if (t.startsWith('+') && c.isNotEmpty && int.tryParse(c) != null) {
-          return t;
-        }
-      }
-      return '';
-    }
-
-    String num(List<Map<String, dynamic>> items) {
-      final cand = <(String, int)>[];
-      for (final it in items) {
-        final t = (it['text'] as String).trim().replaceAll(',', '');
-        if (t.isNotEmpty &&
-            int.tryParse(t) != null &&
-            t.length >= 3 &&
-            t.length <= 7) {
-          cand.add((t, t.length));
-        }
-      }
-      if (cand.isNotEmpty) {
-        cand.sort((a, b) => b.$2.compareTo(a.$2));
-        return cand.first.$1;
-      }
-      return '';
-    }
-
-    String tm(List<Map<String, dynamic>> items) {
-      for (final it in items) {
-        final t = (it['text'] as String).trim();
-        if (RegExp(r'\d+\s*[hm]', caseSensitive: false).hasMatch(t) ||
-            t.contains('分') ||
-            t.contains('时')) {
-          return t;
-        }
-      }
-      return '';
-    }
-
-    result['my_score_per_min'] = spm(bottomRow(left));
-    result['my_score'] = num(bottomRow(left));
-    result['enemy_score'] = num(bottomRow(right));
-    result['enemy_score_per_min'] = spm(bottomRow(right));
-    result['time_left'] = tm(center);
-    result['score_line'] = num(center);
-
-    return result;
-  }
-
   Future<void> _calculate() async {
     if (_image == null) return;
 
@@ -295,7 +196,7 @@ class _TimeCalcScreenState extends State<TimeCalcScreen> {
 
       try {
         if (Platform.isAndroid) {
-          fields = await _runMlKitOcr(_image!);
+          fields = await _runAndroidOcr(_image!);
         } else {
           fields = await _runPythonOcr(_image!);
         }
