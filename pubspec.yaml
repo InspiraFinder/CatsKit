@@ -6,7 +6,7 @@ publish_to: 'none'
 # 格式: versionName+versionCode
 # 1.0.0 是用户看到的版本名称
 # 2 是内部版本号，每次上架必须递增
-version: 0.4.2+14
+version: 0.4.3+15
 
 environment:
   sdk: ^3.12.1

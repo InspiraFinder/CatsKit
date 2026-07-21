@@ -53,10 +53,16 @@ class _TimeCalcScreenState extends State<TimeCalcScreen> {
       maxHeight: 1920,
     );
     if (pickedFile != null) {
-      final file = File(pickedFile.path);
+      // 将图片复制到应用缓存目录（兼容 content:// URI）
+      final bytes = await pickedFile.readAsBytes();
+      final tempDir = Directory.systemTemp;
+      final tempFile = File(
+        '${tempDir.path}${Platform.pathSeparator}ocr_input_${DateTime.now().millisecondsSinceEpoch}.png',
+      );
+      await tempFile.writeAsBytes(bytes, flush: true);
+
       // 获取图片尺寸
       try {
-        final bytes = await file.readAsBytes();
         final codec = await ui.instantiateImageCodec(bytes);
         final frame = await codec.getNextFrame();
         _imageWidth = frame.image.width;
@@ -68,7 +74,7 @@ class _TimeCalcScreenState extends State<TimeCalcScreen> {
       }
 
       setState(() {
-        _image = file;
+        _image = tempFile;
         _error = null;
         _hasResult = false;
       });
@@ -112,24 +118,14 @@ class _TimeCalcScreenState extends State<TimeCalcScreen> {
 
   /// Android：使用 Google ML Kit 进行 OCR
   Future<Map<String, String>> _runMlKitOcr(File image) async {
-    // 读取图片字节（支持 content:// URI）
-    final bytes = await image.readAsBytes();
-    // 解码获取图片尺寸
-    final codec = await ui.instantiateImageCodec(bytes);
-    final frame = await codec.getNextFrame();
-    final imageWidth = frame.image.width;
-    final imageHeight = frame.image.height;
-    codec.dispose();
-
-    final inputImage = InputImage.fromBytes(
-      bytes: bytes,
-      metadata: InputImageMetadata(
-        size: Size(imageWidth.toDouble(), imageHeight.toDouble()),
-        rotation: InputImageRotation.rotation0deg,
-        format: InputImageFormat.nv21,
-        bytesPerRow: imageWidth,
-      ),
+    // 将图片复制到临时目录确保有真实文件路径（兼容 content:// URI）
+    final tempDir = Directory.systemTemp;
+    final tempFile = File(
+      '${tempDir.path}${Platform.pathSeparator}mlkit_ocr_${DateTime.now().millisecondsSinceEpoch}.png',
     );
+    await tempFile.writeAsBytes(await image.readAsBytes(), flush: true);
+
+    final inputImage = InputImage.fromFilePath(tempFile.path);
     final recognizer = TextRecognizer(script: TextRecognitionScript.chinese);
     try {
       final RecognizedText recognizedText = await recognizer.processImage(
@@ -150,6 +146,10 @@ class _TimeCalcScreenState extends State<TimeCalcScreen> {
       return _classifyFields(items, image);
     } finally {
       await recognizer.close();
+      // 清理临时文件
+      try {
+        await tempFile.delete();
+      } catch (_) {}
     }
   }
 
