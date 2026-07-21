@@ -7,6 +7,7 @@ import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import 'parts_data.dart';
+import 'time_calc_screen.dart';
 
 const String appVersion = '0.3.1';
 
@@ -591,6 +592,19 @@ class MainMenuScreen extends StatelessWidget {
                   context,
                   MaterialPageRoute(
                     builder: (_) => BuildToolScreen(locale: locale),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              _buildMenuItem(
+                context,
+                icon: Icons.timer,
+                label: '时间计算',
+                color: Colors.purple,
+                onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => TimeCalcScreen(locale: locale),
                   ),
                 ),
               ),
