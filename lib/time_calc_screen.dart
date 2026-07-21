@@ -47,17 +47,19 @@ class _TimeCalcScreenState extends State<TimeCalcScreen> {
   }
 
   Future<void> _pickImage(ImageSource source) async {
-    final XFile? pickedFile = await _picker.pickImage(
-      source: source,
-      maxWidth: 1920,
-      maxHeight: 1920,
-    );
-    if (pickedFile != null) {
+    try {
+      final XFile? pickedFile = await _picker.pickImage(
+        source: source,
+        maxWidth: 1920,
+        maxHeight: 1920,
+      );
+      if (pickedFile == null) return;
+
       // 将图片复制到应用缓存目录（兼容 content:// URI）
       final bytes = await pickedFile.readAsBytes();
       final tempDir = Directory.systemTemp;
       final tempFile = File(
-        '${tempDir.path}${Platform.pathSeparator}ocr_input_${DateTime.now().millisecondsSinceEpoch}.png',
+        '${tempDir.path}${Platform.pathSeparator}ocr_input_${DateTime.now().millisecondsSinceEpoch}.tmp',
       );
       await tempFile.writeAsBytes(bytes, flush: true);
 
@@ -73,12 +75,16 @@ class _TimeCalcScreenState extends State<TimeCalcScreen> {
         _imageHeight = 0;
       }
 
+      if (!mounted) return;
       setState(() {
         _image = tempFile;
         _error = null;
         _hasResult = false;
       });
       _calculate();
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _error = '图片处理失败: $e');
     }
   }
 
@@ -118,14 +124,8 @@ class _TimeCalcScreenState extends State<TimeCalcScreen> {
 
   /// Android：使用 Google ML Kit 进行 OCR
   Future<Map<String, String>> _runMlKitOcr(File image) async {
-    // 将图片复制到临时目录确保有真实文件路径（兼容 content:// URI）
-    final tempDir = Directory.systemTemp;
-    final tempFile = File(
-      '${tempDir.path}${Platform.pathSeparator}mlkit_ocr_${DateTime.now().millisecondsSinceEpoch}.png',
-    );
-    await tempFile.writeAsBytes(await image.readAsBytes(), flush: true);
-
-    final inputImage = InputImage.fromFilePath(tempFile.path);
+    // _image 已经是真实文件路径（由 _pickImage 复制到 temp 目录）
+    final inputImage = InputImage.fromFilePath(image.path);
     final recognizer = TextRecognizer(script: TextRecognitionScript.chinese);
     try {
       final RecognizedText recognizedText = await recognizer.processImage(
@@ -143,13 +143,9 @@ class _TimeCalcScreenState extends State<TimeCalcScreen> {
           });
         }
       }
-      return _classifyFields(items, image);
+      return _classifyFields(items);
     } finally {
       await recognizer.close();
-      // 清理临时文件
-      try {
-        await tempFile.delete();
-      } catch (_) {}
     }
   }
 
@@ -181,7 +177,6 @@ class _TimeCalcScreenState extends State<TimeCalcScreen> {
   /// 将 OCR 结果按位置分类为 6 个字段
   Map<String, String> _classifyFields(
     List<Map<String, dynamic>> items,
-    File image,
   ) {
     final result = {
       'my_score_per_min': '',
@@ -290,17 +285,20 @@ class _TimeCalcScreenState extends State<TimeCalcScreen> {
   Future<void> _calculate() async {
     if (_image == null) return;
 
+    if (!mounted) return;
     setState(() => _isProcessing = true);
 
     try {
       Map<String, String> fields = {};
 
-      if (Platform.isAndroid) {
-        // Android：使用 Google ML Kit
-        fields = await _runMlKitOcr(_image!);
-      } else {
-        // Windows/桌面：使用 Python RapidOCR
-        fields = await _runPythonOcr(_image!);
+      try {
+        if (Platform.isAndroid) {
+          fields = await _runMlKitOcr(_image!);
+        } else {
+          fields = await _runPythonOcr(_image!);
+        }
+      } catch (e) {
+        throw Exception('OCR识别失败: $e');
       }
 
       final myScorePerMin = fields['my_score_per_min'] ?? '';
