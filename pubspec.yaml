@@ -17,7 +17,7 @@ dependencies:
   cupertino_icons: ^1.0.8
   url_launcher: ^6.3.1
   image_picker: ^1.2.3
-  flutter_tesseract_ocr: ^0.4.31
+  google_mlkit_text_recognition: ^0.16.0
   open_filex: ^4.7.0
 
 dev_dependencies:
