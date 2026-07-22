@@ -12,6 +12,8 @@
   <img alt="Last Commit" src="https://img.shields.io/github/last-commit/InspiraFinder/CatsKit?style=flat-square">
 </p>
 
+---
+
 ## 📖 简介
 
 Meow 🐱 — 基于 Flutter 的跨平台 Navimoe C.A.T.S. 游戏辅助工具。
