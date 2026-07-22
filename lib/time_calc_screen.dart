@@ -597,9 +597,9 @@ class _TimeCalcScreenState extends State<TimeCalcScreen> {
           final minM = RegExp(r'(\d+)\s*分').firstMatch(t);
           final hour = hourM?.group(1);
           final min = minM?.group(1);
-          if (hour != null && min != null) return '${hour}时${min}分';
-          if (hour != null) return '${hour}时';
-          if (min != null) return '${min}分';
+          if (hour != null && min != null) return '$hour时$min分';
+          if (hour != null) return '$hour时';
+          if (min != null) return '$min分';
           return t;
         }
         if (RegExp(r'\d+\s*[hm]', caseSensitive: false).hasMatch(t)) {
@@ -614,7 +614,7 @@ class _TimeCalcScreenState extends State<TimeCalcScreen> {
           final v1 = int.parse(nums[0].group(0)!);
           final v2 = int.parse(nums[1].group(0)!);
           if (v1 >= 0 && v1 <= 23 && v2 >= 0 && v2 <= 59) {
-            return '${v1}时${v2}分';
+            return '$v1时$v2分';
           }
         }
       }
