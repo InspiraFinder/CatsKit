@@ -5,7 +5,7 @@
 
   <!-- GitHub 徽章 -->
   <p>
-    <img src="https://img.shields.io/github/v/release/InspiraFinder/CatsKit?style=flat-square&label=版本" alt="版本">
+    <img alt="stars" src="https://img.shields.io/github/stars/InspiraFinder/CatsKit?style=flat-square">
   </p>
 </div>
 
