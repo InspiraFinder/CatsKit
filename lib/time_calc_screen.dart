@@ -590,21 +590,31 @@ class _TimeCalcScreenState extends State<TimeCalcScreen> {
       // 优先匹配含有明确时间单位的完整文本
       for (final it in items) {
         final t = (it['text'] as String).trim();
-        if (t.contains('分') ||
-            t.contains('时') ||
-            RegExp(r'\d+\s*[hm]', caseSensitive: false).hasMatch(t))
+        // 有中文时间单位的文本 -> 提取纯净时间部分
+        if (t.contains('分') || t.contains('时')) {
+          // 宽松匹配：数字后可能有若干噪声字符再到单位（如 "8B时"）
+          final hourM = RegExp(r'(\d+)\S*\s*时').firstMatch(t);
+          final minM = RegExp(r'(\d+)\s*分').firstMatch(t);
+          final hour = hourM?.group(1);
+          final min = minM?.group(1);
+          if (hour != null && min != null) return '${hour}时${min}分';
+          if (hour != null) return '${hour}时';
+          if (min != null) return '${min}分';
           return t;
+        }
+        if (RegExp(r'\d+\s*[hm]', caseSensitive: false).hasMatch(t)) {
+          return t;
+        }
       }
-      // 回退：扫描含两个数字的文本（如 "20 49" 可能是时间）
+      // 回退：扫描含两个数字的文本
       for (final it in items) {
         final t = (it['text'] as String).trim();
         final nums = RegExp(r'\d+').allMatches(t).toList();
         if (nums.length >= 2) {
           final v1 = int.parse(nums[0].group(0)!);
           final v2 = int.parse(nums[1].group(0)!);
-          // 小时 0-23，分钟 0-59
           if (v1 >= 0 && v1 <= 23 && v2 >= 0 && v2 <= 59) {
-            return '$v1时$v2分';
+            return '${v1}时${v2}分';
           }
         }
       }

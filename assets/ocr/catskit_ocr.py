@@ -152,7 +152,8 @@ def classify_text_items(items, img_w, img_h):
             t = it["text"].strip()
             # 有中文时间单位的文本 -> 提取纯净时间部分
             if "分" in t or "时" in t:
-                hour_m = re.search(r'(\d+)\s*时', t)
+                # 宽松匹配：数字后可能有若干噪声字符再到单位（如 "8B时"）
+                hour_m = re.search(r'(\d+)\S*\s*时', t)
                 min_m = re.search(r'(\d+)\s*分', t)
                 hour = hour_m.group(1) if hour_m else None
                 minute = min_m.group(1) if min_m else None
