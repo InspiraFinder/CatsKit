@@ -76,18 +76,19 @@ def classify_text_items(items, img_w, img_h):
     for item in items:
         item["cx"] = item["x"] + item["w"] // 2
         item["cy"] = item["y"] + item["h"] // 2
+        item["qx"] = item["x"] + item["w"] // 4  # 左四分之一，避免宽框跨区
 
     # 只分析顶部 30%
     top_items = [it for it in items if it["cy"] < img_h * 0.30]
     if not top_items:
         return result
 
-    # 用固定百分比划分三区
+    # 用固定百分比划分三区（基于左四分之一坐标）
     lb = int(img_w * 0.38)
     rb = int(img_w * 0.62)
-    left = [it for it in top_items if it["cx"] < lb]
-    center = [it for it in top_items if lb <= it["cx"] <= rb]
-    right = [it for it in top_items if it["cx"] > rb]
+    left = [it for it in top_items if it["qx"] < lb]
+    center = [it for it in top_items if lb <= it["qx"] <= rb]
+    right = [it for it in top_items if it["qx"] > rb]
 
     def bottom_row(zone):
         if not zone:
@@ -149,7 +150,20 @@ def classify_text_items(items, img_w, img_h):
         # 优先匹配含有明确时间单位的完整文本
         for it in items:
             t = it["text"].strip()
-            if "分" in t or "时" in t or re.search(r'\d+\s*[hm]', t, re.IGNORECASE):
+            # 有中文时间单位的文本 -> 提取纯净时间部分
+            if "分" in t or "时" in t:
+                hour_m = re.search(r'(\d+)\s*时', t)
+                min_m = re.search(r'(\d+)\s*分', t)
+                hour = hour_m.group(1) if hour_m else None
+                minute = min_m.group(1) if min_m else None
+                if hour and minute:
+                    return f"{hour}时{minute}分"
+                if hour:
+                    return f"{hour}时"
+                if minute:
+                    return f"{minute}分"
+                return t
+            if re.search(r'\d+\s*[hm]', t, re.IGNORECASE):
                 return t
         # 回退：扫描含两个数字的文本（如 "20 49" 可能是时间）
         for it in items:

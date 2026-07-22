@@ -491,10 +491,11 @@ class _TimeCalcScreenState extends State<TimeCalcScreen> {
       return {'fields': result, 'boundaries': null};
     }
 
-    // 给每个 item 加上中心坐标
+    // 给每个 item 加上中心坐标和左四分之一坐标（用于区域划分）
     for (final it in items) {
       it['cx'] = (it['x'] as int) + (it['w'] as int) ~/ 2;
       it['cy'] = (it['y'] as int) + (it['h'] as int) ~/ 2;
+      it['qx'] = (it['x'] as int) + (it['w'] as int) ~/ 4; // 左四分之一，避免宽框跨区
     }
 
     // 只分析顶部 30%
@@ -505,18 +506,18 @@ class _TimeCalcScreenState extends State<TimeCalcScreen> {
       return {'fields': result, 'boundaries': null};
     }
 
-    // 按 cx 排序
-    topItems.sort((a, b) => (a['cx'] as int).compareTo(b['cx'] as int));
+    // 按 qx 排序
+    topItems.sort((a, b) => (a['qx'] as int).compareTo(b['qx'] as int));
 
-    // 用固定百分比划分三区（动态聚簇易被宽标题干扰）
+    // 用固定百分比划分三区（基于左四分之一坐标，避免宽框跨区）
     final lb = imgW * 0.38;
     final rb = imgW * 0.62;
     final groups = [
-      topItems.where((it) => (it['cx'] as int) < lb).toList(),
+      topItems.where((it) => (it['qx'] as int) < lb).toList(),
       topItems
-          .where((it) => (it['cx'] as int) >= lb && (it['cx'] as int) <= rb)
+          .where((it) => (it['qx'] as int) >= lb && (it['qx'] as int) <= rb)
           .toList(),
-      topItems.where((it) => (it['cx'] as int) > rb).toList(),
+      topItems.where((it) => (it['qx'] as int) > rb).toList(),
     ];
 
     // 取每组的最下行
