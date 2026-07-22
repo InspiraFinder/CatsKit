@@ -5,21 +5,7 @@
 
   <!-- GitHub 徽章 -->
   <p>
-    <a href="https://github.com/InspiraFinder/CatsKit/releases">
-      <img src="https://img.shields.io/github/v/release/InspiraFinder/CatsKit?style=flat-square&label=版本" alt="版本">
-    </a>
-    <a href="https://github.com/InspiraFinder/CatsKit/stargazers">
-      <img src="https://img.shields.io/github/stars/InspiraFinder/CatsKit?style=flat-square&label=Star" alt="Stars">
-    </a>
-    <a href="https://github.com/InspiraFinder/CatsKit/releases">
-      <img src="https://img.shields.io/github/downloads/InspiraFinder/CatsKit/total?style=flat-square&label=下载" alt="Downloads">
-    </a>
-    <a href="https://github.com/InspiraFinder/CatsKit/blob/main/LICENSE">
-      <img src="https://img.shields.io/github/license/InspiraFinder/CatsKit?style=flat-square&label=许可" alt="License">
-    </a>
-    <a href="https://github.com/InspiraFinder/CatsKit/commits/main">
-      <img src="https://img.shields.io/github/last-commit/InspiraFinder/CatsKit?style=flat-square&label=最后更新" alt="Last Commit">
-    </a>
+    <img src="https://img.shields.io/github/v/release/InspiraFinder/CatsKit?style=flat-square&label=版本" alt="版本">
   </p>
 </div>
 
