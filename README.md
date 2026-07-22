@@ -8,8 +8,8 @@
   <img alt="版本" src="https://img.shields.io/github/v/tag/InspiraFinder/CatsKit?style=flat-square">
   <img alt="stars" src="https://img.shields.io/github/stars/InspiraFinder/CatsKit?style=flat-square">
   <img alt="downloads" src="https://img.shields.io/github/downloads/InspiraFinder/CatsKit/total?style=flat-square">
-  <img alt="License" src="https://img.shields.io/github/license/InspiraFinder/CatsKit?style=flat-square&label=许可">
-  <img alt="Last Commit" src="https://img.shields.io/github/last-commit/InspiraFinder/CatsKit?style=flat-square&label=最后更新">
+  <img alt="License" src="https://img.shields.io/github/license/InspiraFinder/CatsKit?style=flat-square">
+  <img alt="Last Commit" src="https://img.shields.io/github/last-commit/InspiraFinder/CatsKit?style=flat-square">
 </p>
 
 ## 📖 简介
