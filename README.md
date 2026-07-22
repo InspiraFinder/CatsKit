@@ -7,7 +7,7 @@
 <p align="center">
   <img alt="stars" src="https://img.shields.io/github/stars/InspiraFinder/CatsKit?style=flat-square">
   <img alt="downloads" src="https://img.shields.io/github/downloads/InspiraFinder/CatsKit/total?style=flat-square">
-  <a href="https://github.com/InspiraFinder/CatsKit/releases"><img src="https://img.shields.io/github/v/release/InspiraFinder/CatsKit?style=flat-square&label=版本" alt="版本"></a>
+  <a href="https://github.com/InspiraFinder/CatsKit/releases"><img src="https://img.shields.io/github/v/release/InspiraFinder/CatsKit?style=flat-square" alt="版本"></a>
 </p>
 
 ## 📖 简介
