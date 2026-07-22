@@ -59,3 +59,14 @@ kotlin {
 flutter {
     source = "../.."
 }
+
+// 添加在这里 ↓
+dependencies {
+    // ML Kit 中文文字识别（必须显式添加，否则运行时找不到 ChineseTextRecognizerOptions）
+    implementation("com.google.mlkit:text-recognition-chinese:16.0.0")
+    
+    // 如果还需要其他语言，按需添加（每个约增加 8-10MB）：
+    // implementation("com.google.mlkit:text-recognition-japanese:16.0.0")
+    // implementation("com.google.mlkit:text-recognition-korean:16.0.0")
+    // implementation("com.google.mlkit:text-recognition-devanagari:16.0.0")
+}

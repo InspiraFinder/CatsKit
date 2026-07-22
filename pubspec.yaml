@@ -6,7 +6,7 @@ publish_to: 'none'
 # 格式: versionName+versionCode
 # 1.0.0 是用户看到的版本名称
 # 2 是内部版本号，每次上架必须递增
-version: 0.4.6+18
+version: 0.5.0+18
 
 environment:
   sdk: ^3.12.1
@@ -17,7 +17,7 @@ dependencies:
   cupertino_icons: ^1.0.8
   url_launcher: ^6.3.1
   image_picker: ^1.2.3
-  native_text_recognition: ^0.0.2
+  google_mlkit_text_recognition: ^0.16.0
   open_filex: ^4.7.0
 
 dev_dependencies:

@@ -82,6 +82,7 @@ def classify_text_items(items, img_w, img_h):
     if not top_items:
         return result
 
+    # 用固定百分比划分三区
     lb = int(img_w * 0.38)
     rb = int(img_w * 0.62)
     left = [it for it in top_items if it["cx"] < lb]
@@ -95,30 +96,69 @@ def classify_text_items(items, img_w, img_h):
         return rows[-1][1] if rows else []
 
     def spm(items):
-        for it in items:
-            t = it["text"].strip()
-            c = t.replace("+", "").replace(",", "")
-            if t.startswith("+") and c.isdigit():
-                return t
-        return ""
-
-    def num(items):
+        """提取每分钟得分：值 1-300，可选 +/-"""
         cand = []
         for it in items:
             t = it["text"].strip().replace(",", "")
-            if t.isdigit() and 3 <= len(t) <= 7:
-                cand.append((t, len(t)))
+            # 分别提取每个带符号的数字
+            for m in re.finditer(r'[+\-]?\d+', t):
+                raw = m.group(0)
+                digits = re.sub(r'[^\d]', '', raw)
+                if not digits:
+                    continue
+                v = int(digits)
+                if 1 <= v <= 300:
+                    if raw.startswith('-'):
+                        normalized = '+' + digits
+                    elif raw.startswith('+'):
+                        normalized = raw
+                    else:
+                        normalized = '+' + digits
+                    cand.append((normalized, v))
+        if cand:
+            cand.sort(key=lambda x: -x[1])
+            return cand[0][0]
+        return ""
+
+    def num(items):
+        """提取分数：值 0-150000，排除以 + 开头且 ≤300 的 SPM 值"""
+        cand = []
+        for it in items:
+            t = it["text"].strip().replace(",", "")
+            # 分别提取每个数字
+            for m in re.finditer(r'\d+', t):
+                digits = m.group(0)
+                if not digits:
+                    continue
+                v = int(digits)
+                if v < 0 or v > 150000:
+                    continue
+                # 排除 SPM 格式：以 + 开头且值 ≤ 300
+                prefix_start = max(0, m.start() - 1)
+                prefix = t[prefix_start:m.start()]
+                if (prefix in ('+', '-')) and v <= 300:
+                    continue
+                cand.append((digits, v))
         if cand:
             cand.sort(key=lambda x: -x[1])
             return cand[0][0]
         return ""
 
     def tm(items):
+        """提取时间文本：\"Xh Ym\" / \"X时Y分\" / \"X分\" / \"X时\" 等"""
+        # 优先匹配含有明确时间单位的完整文本
         for it in items:
             t = it["text"].strip()
-            # 时间格式：数字后跟 h/m/时/分，如 "7h 52m", "3m", "7时52分", "3分"
-            if re.search(r'\d+\s*[hm]', t, re.IGNORECASE) or "分" in t or "时" in t:
+            if "分" in t or "时" in t or re.search(r'\d+\s*[hm]', t, re.IGNORECASE):
                 return t
+        # 回退：扫描含两个数字的文本（如 "20 49" 可能是时间）
+        for it in items:
+            t = it["text"].strip()
+            nums = re.findall(r'\d+', t)
+            if len(nums) >= 2:
+                v1, v2 = int(nums[0]), int(nums[1])
+                if 0 <= v1 <= 23 and 0 <= v2 <= 59:
+                    return f"{v1}时{v2}分"
         return ""
 
     # 左区取最下行
