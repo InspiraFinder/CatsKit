@@ -10,7 +10,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'parts_data.dart';
 import 'time_calc_screen.dart';
 
-const String appVersion = '0.5.3';
+const String appVersion = '0.6.0';
 
 /// 获取部件在当前语言下的显示名称
 String pn(PartData part, String? locale) {
@@ -710,6 +710,7 @@ class _VehicleBuild {
 
 class _BuildToolScreenState extends State<BuildToolScreen> {
   bool _isAssemblyMode = true;
+  bool _showImages = false;
   PartCategory _selectedCategory = PartCategory.body;
   final List<_VehicleBuild> _vehicles = [_VehicleBuild()];
   int _activeIndex = 0;
@@ -765,6 +766,16 @@ class _BuildToolScreenState extends State<BuildToolScreen> {
       appBar: AppBar(
         title: const Text('组车工具'),
         centerTitle: true,
+        actions: [
+          IconButton(
+            icon: Icon(
+              _showImages ? Icons.image : Icons.text_fields,
+              color: _showImages ? Colors.orange : null,
+            ),
+            onPressed: () => setState(() => _showImages = !_showImages),
+            tooltip: _showImages ? '文字模式' : '图片模式',
+          ),
+        ],
         leading: PopupMenuButton<String>(
           icon: const Icon(Icons.menu),
           onSelected: (value) {
@@ -1194,7 +1205,7 @@ class _BuildToolScreenState extends State<BuildToolScreen> {
             physics: const NeverScrollableScrollPhysics(),
             gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
               crossAxisCount: 3,
-              childAspectRatio: 1.3,
+              childAspectRatio: 1.0,
               crossAxisSpacing: 6,
               mainAxisSpacing: 6,
             ),
@@ -1219,39 +1230,71 @@ class _BuildToolScreenState extends State<BuildToolScreen> {
         elevation: isUsed ? 4 : 1,
         child: Padding(
           padding: const EdgeInsets.all(4),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Text(
-                pn(part, widget.locale),
-                style: const TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.bold,
+          child: _showImages
+              ? Padding(
+                  padding: const EdgeInsets.all(1),
+                  child: Image.asset(
+                    'assets/images/${part.id}.png',
+                    fit: BoxFit.contain,
+                    errorBuilder: (_, _, _) => Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(
+                            Icons.broken_image,
+                            size: 24,
+                            color: Colors.grey,
+                          ),
+                          Text(
+                            pn(part, widget.locale),
+                            style: const TextStyle(fontSize: 10),
+                            textAlign: TextAlign.center,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                )
+              : Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      pn(part, widget.locale),
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                      ),
+                      textAlign: TextAlign.center,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 2),
+                    if (part.hp1 > 0)
+                      Text(
+                        'HP ${part.hp1}',
+                        style: TextStyle(fontSize: 10, color: Colors.grey[700]),
+                      ),
+                    if (part.atk1 > 0)
+                      Text(
+                        'ATK ${part.atk1}',
+                        style: TextStyle(fontSize: 10, color: Colors.grey[700]),
+                      ),
+                    if (part.bonus != null)
+                      Text(
+                        part.bonusLabel,
+                        style: TextStyle(
+                          fontSize: 9,
+                          color: Colors.orange[800],
+                        ),
+                      ),
+                    if (!_isAssemblyMode)
+                      const Icon(
+                        Icons.info_outline,
+                        size: 14,
+                        color: Colors.teal,
+                      ),
+                  ],
                 ),
-                textAlign: TextAlign.center,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-              ),
-              const SizedBox(height: 2),
-              if (part.hp1 > 0)
-                Text(
-                  'HP ${part.hp1}',
-                  style: TextStyle(fontSize: 10, color: Colors.grey[700]),
-                ),
-              if (part.atk1 > 0)
-                Text(
-                  'ATK ${part.atk1}',
-                  style: TextStyle(fontSize: 10, color: Colors.grey[700]),
-                ),
-              if (part.bonus != null)
-                Text(
-                  part.bonusLabel,
-                  style: TextStyle(fontSize: 9, color: Colors.orange[800]),
-                ),
-              if (!_isAssemblyMode)
-                const Icon(Icons.info_outline, size: 14, color: Colors.teal),
-            ],
-          ),
         ),
       ),
     );
