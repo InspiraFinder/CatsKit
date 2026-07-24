@@ -10,7 +10,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'parts_data.dart';
 import 'time_calc_screen.dart';
 
-const String appVersion = '0.6.2';
+const String appVersion = '0.6.3';
 
 /// 获取部件在当前语言下的显示名称
 String pn(PartData part, String? locale) {
@@ -734,6 +734,7 @@ class _BuildToolScreenState extends State<BuildToolScreen> {
   bool _isAssemblyMode = true;
   bool _showImages = false;
   bool _isFilterMode = true;
+  int _gridColumns = 3;
   final PartCategory _selectedCategory = PartCategory.body;
   final Set<PartCategory> _selectedCategories = {};
   final Set<Rarity> _selectedRarities = {};
@@ -803,6 +804,26 @@ class _BuildToolScreenState extends State<BuildToolScreen> {
             onPressed: () => setState(() => _showImages = !_showImages),
             tooltip: _showImages ? _t('文字模式', 'Text') : _t('图片模式', 'Image'),
           ),
+          PopupMenuButton<int>(
+            icon: Icon(Icons.grid_view, size: 20),
+            tooltip: _t('每行数量', 'Columns'),
+            onSelected: (v) => setState(() => _gridColumns = v),
+            itemBuilder: (_) => [2, 3, 4, 5]
+                .map(
+                  (n) => PopupMenuItem(
+                    value: n,
+                    child: Text(
+                      n == _gridColumns ? '$_gridColumns ✓' : '$n',
+                      style: TextStyle(
+                        fontWeight: n == _gridColumns
+                            ? FontWeight.bold
+                            : FontWeight.normal,
+                      ),
+                    ),
+                  ),
+                )
+                .toList(),
+          ),
         ],
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
@@ -829,7 +850,8 @@ class _BuildToolScreenState extends State<BuildToolScreen> {
       children: [
         for (int i = 0; i < _vehicles.length; i++) ...[
           _buildSingleVehicleArea(_vehicles[i], i),
-          if (i < _vehicles.length - 1) const Divider(height: 8),
+          if (_isAssemblyMode && i < _vehicles.length - 1)
+            const Divider(height: 8),
         ],
       ],
     );
@@ -846,202 +868,208 @@ class _BuildToolScreenState extends State<BuildToolScreen> {
             _partLevels,
           );
     final powerOk = v.powerSupply >= v.powerConsumption;
-    return Container(
-      padding: const EdgeInsets.all(6),
-      color: Colors.blue[50],
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // —— 删除按钮 ——
-          if (_vehicles.length > 1)
-            Align(
-              alignment: Alignment.centerRight,
-              child: TextButton.icon(
-                icon: const Icon(
-                  Icons.delete_outline,
-                  size: 16,
-                  color: Colors.red,
-                ),
-                label: Text(
-                  _t('删除组车区', 'Delete'),
-                  style: TextStyle(fontSize: 12, color: Colors.red),
-                ),
-                onPressed: () => _removeVehicle(vi),
-              ),
-            ),
-          // ---- 状态行 ----
-          Row(
-            children: [
-              Icon(
-                v.ok ? Icons.check_circle : Icons.error,
-                size: 16,
-                color: v.ok ? Colors.green : Colors.red,
-              ),
-              const SizedBox(width: 4),
-              Expanded(
-                child: Text(
-                  v.error.isNotEmpty ? v.error : _t('状态 OK', 'OK'),
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: v.ok ? Colors.green : Colors.red,
-                    fontWeight: FontWeight.bold,
+    final isActive = vi == _activeIndex;
+    return GestureDetector(
+      onTap: () => setState(() => _activeIndex = vi),
+      child: Container(
+        padding: const EdgeInsets.all(6),
+        color: isActive
+            ? Colors.blue[50]
+            : _isAssemblyMode
+            ? Colors.grey[100]
+            : Colors.teal[50],
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // —— 删除按钮（数据查询模式隐藏） ——
+            if (_isAssemblyMode && _vehicles.length > 1)
+              Align(
+                alignment: Alignment.centerRight,
+                child: TextButton.icon(
+                  icon: const Icon(
+                    Icons.delete_outline,
+                    size: 16,
+                    color: Colors.red,
                   ),
+                  label: Text(
+                    _t('删除组车区', 'Delete'),
+                    style: TextStyle(fontSize: 12, color: Colors.red),
+                  ),
+                  onPressed: () => _removeVehicle(vi),
                 ),
               ),
-            ],
-          ),
-          const SizedBox(height: 4),
-          // ---- 属性行 ----
-          Row(
-            children: [
-              _statChip('HP', '${v.hp.floor()}', Colors.blue),
-              const SizedBox(width: 4),
-              _statChip('ATK', '${v.atk.floor()}', Colors.red),
-              const SizedBox(width: 4),
-              _statChip(
-                _t('电力', 'PWR'),
-                '${v.powerConsumption}/${v.powerSupply}',
-                powerOk ? Colors.green : Colors.red,
-              ),
-            ],
-          ),
-          const SizedBox(height: 4),
-          // ---- 插槽与加成行 ----
-          Row(
-            children: [
-              _statChip(
-                _t('插槽', 'Slots'),
-                '${_t('武器', 'Wpn')}${v.numWeapons}/${v.numWeaponSlots} ${_t('车轮', 'Whl')}${v.numWheels}/${v.numWheelSlots} ${_t('配件', 'Gad')}${v.numGadgets}/${v.numGadgetSlots}',
-                Colors.grey,
-              ),
-            ],
-          ),
-          if (v.bodyBonusPct > 0 ||
-              v.weaponBonusPct > 0 ||
-              v.wheelBonusPct > 0 ||
-              v.gadgetBonusPct > 0 ||
-              v.sponsorBonusPct > 0) ...[
-            const SizedBox(height: 2),
+            // ---- 状态行 ----
             Row(
               children: [
-                if (v.bodyBonusPct > 0)
-                  _statChip(
-                    '${_t('车身', 'Body')}+${v.bodyBonusPct}%',
-                    '',
-                    Colors.orange,
+                Icon(
+                  v.ok ? Icons.check_circle : Icons.error,
+                  size: 16,
+                  color: v.ok ? Colors.green : Colors.red,
+                ),
+                const SizedBox(width: 4),
+                Expanded(
+                  child: Text(
+                    v.error.isNotEmpty ? v.error : _t('状态 OK', 'OK'),
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: v.ok ? Colors.green : Colors.red,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
-                if (v.weaponBonusPct > 0) ...[
-                  const SizedBox(width: 4),
-                  _statChip(
-                    '${_t('武器', 'Weapon')}+${v.weaponBonusPct}%',
-                    '',
-                    Colors.red,
-                  ),
-                ],
-                if (v.wheelBonusPct > 0) ...[
-                  const SizedBox(width: 4),
-                  _statChip(
-                    '${_t('车轮', 'Wheel')}+${v.wheelBonusPct}%',
-                    '',
-                    Colors.green,
-                  ),
-                ],
-                if (v.gadgetBonusPct > 0) ...[
-                  const SizedBox(width: 4),
-                  _statChip(
-                    '${_t('配件', 'Gadget')}+${v.gadgetBonusPct}%',
-                    '',
-                    Colors.purple,
-                  ),
-                ],
-                if (v.sponsorBonusPct > 0) ...[
-                  const SizedBox(width: 4),
-                  _statChip(
-                    '${_t('赞助', 'Sponsor')}+${v.sponsorBonusPct}%',
-                    '',
-                    Colors.teal,
-                  ),
-                ],
+                ),
               ],
             ),
-          ],
-          const SizedBox(height: 6),
-          // ---- 插槽行 ----
-          LayoutBuilder(
-            builder: (context, constraints) {
-              final totalSlots =
-                  1 + v.numWeaponSlots + v.numWheelSlots + v.numGadgetSlots;
-              final slotWidth =
-                  ((constraints.maxWidth - 6 * totalSlots) / totalSlots).clamp(
-                    70.0,
-                    120.0,
-                  );
-              return SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: Row(
-                  children: [
-                    _buildSlot(
-                      _t('车身', 'Body'),
-                      vh.body,
+            const SizedBox(height: 4),
+            // ---- 属性行 ----
+            Row(
+              children: [
+                _statChip('HP', '${v.hp.floor()}', Colors.blue),
+                const SizedBox(width: 4),
+                _statChip('ATK', '${v.atk.floor()}', Colors.red),
+                const SizedBox(width: 4),
+                _statChip(
+                  _t('电力', 'PWR'),
+                  '${v.powerConsumption}/${v.powerSupply}',
+                  powerOk ? Colors.green : Colors.red,
+                ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            // ---- 插槽与加成行 ----
+            Row(
+              children: [
+                _statChip(
+                  _t('插槽', 'Slots'),
+                  '${_t('武器', 'Wpn')}${v.numWeapons}/${v.numWeaponSlots} ${_t('车轮', 'Whl')}${v.numWheels}/${v.numWheelSlots} ${_t('配件', 'Gad')}${v.numGadgets}/${v.numGadgetSlots}',
+                  Colors.grey,
+                ),
+              ],
+            ),
+            if (v.bodyBonusPct > 0 ||
+                v.weaponBonusPct > 0 ||
+                v.wheelBonusPct > 0 ||
+                v.gadgetBonusPct > 0 ||
+                v.sponsorBonusPct > 0) ...[
+              const SizedBox(height: 2),
+              Row(
+                children: [
+                  if (v.bodyBonusPct > 0)
+                    _statChip(
+                      '${_t('车身', 'Body')}+${v.bodyBonusPct}%',
+                      '',
                       Colors.orange,
-                      () => setState(() => vh.body = null),
-                      slotWidth,
                     ),
-                    const SizedBox(width: 6),
-                    ...List.generate(
-                      v.numWeaponSlots,
-                      (i) => Padding(
-                        padding: const EdgeInsets.only(right: 6),
-                        child: _buildSlot(
-                          '${_t('武', 'Wpn')}${i + 1}',
-                          i < vh.weapons.length ? vh.weapons[i] : null,
-                          Colors.red,
-                          () {
-                            if (i < vh.weapons.length)
-                              setState(() => vh.weapons.removeAt(i));
-                          },
-                          slotWidth,
-                        ),
-                      ),
-                    ),
-                    ...List.generate(
-                      v.numWheelSlots,
-                      (i) => Padding(
-                        padding: const EdgeInsets.only(right: 6),
-                        child: _buildSlot(
-                          '${_t('轮', 'Whl')}${i + 1}',
-                          i < vh.wheels.length ? vh.wheels[i] : null,
-                          Colors.green,
-                          () {
-                            if (i < vh.wheels.length)
-                              setState(() => vh.wheels.removeAt(i));
-                          },
-                          slotWidth,
-                        ),
-                      ),
-                    ),
-                    ...List.generate(
-                      v.numGadgetSlots,
-                      (i) => Padding(
-                        padding: const EdgeInsets.only(right: 6),
-                        child: _buildSlot(
-                          '${_t('配', 'Gad')}${i + 1}',
-                          i < vh.gadgets.length ? vh.gadgets[i] : null,
-                          Colors.purple,
-                          () {
-                            if (i < vh.gadgets.length)
-                              setState(() => vh.gadgets.removeAt(i));
-                          },
-                          slotWidth,
-                        ),
-                      ),
+                  if (v.weaponBonusPct > 0) ...[
+                    const SizedBox(width: 4),
+                    _statChip(
+                      '${_t('武器', 'Weapon')}+${v.weaponBonusPct}%',
+                      '',
+                      Colors.red,
                     ),
                   ],
-                ),
-              );
-            },
-          ),
-        ],
+                  if (v.wheelBonusPct > 0) ...[
+                    const SizedBox(width: 4),
+                    _statChip(
+                      '${_t('车轮', 'Wheel')}+${v.wheelBonusPct}%',
+                      '',
+                      Colors.green,
+                    ),
+                  ],
+                  if (v.gadgetBonusPct > 0) ...[
+                    const SizedBox(width: 4),
+                    _statChip(
+                      '${_t('配件', 'Gadget')}+${v.gadgetBonusPct}%',
+                      '',
+                      Colors.purple,
+                    ),
+                  ],
+                  if (v.sponsorBonusPct > 0) ...[
+                    const SizedBox(width: 4),
+                    _statChip(
+                      '${_t('赞助', 'Sponsor')}+${v.sponsorBonusPct}%',
+                      '',
+                      Colors.teal,
+                    ),
+                  ],
+                ],
+              ),
+            ],
+            const SizedBox(height: 6),
+            // ---- 插槽行 ----
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final totalSlots =
+                    1 + v.numWeaponSlots + v.numWheelSlots + v.numGadgetSlots;
+                final slotWidth =
+                    ((constraints.maxWidth - 6 * totalSlots) / totalSlots)
+                        .clamp(70.0, 120.0);
+                return SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    children: [
+                      _buildSlot(
+                        _t('车身', 'Body'),
+                        vh.body,
+                        Colors.orange,
+                        () => setState(() => vh.body = null),
+                        slotWidth,
+                      ),
+                      const SizedBox(width: 6),
+                      ...List.generate(
+                        v.numWeaponSlots,
+                        (i) => Padding(
+                          padding: const EdgeInsets.only(right: 6),
+                          child: _buildSlot(
+                            '${_t('武', 'Wpn')}${i + 1}',
+                            i < vh.weapons.length ? vh.weapons[i] : null,
+                            Colors.red,
+                            () {
+                              if (i < vh.weapons.length)
+                                setState(() => vh.weapons.removeAt(i));
+                            },
+                            slotWidth,
+                          ),
+                        ),
+                      ),
+                      ...List.generate(
+                        v.numWheelSlots,
+                        (i) => Padding(
+                          padding: const EdgeInsets.only(right: 6),
+                          child: _buildSlot(
+                            '${_t('轮', 'Whl')}${i + 1}',
+                            i < vh.wheels.length ? vh.wheels[i] : null,
+                            Colors.green,
+                            () {
+                              if (i < vh.wheels.length)
+                                setState(() => vh.wheels.removeAt(i));
+                            },
+                            slotWidth,
+                          ),
+                        ),
+                      ),
+                      ...List.generate(
+                        v.numGadgetSlots,
+                        (i) => Padding(
+                          padding: const EdgeInsets.only(right: 6),
+                          child: _buildSlot(
+                            '${_t('配', 'Gad')}${i + 1}',
+                            i < vh.gadgets.length ? vh.gadgets[i] : null,
+                            Colors.purple,
+                            () {
+                              if (i < vh.gadgets.length)
+                                setState(() => vh.gadgets.removeAt(i));
+                            },
+                            slotWidth,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -1144,7 +1172,7 @@ class _BuildToolScreenState extends State<BuildToolScreen> {
                 size: 20,
               ),
               label: Text(
-                _isAssemblyMode ? _t('组车', 'Build') : _t('数据展示', 'Data'),
+                _isAssemblyMode ? _t('组车', 'Build') : _t('数据查询', 'Browse'),
                 style: const TextStyle(fontSize: 16),
               ),
               style: ElevatedButton.styleFrom(
@@ -1176,14 +1204,14 @@ class _BuildToolScreenState extends State<BuildToolScreen> {
           const SizedBox(width: 8),
           Expanded(
             child: ElevatedButton.icon(
-              onPressed: _addVehicle,
+              onPressed: _isAssemblyMode ? _addVehicle : null,
               icon: const Icon(Icons.add, size: 20),
               label: Text(
                 _t('新增车辆', 'Add Car'),
                 style: const TextStyle(fontSize: 16),
               ),
               style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.green,
+                backgroundColor: _isAssemblyMode ? Colors.green : Colors.teal,
                 foregroundColor: Colors.white,
                 padding: const EdgeInsets.symmetric(vertical: 12),
               ),
@@ -1234,8 +1262,8 @@ class _BuildToolScreenState extends State<BuildToolScreen> {
           child: GridView.builder(
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 3,
+            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: _gridColumns,
               childAspectRatio: 1.0,
               crossAxisSpacing: 6,
               mainAxisSpacing: 6,
@@ -1357,7 +1385,7 @@ class _BuildToolScreenState extends State<BuildToolScreen> {
   }
 
   /// 赞助商对应的图片资源路径
-  String _sponsorImage(Sponsor sponsor) {
+  String sponsorImage(Sponsor sponsor) {
     switch (sponsor) {
       case Sponsor.mecha:
         return 'assets/images/sp_mecha.png';
@@ -1420,7 +1448,7 @@ class _BuildToolScreenState extends State<BuildToolScreen> {
                         left: 2,
                         bottom: 2,
                         child: Image.asset(
-                          _sponsorImage(part.sponsor),
+                          sponsorImage(part.sponsor),
                           width: 20,
                           height: 20,
                         ),
@@ -2076,25 +2104,25 @@ class SettingsScreen extends StatefulWidget {
 class _SettingsScreenState extends State<SettingsScreen> {
   late String locale;
   late bool showSnackBar;
-  late TextEditingController _updateUrlController;
-  late TextEditingController _mirrorController;
-  late TextEditingController _downloadPathController;
-  bool _isDownloading = false;
-  bool _isPaused = false;
-  bool _isCheckingUpdate = false;
-  double _downloadProgress = 0;
-  String _downloadSpeed = '';
-  String _downloadedSize = '';
-  int _lastReceivedBytes = 0;
-  int _lastSpeedTime = 0;
-  StreamSubscription? _streamSub;
-  bool _cancelRequested = false;
-  HttpClientResponse? _downloadResponse;
-  int _totalDownloadBytes = 0;
-  final List<List<int>> _downloadChunks = [];
-  String _downloadedFilePath = '';
+  late TextEditingController updateUrlController;
+  late TextEditingController mirrorController;
+  late TextEditingController downloadPathController;
+  bool isDownloading = false;
+  bool isPaused = false;
+  bool isCheckingUpdate = false;
+  double downloadProgress = 0;
+  String downloadSpeed = '';
+  String downloadedSize = '';
+  int lastReceivedBytes = 0;
+  int lastSpeedTime = 0;
+  StreamSubscription? streamSub;
+  bool cancelRequested = false;
+  HttpClientResponse? downloadResponse;
+  int totalDownloadBytes = 0;
+  final List<List<int>> downloadChunks = [];
+  String downloadedFilePath = '';
 
-  static const List<String> _presetMirrors = [
+  static const List<String> presetMirrors = [
     '',
     'https://ghproxy.com/',
     'https://ghproxy.net/',
@@ -2112,35 +2140,35 @@ class _SettingsScreenState extends State<SettingsScreen> {
     super.initState();
     locale = widget.currentLocale;
     showSnackBar = widget.currentShowSnackBar;
-    _updateUrlController = TextEditingController(
+    updateUrlController = TextEditingController(
       text: widget.currentGithubUpdateUrl,
     );
-    _mirrorController = TextEditingController(text: widget.currentMirrorUrl);
+    mirrorController = TextEditingController(text: widget.currentMirrorUrl);
     // 初始化下载路径
     final defaultPath = Platform.isAndroid
         ? '${Directory.systemTemp.path}${Platform.pathSeparator}CatsKit'
         : '${Platform.environment['USERPROFILE'] ?? Platform.environment['HOME'] ?? Directory.current.path}${Platform.pathSeparator}Downloads${Platform.pathSeparator}CatsKit';
-    _downloadPathController = TextEditingController(text: defaultPath);
+    downloadPathController = TextEditingController(text: defaultPath);
   }
 
   @override
   void dispose() {
-    _updateUrlController.dispose();
-    _mirrorController.dispose();
-    _downloadPathController.dispose();
+    updateUrlController.dispose();
+    mirrorController.dispose();
+    downloadPathController.dispose();
     super.dispose();
   }
 
   /// 获取镜像 URL
-  String _getMirrorUrl(String originalUrl) {
-    final mirror = _mirrorController.text.trim();
+  String getMirrorUrl(String originalUrl) {
+    final mirror = mirrorController.text.trim();
     if (mirror.isEmpty) return originalUrl;
     final base = mirror.endsWith('/') ? mirror : '$mirror/';
     return '$base$originalUrl';
   }
 
   /// 解析域名 -> IP，含 DNS-over-HTTPS 回退（绕过 Android 系统 DNS 缺陷）
-  Future<String> _resolveHost(String host) async {
+  Future<String> resolveHost(String host) async {
     // 1) 系统 DNS
     try {
       final list = await InternetAddress.lookup(host);
@@ -2186,7 +2214,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   /// 尝试多个 URL，自动 DNS 回退 + 镜像轮询
-  Future<HttpClientResponse> _tryFetchUrls(
+  Future<HttpClientResponse> tryFetchUrls(
     HttpClient client,
     List<String> urls, {
     Map<String, String>? headers,
@@ -2195,7 +2223,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     for (final url in urls) {
       try {
         final uri = Uri.parse(url);
-        final ip = await _resolveHost(uri.host);
+        final ip = await resolveHost(uri.host);
         final ipUri = uri.replace(host: ip);
 
         final request = await client
@@ -2217,9 +2245,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   /// 生成直连 + 所有可用镜像的 URL 列表
-  List<String> _urlCandidates(String originalUrl) {
-    final candidates = <String>[_getMirrorUrl(originalUrl)]; // 当前配置
-    for (final m in _presetMirrors) {
+  List<String> urlCandidates(String originalUrl) {
+    final candidates = <String>[getMirrorUrl(originalUrl)]; // 当前配置
+    for (final m in presetMirrors) {
       if (m.isEmpty) continue; // 空 = 直连，已包含
       final base = m.endsWith('/') ? m : '$m/';
       final mirrored = '$base$originalUrl';
@@ -2234,13 +2262,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
     return candidates;
   }
 
-  Future<void> _checkForUpdate() async {
+  Future<void> checkForUpdate() async {
     const apiUrl =
         'https://api.github.com/repos/InspiraFinder/CatsKit/releases/latest';
 
     setState(() {
-      _isDownloading = true;
-      _isCheckingUpdate = true;
+      isDownloading = true;
+      isCheckingUpdate = true;
     });
 
     showDialog<void>(
@@ -2265,9 +2293,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
         'Accept-Language': 'zh-CN,zh;q=0.9',
       };
 
-      final response = await _tryFetchUrls(
+      final response = await tryFetchUrls(
         client,
-        _urlCandidates(apiUrl),
+        urlCandidates(apiUrl),
         headers: headers,
       );
 
@@ -2277,9 +2305,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
         // 尝试获取 releases 列表
         final listUrl =
             'https://api.github.com/repos/InspiraFinder/CatsKit/releases';
-        final listResponse = await _tryFetchUrls(
+        final listResponse = await tryFetchUrls(
           client,
-          _urlCandidates(listUrl),
+          urlCandidates(listUrl),
           headers: headers,
         );
 
@@ -2290,8 +2318,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
             if (!mounted) return;
             Navigator.of(context, rootNavigator: true).pop();
             setState(() {
-              _isDownloading = false;
-              _isCheckingUpdate = false;
+              isDownloading = false;
+              isCheckingUpdate = false;
             });
             ScaffoldMessenger.of(
               context,
@@ -2300,13 +2328,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
           }
           // 取列表中的第一个（最新）
           final json = list.first as Map<String, dynamic>;
-          _processReleaseJson(json);
+          processReleaseJson(json);
         } else {
           if (!mounted) return;
           Navigator.of(context, rootNavigator: true).pop();
           setState(() {
-            _isDownloading = false;
-            _isCheckingUpdate = false;
+            isDownloading = false;
+            isCheckingUpdate = false;
           });
           ScaffoldMessenger.of(
             context,
@@ -2321,14 +2349,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
       body = await response.transform(utf8.decoder).join();
       final json = jsonDecode(body) as Map<String, dynamic>;
-      _processReleaseJson(json);
+      processReleaseJson(json);
     } catch (e) {
       if (mounted && Navigator.of(context, rootNavigator: true).canPop()) {
         Navigator.of(context, rootNavigator: true).pop();
       }
       setState(() {
-        _isDownloading = false;
-        _isCheckingUpdate = false;
+        isDownloading = false;
+        isCheckingUpdate = false;
       });
       if (!mounted) return;
       ScaffoldMessenger.of(
@@ -2338,7 +2366,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   /// 比较版本号字符串，返回 1 (a>b), -1 (a<b), 0 (a==b)
-  int _compareVersion(String a, String b) {
+  int compareVersion(String a, String b) {
     final pa = a.replaceFirst(RegExp(r'^v'), '').split('.');
     final pb = b.replaceFirst(RegExp(r'^v'), '').split('.');
     final len = pa.length > pb.length ? pa.length : pb.length;
@@ -2351,19 +2379,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
     return 0;
   }
 
-  void _processReleaseJson(Map<String, dynamic> json) {
+  void processReleaseJson(Map<String, dynamic> json) {
     final tagName = json['tag_name'] as String? ?? 'unknown';
     final assets = json['assets'] as List<dynamic>? ?? [];
 
     if (!mounted) return;
     Navigator.of(context, rootNavigator: true).pop();
     setState(() {
-      _isDownloading = false;
-      _isCheckingUpdate = false;
+      isDownloading = false;
+      isCheckingUpdate = false;
     });
 
     // 对比版本号
-    final cmp = _compareVersion(tagName, appVersion);
+    final cmp = compareVersion(tagName, appVersion);
     if (cmp <= 0) {
       // tag 版本 <= 当前版本 → 已是最新
       ScaffoldMessenger.of(context).showSnackBar(
@@ -2379,7 +2407,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
 
     if (assets.isEmpty) {
-      _updateUrlController.text =
+      updateUrlController.text =
           'https://github.com/InspiraFinder/CatsKit/releases/tag/$tagName';
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -2394,7 +2422,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final assetName = firstAsset['name'] as String? ?? '';
 
     if (downloadUrl.isEmpty) {
-      _updateUrlController.text =
+      updateUrlController.text =
           'https://github.com/InspiraFinder/CatsKit/releases/tag/$tagName';
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('发现最新版 $tagName，但无法获取直链，已填入 release 页面')),
@@ -2402,7 +2430,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       return;
     }
 
-    _updateUrlController.text = downloadUrl;
+    updateUrlController.text = downloadUrl;
 
     if (!mounted) return;
     showDialog<void>(
@@ -2431,8 +2459,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  Future<void> _downloadUpdatePackage() async {
-    final url = _updateUrlController.text.trim();
+  Future<void> downloadUpdatePackage() async {
+    final url = updateUrlController.text.trim();
     if (url.isEmpty) {
       ScaffoldMessenger.of(
         context,
@@ -2448,18 +2476,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
       return;
     }
 
-    _cancelRequested = false;
-    _isPaused = false;
-    _downloadChunks.clear();
-    _totalDownloadBytes = 0;
+    cancelRequested = false;
+    isPaused = false;
+    downloadChunks.clear();
+    totalDownloadBytes = 0;
 
     setState(() {
-      _isDownloading = true;
-      _downloadProgress = 0;
-      _downloadSpeed = '';
-      _downloadedSize = '';
-      _lastReceivedBytes = 0;
-      _lastSpeedTime = 0;
+      isDownloading = true;
+      downloadProgress = 0;
+      downloadSpeed = '';
+      downloadedSize = '';
+      lastReceivedBytes = 0;
+      lastSpeedTime = 0;
     });
 
     try {
@@ -2472,9 +2500,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
         'Accept-Language': 'zh-CN,zh;q=0.9',
       };
 
-      final response = await _tryFetchUrls(
+      final response = await tryFetchUrls(
         client,
-        _urlCandidates(url),
+        urlCandidates(url),
         headers: headers,
       );
 
@@ -2482,49 +2510,49 @@ class _SettingsScreenState extends State<SettingsScreen> {
         throw HttpException('HTTP ${response.statusCode}');
       }
 
-      _downloadResponse = response;
+      downloadResponse = response;
       final totalBytes = response.contentLength ?? -1;
-      _lastReceivedBytes = 0;
-      _lastSpeedTime = DateTime.now().millisecondsSinceEpoch;
+      lastReceivedBytes = 0;
+      lastSpeedTime = DateTime.now().millisecondsSinceEpoch;
 
       final completer = Completer<void>();
-      _streamSub = response.listen(
+      streamSub = response.listen(
         (chunk) {
-          if (_cancelRequested) {
-            _streamSub?.cancel();
-            _downloadResponse = null;
+          if (cancelRequested) {
+            streamSub?.cancel();
+            downloadResponse = null;
             completer.complete();
             return;
           }
 
-          _downloadChunks.add(chunk);
-          _totalDownloadBytes += chunk.length;
+          downloadChunks.add(chunk);
+          totalDownloadBytes += chunk.length;
 
           final now = DateTime.now().millisecondsSinceEpoch;
-          final elapsed = now - _lastSpeedTime;
+          final elapsed = now - lastSpeedTime;
 
           if (elapsed >= 1000) {
-            final deltaBytes = _totalDownloadBytes - _lastReceivedBytes;
+            final deltaBytes = totalDownloadBytes - lastReceivedBytes;
             final speedBps = deltaBytes / (elapsed / 1000);
-            _downloadSpeed = speedBps >= 1024 * 1024
+            downloadSpeed = speedBps >= 1024 * 1024
                 ? '${(speedBps / (1024 * 1024)).toStringAsFixed(1)} MB/s'
                 : '${(speedBps / 1024).toStringAsFixed(0)} KB/s';
-            _lastReceivedBytes = _totalDownloadBytes;
-            _lastSpeedTime = now;
+            lastReceivedBytes = totalDownloadBytes;
+            lastSpeedTime = now;
           }
 
-          _downloadedSize = _totalDownloadBytes >= 1024 * 1024
-              ? '${(_totalDownloadBytes / (1024 * 1024)).toStringAsFixed(1)} MB'
-              : '${(_totalDownloadBytes / 1024).toStringAsFixed(0)} KB';
+          downloadedSize = totalDownloadBytes >= 1024 * 1024
+              ? '${(totalDownloadBytes / (1024 * 1024)).toStringAsFixed(1)} MB'
+              : '${(totalDownloadBytes / 1024).toStringAsFixed(0)} KB';
 
           if (totalBytes > 0) {
-            _downloadProgress = _totalDownloadBytes / totalBytes;
+            downloadProgress = totalDownloadBytes / totalBytes;
           }
 
           if (mounted) setState(() {});
         },
         onDone: () {
-          if (totalBytes < 0) _downloadProgress = 1;
+          if (totalBytes < 0) downloadProgress = 1;
           completer.complete();
         },
         onError: (e) {
@@ -2535,11 +2563,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
       await completer.future;
 
-      if (_cancelRequested) {
+      if (cancelRequested) {
         if (mounted) {
           setState(() {
-            _isDownloading = false;
-            _isPaused = false;
+            isDownloading = false;
+            isPaused = false;
           });
           ScaffoldMessenger.of(
             context,
@@ -2548,7 +2576,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         return;
       }
 
-      final bytes = _downloadChunks.fold<List<int>>(<int>[], (a, b) {
+      final bytes = downloadChunks.fold<List<int>>(<int>[], (a, b) {
         a.addAll(b);
         return a;
       });
@@ -2558,7 +2586,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ? uri.pathSegments.last
           : 'catskit_update_package.bin';
       // 获取可写下载目录（使用用户自定义路径）
-      final customPath = _downloadPathController.text.trim();
+      final customPath = downloadPathController.text.trim();
       final downloadDir = Directory(
         customPath.isNotEmpty
             ? customPath
@@ -2575,7 +2603,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       );
       await outputFile.writeAsBytes(bytes, flush: true);
 
-      _downloadedFilePath = outputFile.path;
+      downloadedFilePath = outputFile.path;
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -2593,16 +2621,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
     } finally {
       if (mounted) {
         setState(() {
-          _isDownloading = false;
-          _isPaused = false;
+          isDownloading = false;
+          isPaused = false;
         });
       }
     }
   }
 
   /// 安装下载的更新包
-  Future<void> _installPackage() async {
-    final path = _downloadedFilePath;
+  Future<void> installPackage() async {
+    final path = downloadedFilePath;
     if (path.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -2628,31 +2656,31 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
   }
 
-  void _onPauseResume() {
-    if (_isPaused) {
-      _streamSub?.resume();
+  void onPauseResume() {
+    if (isPaused) {
+      streamSub?.resume();
     } else {
-      _streamSub?.pause();
+      streamSub?.pause();
     }
     setState(() {
-      _isPaused = !_isPaused;
+      isPaused = !isPaused;
     });
   }
 
-  void _onStopDownload() {
-    _cancelRequested = true;
-    _streamSub?.cancel();
-    _downloadResponse = null;
+  void onStopDownload() {
+    cancelRequested = true;
+    streamSub?.cancel();
+    downloadResponse = null;
     setState(() {
-      _isDownloading = false;
-      _isPaused = false;
+      isDownloading = false;
+      isPaused = false;
     });
     ScaffoldMessenger.of(
       context,
     ).showSnackBar(const SnackBar(content: Text('下载已停止')));
   }
 
-  Widget _buildControlButton({
+  Widget buildControlButton({
     required IconData icon,
     required String label,
     required Color color,
@@ -2672,10 +2700,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  Future<void> _showNetworkDiagnosis(
-    BuildContext context,
-    String locale,
-  ) async {
+  Future<void> showNetworkDiagnosis(BuildContext context, String locale) async {
     // 先显示加载对话框
     if (!context.mounted) return;
     showDialog(
@@ -2883,7 +2908,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16.0),
             child: TextField(
-              controller: _updateUrlController,
+              controller: updateUrlController,
               decoration: InputDecoration(
                 border: const OutlineInputBorder(),
                 hintText: locale == 'zh'
@@ -2896,7 +2921,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16.0),
             child: ElevatedButton.icon(
-              onPressed: _isDownloading ? null : _checkForUpdate,
+              onPressed: isDownloading ? null : checkForUpdate,
               icon: const Icon(Icons.search),
               label: Text(locale == 'zh' ? '检测最新更新' : 'Check for updates'),
             ),
@@ -2908,8 +2933,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
               children: [
                 Expanded(
                   child: ElevatedButton.icon(
-                    onPressed: _isDownloading ? null : _downloadUpdatePackage,
-                    icon: _isDownloading
+                    onPressed: isDownloading ? null : downloadUpdatePackage,
+                    icon: isDownloading
                         ? const SizedBox(
                             width: 18,
                             height: 18,
@@ -2917,7 +2942,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           )
                         : const Icon(Icons.system_update),
                     label: Text(
-                      _isDownloading
+                      isDownloading
                           ? (locale == 'zh' ? '下载中...' : 'Downloading...')
                           : (locale == 'zh' ? '下载更新包' : 'Download'),
                     ),
@@ -2926,9 +2951,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 const SizedBox(width: 12),
                 Expanded(
                   child: ElevatedButton.icon(
-                    onPressed: _downloadedFilePath.isEmpty
+                    onPressed: downloadedFilePath.isEmpty
                         ? null
-                        : _installPackage,
+                        : installPackage,
                     icon: const Icon(Icons.install_mobile),
                     label: Text(locale == 'zh' ? '安装' : 'Install'),
                   ),
@@ -2936,7 +2961,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ],
             ),
           ),
-          if (_isDownloading) ...[
+          if (isDownloading) ...[
             const SizedBox(height: 12),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16.0),
@@ -2959,7 +2984,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         const SizedBox(width: 6),
                         Expanded(
                           child: Text(
-                            '${locale == 'zh' ? '下载到' : 'Save to'}: ${_downloadPathController.text}',
+                            '${locale == 'zh' ? '下载到' : 'Save to'}: ${downloadPathController.text}',
                             style: TextStyle(
                               fontSize: 12,
                               color: Colors.grey[600],
@@ -2972,7 +2997,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ),
                   const SizedBox(height: 8),
                   LinearProgressIndicator(
-                    value: _downloadProgress > 0 ? _downloadProgress : null,
+                    value: downloadProgress > 0 ? downloadProgress : null,
                     minHeight: 6,
                     borderRadius: BorderRadius.circular(3),
                   ),
@@ -2981,11 +3006,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text(
-                        '$_downloadedSize${_downloadProgress > 0 ? ' (${(_downloadProgress * 100).toStringAsFixed(1)}%)' : ''}',
+                        '$downloadedSize${downloadProgress > 0 ? ' (${(downloadProgress * 100).toStringAsFixed(1)}%)' : ''}',
                         style: const TextStyle(fontSize: 13),
                       ),
                       Text(
-                        _downloadSpeed,
+                        downloadSpeed,
                         style: const TextStyle(
                           fontSize: 13,
                           color: Colors.blue,
@@ -2994,22 +3019,22 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     ],
                   ),
                   const SizedBox(height: 8),
-                  if (!_isCheckingUpdate)
+                  if (!isCheckingUpdate)
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        _buildControlButton(
-                          icon: _isPaused ? Icons.play_arrow : Icons.pause,
-                          label: _isPaused ? '继续' : '暂停',
+                        buildControlButton(
+                          icon: isPaused ? Icons.play_arrow : Icons.pause,
+                          label: isPaused ? '继续' : '暂停',
                           color: Colors.orange,
-                          onPressed: _onPauseResume,
+                          onPressed: onPauseResume,
                         ),
                         const SizedBox(width: 16),
-                        _buildControlButton(
+                        buildControlButton(
                           icon: Icons.stop,
                           label: '停止',
                           color: Colors.redAccent,
-                          onPressed: _onStopDownload,
+                          onPressed: onStopDownload,
                         ),
                       ],
                     ),
@@ -3043,17 +3068,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
             child: Wrap(
               spacing: 6,
               runSpacing: 6,
-              children: _presetMirrors.map((mirror) {
+              children: presetMirrors.map((mirror) {
                 final label = mirror.isEmpty
                     ? (locale == 'zh' ? '直连' : 'Direct')
                     : mirror.replaceAll('https://', '').replaceAll('/', '');
-                final isActive = _mirrorController.text.trim() == mirror;
+                final isActive = mirrorController.text.trim() == mirror;
                 return ActionChip(
                   label: Text(label, style: const TextStyle(fontSize: 11)),
                   backgroundColor: isActive ? Colors.blue[100] : null,
                   onPressed: () {
                     setState(() {
-                      _mirrorController.text = mirror;
+                      mirrorController.text = mirror;
                     });
                   },
                 );
@@ -3064,7 +3089,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16.0),
             child: TextField(
-              controller: _mirrorController,
+              controller: mirrorController,
               decoration: InputDecoration(
                 border: const OutlineInputBorder(),
                 hintText: locale == 'zh'
@@ -3087,7 +3112,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16.0),
             child: TextField(
-              controller: _downloadPathController,
+              controller: downloadPathController,
               decoration: InputDecoration(
                 border: const OutlineInputBorder(),
                 hintText: locale == 'zh'
@@ -3099,7 +3124,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     final defaultPath = Platform.isAndroid
                         ? '${Directory.systemTemp.path}${Platform.pathSeparator}CatsKit'
                         : '${Platform.environment['USERPROFILE'] ?? Platform.environment['HOME'] ?? Directory.current.path}${Platform.pathSeparator}Downloads${Platform.pathSeparator}CatsKit';
-                    _downloadPathController.text = defaultPath;
+                    downloadPathController.text = defaultPath;
                   },
                   tooltip: locale == 'zh' ? '恢复默认' : 'Reset default',
                 ),
@@ -3122,7 +3147,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     final defaultPath = Platform.isAndroid
                         ? '${Directory.systemTemp.path}${Platform.pathSeparator}CatsKit'
                         : '${Platform.environment['USERPROFILE'] ?? Platform.environment['HOME'] ?? Directory.current.path}${Platform.pathSeparator}Downloads${Platform.pathSeparator}CatsKit';
-                    _downloadPathController.text = defaultPath;
+                    downloadPathController.text = defaultPath;
                   },
                 ),
                 if (Platform.isAndroid) ...[
@@ -3131,7 +3156,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       'Downloads',
                       style: TextStyle(fontSize: 12),
                     ),
-                    onPressed: () => _downloadPathController.text =
+                    onPressed: () => downloadPathController.text =
                         '/storage/emulated/0/Download/CatsKit',
                   ),
                   ActionChip(
@@ -3139,12 +3164,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       'Documents',
                       style: TextStyle(fontSize: 12),
                     ),
-                    onPressed: () => _downloadPathController.text =
+                    onPressed: () => downloadPathController.text =
                         '/storage/emulated/0/Documents/CatsKit',
                   ),
                   ActionChip(
                     label: const Text('DCIM', style: TextStyle(fontSize: 12)),
-                    onPressed: () => _downloadPathController.text =
+                    onPressed: () => downloadPathController.text =
                         '/storage/emulated/0/DCIM/CatsKit',
                   ),
                 ],
@@ -3219,7 +3244,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               locale == 'zh' ? '检测 DNS 解析和网络连通性' : 'Test DNS & connectivity',
             ),
             trailing: const Icon(Icons.chevron_right, size: 18),
-            onTap: () => _showNetworkDiagnosis(context, locale),
+            onTap: () => showNetworkDiagnosis(context, locale),
           ),
           const SizedBox(height: 20),
           Padding(
@@ -3229,8 +3254,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 Navigator.pop(context, {
                   'locale': locale,
                   'showSnackBar': showSnackBar,
-                  'githubUpdateUrl': _updateUrlController.text.trim(),
-                  'mirrorUrl': _mirrorController.text.trim(),
+                  'githubUpdateUrl': updateUrlController.text.trim(),
+                  'mirrorUrl': mirrorController.text.trim(),
                 });
               },
               child: Text(locale == 'zh' ? '保存' : 'Save'),
@@ -3342,7 +3367,7 @@ class _ImportScreenState extends State<ImportScreen> {
                 const SizedBox(width: 16),
                 Expanded(
                   child: ElevatedButton(
-                    onPressed: _onConfirmPressed,
+                    onPressed: onConfirmPressed,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.green,
                     ),
@@ -3363,7 +3388,7 @@ class _ImportScreenState extends State<ImportScreen> {
     );
   }
 
-  void _onConfirmPressed() {
+  void onConfirmPressed() {
     widget.onImportConfirmed(controllers.map((c) => c.text).toList());
     Navigator.pop(context);
     ScaffoldMessenger.of(context).showSnackBar(
