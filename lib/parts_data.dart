@@ -123,6 +123,20 @@ class PartData {
     }
   }
 
+  String categoryLabelEn(String? locale) {
+    if (locale == 'zh') return categoryLabel;
+    switch (category) {
+      case PartCategory.body:
+        return 'Body';
+      case PartCategory.weapon:
+        return 'Weapon';
+      case PartCategory.wheel:
+        return 'Wheel';
+      case PartCategory.gadget:
+        return 'Gadget';
+    }
+  }
+
   String get rarityLabel => rarity.name.toUpperCase();
 
   String get sponsorLabel {
@@ -157,9 +171,33 @@ class PartData {
     }
   }
 
+  String classLabelEn(String? locale) {
+    if (locale == 'zh') return classLabel;
+    switch (partClass) {
+      case PartClass.none:
+        return '';
+      case PartClass.melee:
+        return 'Melee';
+      case PartClass.ranged:
+        return 'Ranged';
+      case PartClass.autoAim:
+        return 'Auto-Aim';
+      case PartClass.minion:
+        return 'Minion';
+      case PartClass.special:
+        return 'Special';
+    }
+  }
+
   String get slotsLabel {
     if (slots == null) return '';
     return '武${slots!.weapon} 轮${slots!.wheel} 配${slots!.gadget}';
+  }
+
+  String slotsLabelEn(String? locale) {
+    if (slots == null) return '';
+    if (locale == 'zh') return slotsLabel;
+    return 'W${slots!.weapon} Wh${slots!.wheel} G${slots!.gadget}';
   }
 
   String get bonusLabel {
@@ -171,6 +209,19 @@ class PartData {
         : bonus!.category == PartCategory.wheel
         ? '车轮'
         : '配件';
+    return '$cat +${bonus!.percent}%';
+  }
+
+  String bonusLabelEn(String? locale) {
+    if (bonus == null) return '';
+    if (locale == 'zh') return bonusLabel;
+    final cat = bonus!.category == PartCategory.body
+        ? 'Body'
+        : bonus!.category == PartCategory.weapon
+        ? 'Weapon'
+        : bonus!.category == PartCategory.wheel
+        ? 'Wheel'
+        : 'Gadget';
     return '$cat +${bonus!.percent}%';
   }
 }

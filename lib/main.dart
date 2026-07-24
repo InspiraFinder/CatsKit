@@ -10,7 +10,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'parts_data.dart';
 import 'time_calc_screen.dart';
 
-const String appVersion = '0.6.1';
+const String appVersion = '0.6.2';
 
 /// 获取部件在当前语言下的显示名称
 String pn(PartData part, String? locale) {
@@ -28,21 +28,36 @@ void main() {
   runApp(const MyApp());
 }
 
-class MyApp extends StatelessWidget {
+class MyApp extends StatefulWidget {
   const MyApp({super.key});
+
+  @override
+  State<MyApp> createState() => _MyAppState();
+}
+
+class _MyAppState extends State<MyApp> {
+  String _appLocale = 'zh';
+
+  void _onLocaleChanged(String newLocale) {
+    setState(() => _appLocale = newLocale);
+  }
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'CatsKit',
       theme: ThemeData(primarySwatch: Colors.blue, useMaterial3: true),
-      home: const MainMenuScreen(locale: 'zh'),
+      home: MainMenuScreen(
+        locale: _appLocale,
+        onLocaleChanged: _onLocaleChanged,
+      ),
     );
   }
 }
 
 class MainScreen extends StatefulWidget {
-  const MainScreen({super.key});
+  final String locale;
+  const MainScreen({super.key, this.locale = 'zh'});
 
   @override
   State<MainScreen> createState() => _MainScreenState();
@@ -53,7 +68,14 @@ class _MainScreenState extends State<MainScreen> {
   List<String> boxButtonNumbers = List<String>.filled(25, '');
   int selectedButton = 0;
   bool isClearMode = false;
-  String _locale = 'zh';
+  late String _locale;
+
+  @override
+  void initState() {
+    super.initState();
+    _locale = widget.locale;
+  }
+
   bool _showSnackBar = false; // 默认不显示提示
   String githubUpdateUrl = 'https://github.com/InspiraFinder/CatsKit/releases';
   String _mirrorUrl = '';
@@ -97,36 +119,10 @@ class _MainScreenState extends State<MainScreen> {
       appBar: AppBar(
         title: Text(_t('查车工具', 'Vehicle Check')),
         centerTitle: true,
-        leading: PopupMenuButton<String>(
-          icon: const Icon(Icons.menu),
-          onSelected: (value) {
-            if (value == 'menu') {
-              Navigator.popUntil(context, (route) => route.isFirst);
-            } else if (value == 'build') {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => BuildToolScreen(locale: _locale),
-                ),
-              );
-            } else if (value == 'settings') {
-              _openSettings();
-            }
-          },
-          itemBuilder: (context) => [
-            PopupMenuItem(
-              value: 'menu',
-              child: Text(_t('返回主菜单', 'Back to Menu')),
-            ),
-            PopupMenuItem(
-              value: 'build',
-              child: Text(_t('组车工具', 'Build Tool')),
-            ),
-            PopupMenuItem(
-              value: 'settings',
-              child: Text(_t('通用设置', 'Settings')),
-            ),
-          ],
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () => Navigator.pop(context, {'locale': _locale}),
+          tooltip: _t('返回主菜单', 'Back to Menu'),
         ),
         actions: [
           IconButton(
@@ -547,9 +543,48 @@ class _MainScreenState extends State<MainScreen> {
 }
 
 // ==================== 主菜单 ====================
-class MainMenuScreen extends StatelessWidget {
+class MainMenuScreen extends StatefulWidget {
   final String locale;
-  const MainMenuScreen({super.key, this.locale = 'zh'});
+  final ValueChanged<String>? onLocaleChanged;
+  const MainMenuScreen({super.key, this.locale = 'zh', this.onLocaleChanged});
+
+  @override
+  State<MainMenuScreen> createState() => _MainMenuScreenState();
+}
+
+class _MainMenuScreenState extends State<MainMenuScreen> {
+  late String _locale;
+
+  String _t(String zh, String en) => _locale == 'zh' ? zh : en;
+
+  @override
+  void initState() {
+    super.initState();
+    _locale = widget.locale;
+  }
+
+  @override
+  void didUpdateWidget(MainMenuScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.locale != oldWidget.locale) {
+      _locale = widget.locale;
+    }
+  }
+
+  /// 导航到子页面，返回时检查语言是否变更
+  Future<void> _navigateAndAwaitLocale(Widget screen) async {
+    final result = await Navigator.push<Map<String, dynamic>>(
+      context,
+      MaterialPageRoute(builder: (_) => screen),
+    );
+    if (result != null && result['locale'] != null && mounted) {
+      final newLocale = result['locale'] as String;
+      if (newLocale != _locale) {
+        setState(() => _locale = newLocale);
+        widget.onLocaleChanged?.call(newLocale);
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -569,62 +604,49 @@ class MainMenuScreen extends StatelessWidget {
               ),
               const SizedBox(height: 8),
               Text(
-                '工具集',
+                _t('工具集', 'Toolkit'),
                 style: TextStyle(fontSize: 16, color: Colors.grey[600]),
               ),
               const SizedBox(height: 48),
               _buildMenuItem(
                 context,
                 icon: Icons.search,
-                label: '查车工具',
+                label: _t('查车工具', 'Vehicle Check'),
                 color: Colors.blue,
-                onTap: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const MainScreen()),
-                ),
+                onTap: () =>
+                    _navigateAndAwaitLocale(MainScreen(locale: _locale)),
               ),
               const SizedBox(height: 16),
               _buildMenuItem(
                 context,
                 icon: Icons.build,
-                label: '组车工具',
+                label: _t('组车工具', 'Build Tool'),
                 color: Colors.orange,
-                onTap: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => BuildToolScreen(locale: locale),
-                  ),
-                ),
+                onTap: () =>
+                    _navigateAndAwaitLocale(BuildToolScreen(locale: _locale)),
               ),
               const SizedBox(height: 16),
               _buildMenuItem(
                 context,
                 icon: Icons.timer,
-                label: '时间计算',
+                label: _t('时间计算', 'Timer'),
                 color: Colors.purple,
-                onTap: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => TimeCalcScreen(locale: locale),
-                  ),
-                ),
+                onTap: () =>
+                    _navigateAndAwaitLocale(TimeCalcScreen(locale: _locale)),
               ),
               const SizedBox(height: 16),
               _buildMenuItem(
                 context,
                 icon: Icons.settings,
-                label: '通用设置',
+                label: _t('通用设置', 'Settings'),
                 color: Colors.green,
-                onTap: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => const SettingsScreen(
-                      currentLocale: 'zh',
-                      currentShowSnackBar: false,
-                      currentGithubUpdateUrl:
-                          'https://github.com/InspiraFinder/CatsKit/releases',
-                      currentMirrorUrl: '',
-                    ),
+                onTap: () => _navigateAndAwaitLocale(
+                  SettingsScreen(
+                    currentLocale: _locale,
+                    currentShowSnackBar: false,
+                    currentGithubUpdateUrl:
+                        'https://github.com/InspiraFinder/CatsKit/releases',
+                    currentMirrorUrl: '',
                   ),
                 ),
               ),
@@ -711,7 +733,11 @@ class _VehicleBuild {
 class _BuildToolScreenState extends State<BuildToolScreen> {
   bool _isAssemblyMode = true;
   bool _showImages = false;
-  PartCategory _selectedCategory = PartCategory.body;
+  bool _isFilterMode = true;
+  final PartCategory _selectedCategory = PartCategory.body;
+  final Set<PartCategory> _selectedCategories = {};
+  final Set<Rarity> _selectedRarities = {};
+  final TextEditingController _searchController = TextEditingController();
   final List<_VehicleBuild> _vehicles = [_VehicleBuild()];
   int _activeIndex = 0;
   final Map<String, int> _partLevels = {};
@@ -730,6 +756,8 @@ class _BuildToolScreenState extends State<BuildToolScreen> {
   }
 
   int _level(PartData p) => _partLevels[p.id] ?? 1;
+
+  String _t(String zh, String en) => widget.locale == 'zh' ? zh : en;
 
   /// 检查部件是否已被任意车辆使用
   bool _isPartUsedAnywhere(PartData part) =>
@@ -764,7 +792,7 @@ class _BuildToolScreenState extends State<BuildToolScreen> {
     _recalc();
     return Scaffold(
       appBar: AppBar(
-        title: const Text('组车工具'),
+        title: Text(_t('组车工具', 'Build Tool')),
         centerTitle: true,
         actions: [
           IconButton(
@@ -773,39 +801,13 @@ class _BuildToolScreenState extends State<BuildToolScreen> {
               color: _showImages ? Colors.orange : null,
             ),
             onPressed: () => setState(() => _showImages = !_showImages),
-            tooltip: _showImages ? '文字模式' : '图片模式',
+            tooltip: _showImages ? _t('文字模式', 'Text') : _t('图片模式', 'Image'),
           ),
         ],
-        leading: PopupMenuButton<String>(
-          icon: const Icon(Icons.menu),
-          onSelected: (value) {
-            if (value == 'menu') {
-              Navigator.popUntil(context, (route) => route.isFirst);
-            } else if (value == 'vehicle') {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const MainScreen()),
-              );
-            } else if (value == 'settings') {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => const SettingsScreen(
-                    currentLocale: 'zh',
-                    currentShowSnackBar: false,
-                    currentGithubUpdateUrl:
-                        'https://github.com/InspiraFinder/CatsKit/releases',
-                    currentMirrorUrl: '',
-                  ),
-                ),
-              );
-            }
-          },
-          itemBuilder: (context) => const [
-            PopupMenuItem(value: 'menu', child: Text('返回主菜单')),
-            PopupMenuItem(value: 'vehicle', child: Text('查车工具')),
-            PopupMenuItem(value: 'settings', child: Text('通用设置')),
-          ],
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () => Navigator.pop(context, {'locale': widget.locale}),
+          tooltip: _t('返回主菜单', 'Back'),
         ),
       ),
       body: SingleChildScrollView(
@@ -860,8 +862,8 @@ class _BuildToolScreenState extends State<BuildToolScreen> {
                   size: 16,
                   color: Colors.red,
                 ),
-                label: const Text(
-                  '删除组车区',
+                label: Text(
+                  _t('删除组车区', 'Delete'),
                   style: TextStyle(fontSize: 12, color: Colors.red),
                 ),
                 onPressed: () => _removeVehicle(vi),
@@ -878,7 +880,7 @@ class _BuildToolScreenState extends State<BuildToolScreen> {
               const SizedBox(width: 4),
               Expanded(
                 child: Text(
-                  v.error.isNotEmpty ? v.error : '状态 OK',
+                  v.error.isNotEmpty ? v.error : _t('状态 OK', 'OK'),
                   style: TextStyle(
                     fontSize: 12,
                     color: v.ok ? Colors.green : Colors.red,
@@ -897,7 +899,7 @@ class _BuildToolScreenState extends State<BuildToolScreen> {
               _statChip('ATK', '${v.atk.floor()}', Colors.red),
               const SizedBox(width: 4),
               _statChip(
-                '电力',
+                _t('电力', 'PWR'),
                 '${v.powerConsumption}/${v.powerSupply}',
                 powerOk ? Colors.green : Colors.red,
               ),
@@ -908,8 +910,8 @@ class _BuildToolScreenState extends State<BuildToolScreen> {
           Row(
             children: [
               _statChip(
-                '插槽',
-                '武${v.numWeapons}/${v.numWeaponSlots} 轮${v.numWheels}/${v.numWheelSlots} 配${v.numGadgets}/${v.numGadgetSlots}',
+                _t('插槽', 'Slots'),
+                '${_t('武器', 'Wpn')}${v.numWeapons}/${v.numWeaponSlots} ${_t('车轮', 'Whl')}${v.numWheels}/${v.numWheelSlots} ${_t('配件', 'Gad')}${v.numGadgets}/${v.numGadgetSlots}',
                 Colors.grey,
               ),
             ],
@@ -923,22 +925,42 @@ class _BuildToolScreenState extends State<BuildToolScreen> {
             Row(
               children: [
                 if (v.bodyBonusPct > 0)
-                  _statChip('车身+${v.bodyBonusPct}%', '', Colors.orange),
+                  _statChip(
+                    '${_t('车身', 'Body')}+${v.bodyBonusPct}%',
+                    '',
+                    Colors.orange,
+                  ),
                 if (v.weaponBonusPct > 0) ...[
                   const SizedBox(width: 4),
-                  _statChip('武器+${v.weaponBonusPct}%', '', Colors.red),
+                  _statChip(
+                    '${_t('武器', 'Weapon')}+${v.weaponBonusPct}%',
+                    '',
+                    Colors.red,
+                  ),
                 ],
                 if (v.wheelBonusPct > 0) ...[
                   const SizedBox(width: 4),
-                  _statChip('车轮+${v.wheelBonusPct}%', '', Colors.green),
+                  _statChip(
+                    '${_t('车轮', 'Wheel')}+${v.wheelBonusPct}%',
+                    '',
+                    Colors.green,
+                  ),
                 ],
                 if (v.gadgetBonusPct > 0) ...[
                   const SizedBox(width: 4),
-                  _statChip('配件+${v.gadgetBonusPct}%', '', Colors.purple),
+                  _statChip(
+                    '${_t('配件', 'Gadget')}+${v.gadgetBonusPct}%',
+                    '',
+                    Colors.purple,
+                  ),
                 ],
                 if (v.sponsorBonusPct > 0) ...[
                   const SizedBox(width: 4),
-                  _statChip('赞助+${v.sponsorBonusPct}%', '', Colors.teal),
+                  _statChip(
+                    '${_t('赞助', 'Sponsor')}+${v.sponsorBonusPct}%',
+                    '',
+                    Colors.teal,
+                  ),
                 ],
               ],
             ),
@@ -959,7 +981,7 @@ class _BuildToolScreenState extends State<BuildToolScreen> {
                 child: Row(
                   children: [
                     _buildSlot(
-                      '车身',
+                      _t('车身', 'Body'),
                       vh.body,
                       Colors.orange,
                       () => setState(() => vh.body = null),
@@ -971,7 +993,7 @@ class _BuildToolScreenState extends State<BuildToolScreen> {
                       (i) => Padding(
                         padding: const EdgeInsets.only(right: 6),
                         child: _buildSlot(
-                          '武${i + 1}',
+                          '${_t('武', 'Wpn')}${i + 1}',
                           i < vh.weapons.length ? vh.weapons[i] : null,
                           Colors.red,
                           () {
@@ -987,7 +1009,7 @@ class _BuildToolScreenState extends State<BuildToolScreen> {
                       (i) => Padding(
                         padding: const EdgeInsets.only(right: 6),
                         child: _buildSlot(
-                          '轮${i + 1}',
+                          '${_t('轮', 'Whl')}${i + 1}',
                           i < vh.wheels.length ? vh.wheels[i] : null,
                           Colors.green,
                           () {
@@ -1003,7 +1025,7 @@ class _BuildToolScreenState extends State<BuildToolScreen> {
                       (i) => Padding(
                         padding: const EdgeInsets.only(right: 6),
                         child: _buildSlot(
-                          '配${i + 1}',
+                          '${_t('配', 'Gad')}${i + 1}',
                           i < vh.gadgets.length ? vh.gadgets[i] : null,
                           Colors.purple,
                           () {
@@ -1115,11 +1137,18 @@ class _BuildToolScreenState extends State<BuildToolScreen> {
         children: [
           Expanded(
             child: ElevatedButton.icon(
-              onPressed: () => setState(() => _isAssemblyMode = true),
-              icon: const Icon(Icons.handyman, size: 20),
-              label: const Text('组车', style: TextStyle(fontSize: 16)),
+              onPressed: () =>
+                  setState(() => _isAssemblyMode = !_isAssemblyMode),
+              icon: Icon(
+                _isAssemblyMode ? Icons.handyman : Icons.bar_chart,
+                size: 20,
+              ),
+              label: Text(
+                _isAssemblyMode ? _t('组车', 'Build') : _t('数据展示', 'Data'),
+                style: const TextStyle(fontSize: 16),
+              ),
               style: ElevatedButton.styleFrom(
-                backgroundColor: _isAssemblyMode ? Colors.blue : Colors.grey,
+                backgroundColor: Colors.blue,
                 foregroundColor: Colors.white,
                 padding: const EdgeInsets.symmetric(vertical: 12),
               ),
@@ -1128,11 +1157,17 @@ class _BuildToolScreenState extends State<BuildToolScreen> {
           const SizedBox(width: 8),
           Expanded(
             child: ElevatedButton.icon(
-              onPressed: () => setState(() => _isAssemblyMode = false),
-              icon: const Icon(Icons.bar_chart, size: 20),
-              label: const Text('数据展示', style: TextStyle(fontSize: 16)),
+              onPressed: () => setState(() => _isFilterMode = !_isFilterMode),
+              icon: Icon(
+                _isFilterMode ? Icons.filter_list : Icons.search,
+                size: 20,
+              ),
+              label: Text(
+                _isFilterMode ? _t('筛选', 'Filter') : _t('搜索', 'Search'),
+                style: const TextStyle(fontSize: 16),
+              ),
               style: ElevatedButton.styleFrom(
-                backgroundColor: !_isAssemblyMode ? Colors.teal : Colors.grey,
+                backgroundColor: _isFilterMode ? Colors.orange : Colors.teal,
                 foregroundColor: Colors.white,
                 padding: const EdgeInsets.symmetric(vertical: 12),
               ),
@@ -1143,7 +1178,10 @@ class _BuildToolScreenState extends State<BuildToolScreen> {
             child: ElevatedButton.icon(
               onPressed: _addVehicle,
               icon: const Icon(Icons.add, size: 20),
-              label: const Text('新增车辆', style: TextStyle(fontSize: 16)),
+              label: Text(
+                _t('新增车辆', 'Add Car'),
+                style: const TextStyle(fontSize: 16),
+              ),
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.green,
                 foregroundColor: Colors.white,
@@ -1158,46 +1196,39 @@ class _BuildToolScreenState extends State<BuildToolScreen> {
 
   // ==================== 部件备选区 ====================
   Widget _buildPartsSelector() {
-    final parts = PartDatabase.filterByCategory(_selectedCategory);
+    // 根据当前模式筛选部件
+    List<PartData> parts;
+    if (_isFilterMode) {
+      // 筛选模式：按分类 + 稀有度筛选
+      parts = PartDatabase.allParts.where((p) {
+        if (_selectedCategories.isNotEmpty &&
+            !_selectedCategories.contains(p.category))
+          return false;
+        if (_selectedRarities.isNotEmpty &&
+            !_selectedRarities.contains(p.rarity))
+          return false;
+        return true;
+      }).toList();
+    } else {
+      // 搜索模式：按文字搜索（部件名/ID）
+      final q = _searchController.text.trim().toLowerCase();
+      if (q.isEmpty) {
+        parts = PartDatabase.allParts;
+      } else {
+        parts = PartDatabase.allParts.where((p) {
+          return p.id.toLowerCase().contains(q) ||
+              p.name.toLowerCase().contains(q) ||
+              p.nameZh.contains(q) ||
+              p.nameJa.contains(q);
+        }).toList();
+      }
+    }
+
     return Column(
       children: [
-        Container(
-          padding: const EdgeInsets.symmetric(vertical: 4),
-          child: SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Row(
-              children: PartCategory.values.map((cat) {
-                const labels = {
-                  PartCategory.body: '车身',
-                  PartCategory.weapon: '武器',
-                  PartCategory.wheel: '车轮',
-                  PartCategory.gadget: '配件',
-                };
-                const icons = {
-                  PartCategory.body: Icons.directions_car,
-                  PartCategory.weapon: Icons.gps_fixed,
-                  PartCategory.wheel: Icons.radio_button_checked,
-                  PartCategory.gadget: Icons.build,
-                };
-                return Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 4),
-                  child: ChoiceChip(
-                    label: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(icons[cat]!, size: 16),
-                        const SizedBox(width: 4),
-                        Text(labels[cat]!),
-                      ],
-                    ),
-                    selected: _selectedCategory == cat,
-                    onSelected: (_) => setState(() => _selectedCategory = cat),
-                  ),
-                );
-              }).toList(),
-            ),
-          ),
-        ),
+        // ---- 筛选/搜索控件 ----
+        if (_isFilterMode) _buildFilterChips() else _buildSearchBar(),
+        // ---- 网格 ----
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 8),
           child: GridView.builder(
@@ -1214,6 +1245,114 @@ class _BuildToolScreenState extends State<BuildToolScreen> {
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildFilterChips() {
+    return Column(
+      children: [
+        // 分类筛选
+        Container(
+          padding: const EdgeInsets.symmetric(vertical: 4),
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: PartCategory.values.map((cat) {
+                final labels = {
+                  PartCategory.body: _t('车身', 'Body'),
+                  PartCategory.weapon: _t('武器', 'Weapon'),
+                  PartCategory.wheel: _t('车轮', 'Wheel'),
+                  PartCategory.gadget: _t('配件', 'Gadget'),
+                };
+                const icons = {
+                  PartCategory.body: Icons.directions_car,
+                  PartCategory.weapon: Icons.gps_fixed,
+                  PartCategory.wheel: Icons.radio_button_checked,
+                  PartCategory.gadget: Icons.build,
+                };
+                final selected = _selectedCategories.contains(cat);
+                return Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 4),
+                  child: FilterChip(
+                    label: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(icons[cat]!, size: 16),
+                        const SizedBox(width: 4),
+                        Text(labels[cat]!),
+                      ],
+                    ),
+                    selected: selected,
+                    onSelected: (v) => setState(() {
+                      if (v) {
+                        _selectedCategories.add(cat);
+                      } else {
+                        _selectedCategories.remove(cat);
+                      }
+                    }),
+                  ),
+                );
+              }).toList(),
+            ),
+          ),
+        ),
+        // 稀有度筛选
+        Container(
+          padding: const EdgeInsets.symmetric(vertical: 2, horizontal: 8),
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: Rarity.values.map((r) {
+                final label = r.name.toUpperCase();
+                final selected = _selectedRarities.contains(r);
+                return Padding(
+                  padding: const EdgeInsets.only(right: 6),
+                  child: FilterChip(
+                    label: Text(label, style: const TextStyle(fontSize: 12)),
+                    selected: selected,
+                    onSelected: (v) => setState(() {
+                      if (v) {
+                        _selectedRarities.add(r);
+                      } else {
+                        _selectedRarities.remove(r);
+                      }
+                    }),
+                  ),
+                );
+              }).toList(),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSearchBar() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(8, 4, 8, 8),
+      child: TextField(
+        controller: _searchController,
+        decoration: InputDecoration(
+          hintText: _t('搜索部件名称或ID...', 'Search part name or ID...'),
+          prefixIcon: const Icon(Icons.search, size: 20),
+          suffixIcon: _searchController.text.isNotEmpty
+              ? IconButton(
+                  icon: const Icon(Icons.clear, size: 18),
+                  onPressed: () {
+                    _searchController.clear();
+                    setState(() {});
+                  },
+                )
+              : null,
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+          contentPadding: const EdgeInsets.symmetric(
+            vertical: 8,
+            horizontal: 12,
+          ),
+          isDense: true,
+        ),
+        onChanged: (_) => setState(() {}),
+      ),
     );
   }
 
@@ -1314,7 +1453,7 @@ class _BuildToolScreenState extends State<BuildToolScreen> {
                       ),
                     if (part.bonus != null)
                       Text(
-                        part.bonusLabel,
+                        part.bonusLabelEn(widget.locale),
                         style: TextStyle(
                           fontSize: 9,
                           color: Colors.orange[800],
@@ -1600,6 +1739,7 @@ class _PartDataScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    String t(String zh, String en) => locale == 'zh' ? zh : en;
     return Scaffold(
       appBar: AppBar(title: Text(pn(part, locale)), centerTitle: true),
       body: SingleChildScrollView(
@@ -1630,7 +1770,7 @@ class _PartDataScreen extends StatelessWidget {
                           ),
                         ),
                         Text(
-                          '${part.categoryLabel} · ${part.rarityLabel} · ${part.sponsorLabel.isNotEmpty ? part.sponsorLabel : "无赞助"}',
+                          '${part.categoryLabelEn(locale)} · ${part.rarityLabel} · ${part.sponsorLabel.isNotEmpty ? part.sponsorLabel : t('无赞助', 'None')}',
                           style: TextStyle(
                             fontSize: 13,
                             color: Colors.grey[600],
@@ -1652,25 +1792,28 @@ class _PartDataScreen extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             // ---- 基础属性 ----
-            if (part.hp1 > 0) _chip('HP 基础', part.hp1.toString(), Colors.blue),
+            if (part.hp1 > 0)
+              _chip(t('HP基础', 'Base HP'), part.hp1.toString(), Colors.blue),
             if (part.atk1 > 0)
-              _chip('ATK 基础', part.atk1.toString(), Colors.red),
+              _chip(t('ATK基础', 'Base ATK'), part.atk1.toString(), Colors.red),
             _chip(
-              '电力',
+              t('电力', 'PWR'),
               part.power >= 0 ? '+${part.power}' : part.power.toString(),
               Colors.amber[800]!,
             ),
-            if (part.slots != null) _chip('插槽', part.slotsLabel, Colors.grey),
-            if (part.bonus != null) _chip('加成', part.bonusLabel, Colors.orange),
+            if (part.slots != null)
+              _chip(t('插槽', 'Slots'), part.slotsLabelEn(locale), Colors.grey),
+            if (part.bonus != null)
+              _chip(t('加成', 'Bonus'), part.bonusLabelEn(locale), Colors.orange),
             if (part.partClass != PartClass.none)
-              _chip('类型', part.classLabel, Colors.brown),
+              _chip(t('类型', 'Class'), part.classLabelEn(locale), Colors.brown),
             if (part.mHp1 > 0)
-              _chip('随从HP基础', part.mHp1.toString(), Colors.teal),
+              _chip(t('随从HP', 'Minion HP'), part.mHp1.toString(), Colors.teal),
             const SizedBox(height: 12),
             // ---- 等级数据 + 升级费用表 ----
-            const Text(
-              '各等级数据与升级费用',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            Text(
+              t('各等级数据与升级费用', 'Stats & Upgrade Cost by Lv'),
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 8),
             SingleChildScrollView(
@@ -2687,42 +2830,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
       ),
       body: ListView(
         children: [
-          const SizedBox(height: 20),
-          // 导航卡片
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Card(
-              child: Column(
-                children: [
-                  ListTile(
-                    leading: const Icon(Icons.search, color: Colors.blue),
-                    title: Text('查车工具'),
-                    trailing: const Icon(Icons.chevron_right),
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (_) => const MainScreen()),
-                      );
-                    },
-                  ),
-                  const Divider(height: 1, indent: 16, endIndent: 16),
-                  ListTile(
-                    leading: const Icon(Icons.build, color: Colors.orange),
-                    title: Text('组车工具'),
-                    trailing: const Icon(Icons.chevron_right),
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => BuildToolScreen(locale: locale),
-                        ),
-                      );
-                    },
-                  ),
-                ],
-              ),
-            ),
-          ),
           const SizedBox(height: 12),
           const Divider(),
           ListTile(
