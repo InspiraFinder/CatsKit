@@ -10,7 +10,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'parts_data.dart';
 import 'time_calc_screen.dart';
 
-const String appVersion = '0.6.0';
+const String appVersion = '0.6.1';
 
 /// 获取部件在当前语言下的显示名称
 String pn(PartData part, String? locale) {
@@ -1217,6 +1217,21 @@ class _BuildToolScreenState extends State<BuildToolScreen> {
     );
   }
 
+  /// 赞助商对应的图片资源路径
+  String _sponsorImage(Sponsor sponsor) {
+    switch (sponsor) {
+      case Sponsor.mecha:
+        return 'assets/images/sp_mecha.png';
+      case Sponsor.naturalis:
+        return 'assets/images/sp_naturalis.png';
+      case Sponsor.gluttony:
+        return 'assets/images/sp_gluttony.png';
+      case Sponsor.sporty:
+      case Sponsor.none:
+        return '';
+    }
+  }
+
   Widget _buildPartCard(PartData part) {
     final isUsed = _isPartUsedAnywhere(part);
     return GestureDetector(
@@ -1231,29 +1246,47 @@ class _BuildToolScreenState extends State<BuildToolScreen> {
         child: Padding(
           padding: const EdgeInsets.all(4),
           child: _showImages
-              ? Padding(
-                  padding: const EdgeInsets.all(1),
-                  child: Image.asset(
-                    'assets/images/${part.id}.png',
-                    fit: BoxFit.contain,
-                    errorBuilder: (_, _, _) => Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          const Icon(
-                            Icons.broken_image,
-                            size: 24,
-                            color: Colors.grey,
+              ? Stack(
+                  children: [
+                    // 部件图片
+                    Center(
+                      child: Padding(
+                        padding: const EdgeInsets.all(1),
+                        child: Image.asset(
+                          'assets/images/${part.id}.png',
+                          fit: BoxFit.contain,
+                          errorBuilder: (_, _, _) => Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                const Icon(
+                                  Icons.broken_image,
+                                  size: 24,
+                                  color: Colors.grey,
+                                ),
+                                Text(
+                                  pn(part, widget.locale),
+                                  style: const TextStyle(fontSize: 10),
+                                  textAlign: TextAlign.center,
+                                ),
+                              ],
+                            ),
                           ),
-                          Text(
-                            pn(part, widget.locale),
-                            style: const TextStyle(fontSize: 10),
-                            textAlign: TextAlign.center,
-                          ),
-                        ],
+                        ),
                       ),
                     ),
-                  ),
+                    // 赞助商标识（左下角）
+                    if (part.sponsor != Sponsor.none)
+                      Positioned(
+                        left: 2,
+                        bottom: 2,
+                        child: Image.asset(
+                          _sponsorImage(part.sponsor),
+                          width: 20,
+                          height: 20,
+                        ),
+                      ),
+                  ],
                 )
               : Column(
                   mainAxisAlignment: MainAxisAlignment.center,
