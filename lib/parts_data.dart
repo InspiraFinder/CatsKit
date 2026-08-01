@@ -2624,6 +2624,18 @@ class PartDatabase {
       sip: StatsIncrementPattern.r6,
       imageCn: 'assets/images_cn/fire_phoenix.jpg',
     );
+    // 赤焰轮：hp18880 自然赞助 车身+20%（暂无图片）
+    map['red_flame_wheel'] = const PartData(
+      id: 'red_flame_wheel',
+      name: 'Red Flame Wheel',
+      nameZh: '赤焰轮',
+      category: PartCategory.wheel,
+      rarity: Rarity.r6,
+      sponsor: Sponsor.naturalis,
+      hp1: 18880,
+      bonus: bBody20,
+      sip: StatsIncrementPattern.r6,
+    );
     // 落羽弓：atk12660 耗电15
     map['falling_feather'] = const PartData(
       id: 'falling_feather',
