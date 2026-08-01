@@ -30,11 +30,18 @@ double mapToLevel(double base, int level, StatsIncrementPattern sip) {
 
   double result = base;
   if (sip == StatsIncrementPattern.r6Legacy) {
-    double delta = result * 0.19163;
+    // 与 data.js 的 mapToLevelBySip 保持一致：
+    //   delta  = floor(base * 0.19163)
+    //   delta2 = floor(base / 15)          （固定值）
+    // 每级：base += delta; delta += delta2
+    int v = base.toInt();
+    int delta = (v * 0.19163).floor();
+    int delta2 = (v / 15).floor();
     for (int i = 2; i <= level; i++) {
-      result += delta;
-      delta += result / 15;
+      v += delta;
+      delta += delta2;
     }
+    return v.toDouble();
   } else {
     for (int i = 2; i <= level && i <= 16; i++) {
       result = (result * 1.2).floorToDouble();
