@@ -6,7 +6,7 @@ publish_to: 'none'
 # 格式: versionName+versionCode
 # 1.0.0 是用户看到的版本名称
 # 2 是内部版本号，每次上架必须递增
-version: 0.6.3+25
+version: 0.7.0+26
 
 environment:
   sdk: ^3.12.1
@@ -19,6 +19,7 @@ dependencies:
   image_picker: ^1.2.3
   google_mlkit_text_recognition: ^0.16.0
   open_filex: ^4.7.0
+  shared_preferences: ^2.5.5
 
 dev_dependencies:
   flutter_test:

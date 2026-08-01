@@ -10,7 +10,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'parts_data.dart';
 import 'time_calc_screen.dart';
 
-const String appVersion = '0.6.3';
+const String appVersion = '0.7.0';
 
 /// 获取部件在当前语言下的显示名称
 String pn(PartData part, String? locale) {
@@ -37,9 +37,14 @@ class MyApp extends StatefulWidget {
 
 class _MyAppState extends State<MyApp> {
   String _appLocale = 'zh';
+  String _appServer = 'cn'; // 'cn' 国服, 'intl' 国际服
 
   void _onLocaleChanged(String newLocale) {
     setState(() => _appLocale = newLocale);
+  }
+
+  void _onServerChanged(String newServer) {
+    setState(() => _appServer = newServer);
   }
 
   @override
@@ -50,6 +55,8 @@ class _MyAppState extends State<MyApp> {
       home: MainMenuScreen(
         locale: _appLocale,
         onLocaleChanged: _onLocaleChanged,
+        server: _appServer,
+        onServerChanged: _onServerChanged,
       ),
     );
   }
@@ -57,7 +64,8 @@ class _MyAppState extends State<MyApp> {
 
 class MainScreen extends StatefulWidget {
   final String locale;
-  const MainScreen({super.key, this.locale = 'zh'});
+  final String server;
+  const MainScreen({super.key, this.locale = 'zh', this.server = 'cn'});
 
   @override
   State<MainScreen> createState() => _MainScreenState();
@@ -69,11 +77,13 @@ class _MainScreenState extends State<MainScreen> {
   int selectedButton = 0;
   bool isClearMode = false;
   late String _locale;
+  late String _server;
 
   @override
   void initState() {
     super.initState();
     _locale = widget.locale;
+    _server = widget.server;
   }
 
   bool _showSnackBar = false; // 默认不显示提示
@@ -121,7 +131,8 @@ class _MainScreenState extends State<MainScreen> {
         centerTitle: true,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
-          onPressed: () => Navigator.pop(context, {'locale': _locale}),
+          onPressed: () =>
+              Navigator.pop(context, {'locale': _locale, 'server': _server}),
           tooltip: _t('返回主菜单', 'Back to Menu'),
         ),
         actions: [
@@ -524,6 +535,7 @@ class _MainScreenState extends State<MainScreen> {
       MaterialPageRoute(
         builder: (context) => SettingsScreen(
           currentLocale: _locale,
+          currentServer: _server,
           currentShowSnackBar: _showSnackBar,
           currentGithubUpdateUrl: githubUpdateUrl,
           currentMirrorUrl: _mirrorUrl,
@@ -533,6 +545,7 @@ class _MainScreenState extends State<MainScreen> {
     if (result != null) {
       setState(() {
         _locale = result['locale'];
+        _server = result['server'] ?? _server;
         _showSnackBar = result['showSnackBar'];
         githubUpdateUrl = result['githubUpdateUrl'] ?? githubUpdateUrl;
         _mirrorUrl = result['mirrorUrl'] ?? _mirrorUrl;
@@ -546,7 +559,15 @@ class _MainScreenState extends State<MainScreen> {
 class MainMenuScreen extends StatefulWidget {
   final String locale;
   final ValueChanged<String>? onLocaleChanged;
-  const MainMenuScreen({super.key, this.locale = 'zh', this.onLocaleChanged});
+  final String server;
+  final ValueChanged<String>? onServerChanged;
+  const MainMenuScreen({
+    super.key,
+    this.locale = 'zh',
+    this.onLocaleChanged,
+    this.server = 'cn',
+    this.onServerChanged,
+  });
 
   @override
   State<MainMenuScreen> createState() => _MainMenuScreenState();
@@ -554,6 +575,7 @@ class MainMenuScreen extends StatefulWidget {
 
 class _MainMenuScreenState extends State<MainMenuScreen> {
   late String _locale;
+  late String _server;
 
   String _t(String zh, String en) => _locale == 'zh' ? zh : en;
 
@@ -561,6 +583,7 @@ class _MainMenuScreenState extends State<MainMenuScreen> {
   void initState() {
     super.initState();
     _locale = widget.locale;
+    _server = widget.server;
   }
 
   @override
@@ -569,19 +592,31 @@ class _MainMenuScreenState extends State<MainMenuScreen> {
     if (widget.locale != oldWidget.locale) {
       _locale = widget.locale;
     }
+    if (widget.server != oldWidget.server) {
+      _server = widget.server;
+    }
   }
 
-  /// 导航到子页面，返回时检查语言是否变更
+  /// 导航到子页面，返回时检查语言/服务器是否变更
   Future<void> _navigateAndAwaitLocale(Widget screen) async {
     final result = await Navigator.push<Map<String, dynamic>>(
       context,
       MaterialPageRoute(builder: (_) => screen),
     );
-    if (result != null && result['locale'] != null && mounted) {
-      final newLocale = result['locale'] as String;
-      if (newLocale != _locale) {
-        setState(() => _locale = newLocale);
-        widget.onLocaleChanged?.call(newLocale);
+    if (result != null && mounted) {
+      if (result['locale'] != null) {
+        final newLocale = result['locale'] as String;
+        if (newLocale != _locale) {
+          setState(() => _locale = newLocale);
+          widget.onLocaleChanged?.call(newLocale);
+        }
+      }
+      if (result['server'] != null) {
+        final newServer = result['server'] as String;
+        if (newServer != _server) {
+          setState(() => _server = newServer);
+          widget.onServerChanged?.call(newServer);
+        }
       }
     }
   }
@@ -613,8 +648,9 @@ class _MainMenuScreenState extends State<MainMenuScreen> {
                 icon: Icons.search,
                 label: _t('查车工具', 'Vehicle Check'),
                 color: Colors.blue,
-                onTap: () =>
-                    _navigateAndAwaitLocale(MainScreen(locale: _locale)),
+                onTap: () => _navigateAndAwaitLocale(
+                  MainScreen(locale: _locale, server: _server),
+                ),
               ),
               const SizedBox(height: 16),
               _buildMenuItem(
@@ -643,6 +679,7 @@ class _MainMenuScreenState extends State<MainMenuScreen> {
                 onTap: () => _navigateAndAwaitLocale(
                   SettingsScreen(
                     currentLocale: _locale,
+                    currentServer: _server,
                     currentShowSnackBar: false,
                     currentGithubUpdateUrl:
                         'https://github.com/InspiraFinder/CatsKit/releases',
@@ -2085,6 +2122,7 @@ class _PartDataScreen extends StatelessWidget {
 // ==================== 设置界面 ====================
 class SettingsScreen extends StatefulWidget {
   final String currentLocale;
+  final String currentServer;
   final bool currentShowSnackBar;
   final String currentGithubUpdateUrl;
   final String currentMirrorUrl;
@@ -2092,6 +2130,7 @@ class SettingsScreen extends StatefulWidget {
   const SettingsScreen({
     super.key,
     required this.currentLocale,
+    this.currentServer = 'cn',
     required this.currentShowSnackBar,
     required this.currentGithubUpdateUrl,
     required this.currentMirrorUrl,
@@ -2103,6 +2142,7 @@ class SettingsScreen extends StatefulWidget {
 
 class _SettingsScreenState extends State<SettingsScreen> {
   late String locale;
+  late String server;
   late bool showSnackBar;
   late TextEditingController updateUrlController;
   late TextEditingController mirrorController;
@@ -2139,6 +2179,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
   void initState() {
     super.initState();
     locale = widget.currentLocale;
+    server = widget.currentServer;
+    // 国服只能使用中文
+    if (server == 'cn') {
+      locale = 'zh';
+    }
     showSnackBar = widget.currentShowSnackBar;
     updateUrlController = TextEditingController(
       text: widget.currentGithubUpdateUrl,
@@ -2856,6 +2901,46 @@ class _SettingsScreenState extends State<SettingsScreen> {
       body: ListView(
         children: [
           const SizedBox(height: 12),
+          // ---- 服务器 ----
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16.0),
+            child: Text(
+              locale == 'zh' ? '服务器' : 'Server',
+              style: const TextStyle(fontWeight: FontWeight.bold),
+            ),
+          ),
+          ListTile(
+            title: Text(locale == 'zh' ? '国服' : 'CN Server'),
+            subtitle: server == 'cn'
+                ? Text(
+                    locale == 'zh' ? '仅支持中文' : 'Chinese only',
+                    style: const TextStyle(fontSize: 12),
+                  )
+                : null,
+            leading: Radio<String>(
+              value: 'cn',
+              groupValue: server,
+              onChanged: (value) {
+                setState(() {
+                  server = value!;
+                  // 国服只能使用中文
+                  if (server == 'cn' && locale != 'zh') {
+                    locale = 'zh';
+                  }
+                });
+              },
+            ),
+          ),
+          ListTile(
+            title: Text(locale == 'zh' ? '国际服' : 'International'),
+            leading: Radio<String>(
+              value: 'intl',
+              groupValue: server,
+              onChanged: (value) {
+                setState(() => server = value!);
+              },
+            ),
+          ),
           const Divider(),
           ListTile(
             title: Text(locale == 'zh' ? '中文' : 'Chinese'),
@@ -2871,14 +2956,23 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
           ListTile(
             title: Text(locale == 'zh' ? 'English' : 'English'),
+            subtitle: server == 'cn'
+                ? Text(
+                    locale == 'zh' ? '国服下不可用' : 'Unavailable on CN server',
+                    style: const TextStyle(fontSize: 12),
+                  )
+                : null,
+            enabled: server != 'cn',
             leading: Radio<String>(
               value: 'en',
               groupValue: locale,
-              onChanged: (value) {
-                setState(() {
-                  locale = value!;
-                });
-              },
+              onChanged: server == 'cn'
+                  ? null
+                  : (value) {
+                      setState(() {
+                        locale = value!;
+                      });
+                    },
             ),
           ),
           const Divider(),
@@ -3253,6 +3347,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               onPressed: () {
                 Navigator.pop(context, {
                   'locale': locale,
+                  'server': server,
                   'showSnackBar': showSnackBar,
                   'githubUpdateUrl': updateUrlController.text.trim(),
                   'mirrorUrl': mirrorController.text.trim(),
