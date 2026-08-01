@@ -10,7 +10,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'parts_data.dart';
 import 'time_calc_screen.dart';
 
-const String appVersion = '0.7.0';
+const String appVersion = '0.7.1';
 
 /// 获取部件在当前语言下的显示名称
 String pn(PartData part, String? locale) {
@@ -658,8 +658,9 @@ class _MainMenuScreenState extends State<MainMenuScreen> {
                 icon: Icons.build,
                 label: _t('组车工具', 'Build Tool'),
                 color: Colors.orange,
-                onTap: () =>
-                    _navigateAndAwaitLocale(BuildToolScreen(locale: _locale)),
+                onTap: () => _navigateAndAwaitLocale(
+                  BuildToolScreen(locale: _locale, server: _server),
+                ),
               ),
               const SizedBox(height: 16),
               _buildMenuItem(
@@ -739,7 +740,8 @@ class _MainMenuScreenState extends State<MainMenuScreen> {
 // ==================== 组车工具 ====================
 class BuildToolScreen extends StatefulWidget {
   final String locale;
-  const BuildToolScreen({super.key, this.locale = 'zh'});
+  final String server;
+  const BuildToolScreen({super.key, this.locale = 'zh', this.server = 'cn'});
 
   @override
   State<BuildToolScreen> createState() => _BuildToolScreenState();
@@ -1263,9 +1265,10 @@ class _BuildToolScreenState extends State<BuildToolScreen> {
   Widget _buildPartsSelector() {
     // 根据当前模式筛选部件
     List<PartData> parts;
+    final db = PartDatabase.partsForServer(widget.server);
     if (_isFilterMode) {
       // 筛选模式：按分类 + 稀有度筛选
-      parts = PartDatabase.allParts.where((p) {
+      parts = db.where((p) {
         if (_selectedCategories.isNotEmpty &&
             !_selectedCategories.contains(p.category))
           return false;
@@ -1278,9 +1281,9 @@ class _BuildToolScreenState extends State<BuildToolScreen> {
       // 搜索模式：按文字搜索（部件名/ID）
       final q = _searchController.text.trim().toLowerCase();
       if (q.isEmpty) {
-        parts = PartDatabase.allParts;
+        parts = db;
       } else {
-        parts = PartDatabase.allParts.where((p) {
+        parts = db.where((p) {
           return p.id.toLowerCase().contains(q) ||
               p.name.toLowerCase().contains(q) ||
               p.nameZh.contains(q) ||
@@ -1457,7 +1460,7 @@ class _BuildToolScreenState extends State<BuildToolScreen> {
                       child: Padding(
                         padding: const EdgeInsets.all(1),
                         child: Image.asset(
-                          'assets/images/${part.id}.png',
+                          part.imagePath(widget.server),
                           fit: BoxFit.contain,
                           errorBuilder: (_, _, _) => Center(
                             child: Column(

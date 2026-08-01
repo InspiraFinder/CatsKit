@@ -79,6 +79,7 @@ class PartData {
   final BonusData? bonus;
   final SlotData? slots;
   final StatsIncrementPattern sip;
+  final String? imageCn; // 国服专用图片路径；null 时使用 assets/images/<id>.png
 
   const PartData({
     required this.id,
@@ -96,6 +97,7 @@ class PartData {
     this.bonus,
     this.slots,
     this.sip = StatsIncrementPattern.r1,
+    this.imageCn,
   });
 
   int get maxLevel => maxLevelForRarity(rarity);
@@ -224,11 +226,16 @@ class PartData {
         : 'Gadget';
     return '$cat +${bonus!.percent}%';
   }
+
+  /// 根据服务器返回部件图片资源路径
+  String imagePath(String server) =>
+      server == 'cn' && imageCn != null ? imageCn! : 'assets/images/$id.png';
 }
 
 // ========== 插槽常量 ==========
 const s024 = SlotData(0, 2, 4);
 const s121 = SlotData(1, 2, 1);
+const s124 = SlotData(1, 2, 4);
 const s123 = SlotData(1, 2, 3);
 const s131 = SlotData(1, 3, 1);
 const s202 = SlotData(2, 0, 2);
@@ -248,8 +255,10 @@ const bBody10 = BonusData(PartCategory.body, 10);
 const bBody20 = BonusData(PartCategory.body, 20);
 const bWeapon10 = BonusData(PartCategory.weapon, 10);
 const bWeapon15 = BonusData(PartCategory.weapon, 15);
+const bWeapon20 = BonusData(PartCategory.weapon, 20);
 const bWheel10 = BonusData(PartCategory.wheel, 10);
 const bWheel15 = BonusData(PartCategory.wheel, 15);
+const bWheel20 = BonusData(PartCategory.wheel, 20);
 const bWheel25 = BonusData(PartCategory.wheel, 25);
 const bWheel50 = BonusData(PartCategory.wheel, 50);
 const bGadget10 = BonusData(PartCategory.gadget, 10);
@@ -259,7 +268,12 @@ const bGadget25 = BonusData(PartCategory.gadget, 25);
 // ========== 数据库 ==========
 class PartDatabase {
   static final List<PartData> allParts = _buildAllParts();
+  static final List<PartData> cnAllParts = _buildCnParts();
   static Map<PartCategory, List<PartData>>? _byCategory;
+
+  /// 根据服务器返回对应的部件数据库
+  static List<PartData> partsForServer(String server) =>
+      server == 'cn' ? cnAllParts : allParts;
 
   static List<PartData> filterByCategory(PartCategory cat) {
     _byCategory ??= _buildIndex();
@@ -2428,6 +2442,241 @@ class PartDatabase {
       sip: StatsIncrementPattern.r1,
     ),
   ];
+
+  /// 国服部件数据库：在国际服基础上覆盖同名部件数据 + 新增国服专属部件
+  static List<PartData> _buildCnParts() {
+    final parts = _buildAllParts().toList();
+    final map = <String, PartData>{for (final p in parts) p.id: p};
+
+    // ========== 国服数据不同的同名部件（覆盖国际服同名部件） ==========
+    // 肥猫巴士：hp38409 电量35 可组装3轮2武2配
+    map['tubby_bus'] = const PartData(
+      id: 'tubby_bus',
+      name: 'Tubby Bus',
+      nameZh: '肥猫巴士',
+      nameJa: 'おデブバス',
+      category: PartCategory.body,
+      rarity: Rarity.r6,
+      sponsor: Sponsor.gluttony,
+      hp1: 38409,
+      power: 35,
+      bonus: bWheel25,
+      slots: s232,
+      sip: StatsIncrementPattern.r6,
+      imageCn: 'assets/images_cn/tubby_bus_cn.jpg',
+    );
+    // 铁娘子：hp48120 电量35 可组装3轮2武2配
+    map['iron_maiden'] = const PartData(
+      id: 'iron_maiden',
+      name: 'Iron Maiden',
+      nameZh: '铁娘子',
+      nameJa: 'アイアンメイデン',
+      category: PartCategory.body,
+      rarity: Rarity.r6,
+      sponsor: Sponsor.mecha,
+      hp1: 48120,
+      power: 35,
+      bonus: bWheel15,
+      slots: s232,
+      sip: StatsIncrementPattern.r6,
+      imageCn: 'assets/images_cn/iron_maiden_cn.jpg',
+    );
+    // 冰棒野兽：hp42383 电量40 可组装2轮3武2配
+    map['popsicle_beast'] = const PartData(
+      id: 'popsicle_beast',
+      name: 'Popsicle Beast',
+      nameZh: '冰棒野兽',
+      nameJa: 'アイスキャンデー・ビースト',
+      category: PartCategory.body,
+      rarity: Rarity.r6,
+      sponsor: Sponsor.gluttony,
+      hp1: 42383,
+      power: 40,
+      bonus: bWeapon10,
+      slots: s232,
+      sip: StatsIncrementPattern.r6,
+      imageCn: 'assets/images_cn/popsicle_beast_cn.jpg',
+    );
+    // RAM：hp38409 电量40
+    map['ram'] = const PartData(
+      id: 'ram',
+      name: 'R.A.M.',
+      nameZh: 'R.A.M.',
+      nameJa: 'R.A.M.',
+      category: PartCategory.body,
+      rarity: Rarity.r6,
+      sponsor: Sponsor.mecha,
+      hp1: 38409,
+      power: 40,
+      bonus: bWeapon10,
+      slots: s331,
+      sip: StatsIncrementPattern.r6,
+      imageCn: 'assets/images_cn/ram_cn.jpg',
+    );
+    // 薛定谔科技：hp48120 电量35 可组装2轮2武2配
+    map['schrodintech'] = const PartData(
+      id: 'schrodintech',
+      name: 'Schrodintech',
+      nameZh: '薛定谔科技',
+      nameJa: 'シュレーディンテック',
+      category: PartCategory.body,
+      rarity: Rarity.r6,
+      sponsor: Sponsor.mecha,
+      hp1: 48120,
+      power: 35,
+      bonus: bGadget10,
+      slots: s222,
+      sip: StatsIncrementPattern.r6,
+      imageCn: 'assets/images_cn/schrodintech_cn.jpg',
+    );
+    // 电鳗：atk12000 耗电10 武器+10%
+    map['eel'] = const PartData(
+      id: 'eel',
+      name: 'Electric Eel',
+      nameZh: '电鳗',
+      nameJa: 'デンキウナギ',
+      category: PartCategory.weapon,
+      rarity: Rarity.r6,
+      sponsor: Sponsor.gluttony,
+      atk1: 12000,
+      power: -10,
+      partClass: PartClass.special,
+      bonus: bWeapon10,
+      sip: StatsIncrementPattern.r6,
+    );
+    // KAPPA无人机：atk9600 耗电10
+    map['kappa_drone'] = const PartData(
+      id: 'kappa_drone',
+      name: 'Kappa Drone',
+      nameZh: 'KAPPA无人机',
+      nameJa: 'カッパドローン',
+      category: PartCategory.weapon,
+      rarity: Rarity.r6,
+      sponsor: Sponsor.naturalis,
+      atk1: 9600,
+      mHp1: 11000,
+      power: -10,
+      partClass: PartClass.minion,
+      bonus: bWeapon10,
+      sip: StatsIncrementPattern.r6,
+    );
+    // 寿司旋钮轮：hp9440（国际服 hp8260，国服仅修改 HP）
+    map['nigiri_knob'] = const PartData(
+      id: 'nigiri_knob',
+      name: 'Nigiri Knob',
+      nameZh: '寿司旋钮轮',
+      nameJa: '握り寿司ノブ',
+      category: PartCategory.wheel,
+      rarity: Rarity.r6,
+      sponsor: Sponsor.gluttony,
+      hp1: 9440,
+      bonus: bGadget10,
+      sip: StatsIncrementPattern.r6,
+    );
+
+    // ========== 国服专属部件 ==========
+    // 落羽弓：atk12660 耗电15
+    map['falling_feather'] = const PartData(
+      id: 'falling_feather',
+      name: 'Falling Feather',
+      nameZh: '落羽弓',
+      category: PartCategory.weapon,
+      rarity: Rarity.r6,
+      sponsor: Sponsor.naturalis,
+      atk1: 12660,
+      power: -15,
+      partClass: PartClass.ranged,
+      bonus: bWeapon10,
+      sip: StatsIncrementPattern.r6,
+      imageCn: 'assets/images_cn/falling_feather.jpg',
+    );
+    // 流光轮：hp24086 自然赞助 车轮+20%
+    map['flowing_light_wheel'] = const PartData(
+      id: 'flowing_light_wheel',
+      name: 'Flowing Light Wheel',
+      nameZh: '流光轮',
+      category: PartCategory.wheel,
+      rarity: Rarity.r6,
+      sponsor: Sponsor.naturalis,
+      hp1: 24086,
+      bonus: bWheel20,
+      sip: StatsIncrementPattern.r6,
+      imageCn: 'assets/images_cn/flowing_light_wheel.jpg',
+    );
+    // 涅槃石：hp20072 耗电10 自然赞助 车身+10%
+    map['nirvana_stone'] = const PartData(
+      id: 'nirvana_stone',
+      name: 'Nirvana Stone',
+      nameZh: '涅槃石',
+      category: PartCategory.gadget,
+      rarity: Rarity.r6,
+      sponsor: Sponsor.naturalis,
+      hp1: 20072,
+      power: -10,
+      partClass: PartClass.special,
+      bonus: bBody10,
+      sip: StatsIncrementPattern.r6,
+      imageCn: 'assets/images_cn/nirvana_stone.jpg',
+    );
+    // 饼干加速轮：hp18880 武器+15%
+    map['biscuit_booster_roller'] = const PartData(
+      id: 'biscuit_booster_roller',
+      name: 'Biscuit Booster Roller',
+      nameZh: '饼干加速轮',
+      category: PartCategory.wheel,
+      rarity: Rarity.r6,
+      sponsor: Sponsor.gluttony,
+      hp1: 18880,
+      bonus: bWeapon15,
+      sip: StatsIncrementPattern.r6,
+      imageCn: 'assets/images_cn/biscuit_booster_roller.jpg',
+    );
+    // 暗影战骑：hp46088 电量40 可组装2轮1武4配 武器+20%
+    map['shadow_cavalry'] = const PartData(
+      id: 'shadow_cavalry',
+      name: 'Shadow Cavalry',
+      nameZh: '暗影战骑',
+      category: PartCategory.body,
+      rarity: Rarity.r6,
+      sponsor: Sponsor.mecha,
+      hp1: 46088,
+      power: 40,
+      bonus: bWeapon20,
+      slots: s124,
+      sip: StatsIncrementPattern.r6,
+      imageCn: 'assets/images_cn/shadow_cavalry.jpg',
+    );
+    // 喵提灯：hp13334 耗电10 食物赞助 武器+15%
+    map['meow_lantern'] = const PartData(
+      id: 'meow_lantern',
+      name: 'Meow Lantern',
+      nameZh: '喵提灯',
+      category: PartCategory.gadget,
+      rarity: Rarity.r6,
+      sponsor: Sponsor.gluttony,
+      hp1: 13334,
+      power: -10,
+      partClass: PartClass.special,
+      bonus: bWeapon15,
+      sip: StatsIncrementPattern.r6,
+      imageCn: 'assets/images_cn/meow_lantern.jpg',
+    );
+    // 甜甜圈粘性轮：hp18880 配件+20%
+    map['donuts_sticky_roller'] = const PartData(
+      id: 'donuts_sticky_roller',
+      name: "Donuts' Sticky Roller",
+      nameZh: '甜甜圈粘性轮',
+      category: PartCategory.wheel,
+      rarity: Rarity.r6,
+      sponsor: Sponsor.gluttony,
+      hp1: 18880,
+      bonus: bGadget20,
+      sip: StatsIncrementPattern.r6,
+      imageCn: 'assets/images_cn/donuts_sticky_roller.jpg',
+    );
+
+    return map.values.toList();
+  }
 }
 
 // ========== 升级费用表 ==========
