@@ -6,6 +6,17 @@ plugins {
 import java.io.FileInputStream
 import java.util.Properties
 
+// ========== 签名配置读取 ==========
+// 优先从 android/key.properties 读取签名密码（该文件已被 .gitignore 忽略，不会推送到远程）
+// 兼容旧配置：若 key.properties 不存在，则回退读取 local.properties
+val keyProperties = Properties()
+val keyPropertiesFile = rootProject.file("key.properties")
+if (keyPropertiesFile.exists()) {
+    FileInputStream(keyPropertiesFile).use { stream ->
+        keyProperties.load(stream)
+    }
+}
+
 val localProperties = Properties()
 val localPropertiesFile = rootProject.file("local.properties")
 if (localPropertiesFile.exists()) {
@@ -26,10 +37,12 @@ android {
 
     signingConfigs {
         create("release") {
-            storeFile = file("catskit_keystore.jks")
-            storePassword = localProperties.getProperty("storePassword", "")
-            keyAlias = "catskit_alias"
-            keyPassword = localProperties.getProperty("keyPassword", "")
+            storeFile = file(keyProperties.getProperty("storeFile", "catskit_keystore.jks"))
+            storePassword = keyProperties.getProperty("storePassword")
+                ?: localProperties.getProperty("storePassword", "")
+            keyAlias = keyProperties.getProperty("keyAlias", "catskit_alias")
+            keyPassword = keyProperties.getProperty("keyPassword")
+                ?: localProperties.getProperty("keyPassword", "")
         }
     }
 

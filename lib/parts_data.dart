@@ -2455,6 +2455,17 @@ class PartDatabase {
     final parts = _buildAllParts().toList();
     final map = <String, PartData>{for (final p in parts) p.id: p};
 
+    // ========== 国际服有但国服没有的部件（国服不显示） ==========
+    for (final id in [
+      'claw_rider', // 利爪骑士
+      'mad_panda', // 疯狂熊猫
+      'kitty_orb', // 小猫能量球
+      'mystic_slime', // 神秘史莱姆
+      'slug_snot', // 鼻涕虫黏液
+    ]) {
+      map.remove(id);
+    }
+
     // ========== 国服数据不同的同名部件（覆盖国际服同名部件） ==========
     // 肥猫巴士：hp38409 电量35 可组装3轮2武2配
     map['tubby_bus'] = const PartData(
@@ -2582,6 +2593,21 @@ class PartDatabase {
     );
 
     // ========== 国服专属部件 ==========
+    // 火凤：hp40164 电量35 自然赞助 配件+20% 可组装2武2轮3配
+    map['fire_phoenix'] = const PartData(
+      id: 'fire_phoenix',
+      name: 'Fire Phoenix',
+      nameZh: '火凤',
+      category: PartCategory.body,
+      rarity: Rarity.r6,
+      sponsor: Sponsor.naturalis,
+      hp1: 40164,
+      power: 35,
+      bonus: bGadget20,
+      slots: s223,
+      sip: StatsIncrementPattern.r6,
+      imageCn: 'assets/images_cn/fire_phoenix.jpg',
+    );
     // 落羽弓：atk12660 耗电15
     map['falling_feather'] = const PartData(
       id: 'falling_feather',

@@ -5,6 +5,7 @@
 # Miscellaneous
 *.class
 *.lock
+!pubspec.lock
 *.log
 *.pyc
 *.swp
@@ -172,13 +173,14 @@ ios/
 linux/
 macos/
 web/
-windows/
-
-# lock 文件
-pubspec.lock
+# 注意：windows/ 必须提交（GitHub Actions 需要构建 Windows 桌面版，勿删除此例外）
 
 # metadata
 .metadata
+
+# 说明：pubspec.lock 对应用（app）项目应提交，保证 CI 构建可复现。
+# 已通过文件头部的 "!pubspec.lock" 例外解除忽略。
+# 若想恢复忽略，删除文件头部 "*.lock" 之后的 "!pubspec.lock" 即可。
 
 # ============================================
 # 例外规则（GitHub 原版保留）
