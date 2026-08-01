@@ -2578,6 +2578,22 @@ class PartDatabase {
       bonus: bWeapon10,
       sip: StatsIncrementPattern.r6,
     );
+    // 海怪：耗电10（国际服耗电15，国服仅修改耗电）
+    map['sea_monster'] = const PartData(
+      id: 'sea_monster',
+      name: 'Sea Monster',
+      nameZh: '海怪',
+      nameJa: 'シーモンスター',
+      category: PartCategory.weapon,
+      rarity: Rarity.r6,
+      sponsor: Sponsor.naturalis,
+      atk1: 10500,
+      mHp1: 20000,
+      power: -10,
+      partClass: PartClass.minion,
+      bonus: bWeapon10,
+      sip: StatsIncrementPattern.r6,
+    );
     // 寿司旋钮轮：hp9440（国际服 hp8260，国服仅修改 HP）
     map['nigiri_knob'] = const PartData(
       id: 'nigiri_knob',

@@ -1082,16 +1082,16 @@ class _TimeCalcScreenState extends State<TimeCalcScreen> {
               onPressed: () => setState(() => _showOverlay = !_showOverlay),
               tooltip: _isZh ? '显示识别框' : 'Toggle OCR boxes',
             ),
-          // 显示/隐藏三区范围
-          if (_textItems.isNotEmpty)
-            IconButton(
-              icon: Icon(
-                _showRegions ? Icons.grid_view : Icons.grid_view_outlined,
-                color: _showRegions ? Colors.orange : null,
-              ),
-              onPressed: () => setState(() => _showRegions = !_showRegions),
-              tooltip: _isZh ? '显示区域划分' : 'Toggle regions',
-            ),
+          // 显示/隐藏三区范围（已隐藏，如需恢复请取消注释）
+          // if (_textItems.isNotEmpty)
+          //   IconButton(
+          //     icon: Icon(
+          //       _showRegions ? Icons.grid_view : Icons.grid_view_outlined,
+          //       color: _showRegions ? Colors.orange : null,
+          //     ),
+          //     onPressed: () => setState(() => _showRegions = !_showRegions),
+          //     tooltip: _isZh ? '显示区域划分' : 'Toggle regions',
+          //   ),
           // 文字列表
           if (_textItems.isNotEmpty)
             IconButton(
