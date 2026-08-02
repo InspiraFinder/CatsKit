@@ -9,6 +9,8 @@ import 'package:flutter/services.dart';
 import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
 import 'package:image_picker/image_picker.dart';
 
+import 'ocr_postprocess.dart';
+
 /// 战斗时间计算界面
 class TimeCalcScreen extends StatefulWidget {
   final String locale;
@@ -32,6 +34,9 @@ class _TimeCalcScreenState extends State<TimeCalcScreen> {
   String _rawTimeLeft = '';
   String _rawEnemyScore = '';
   String _rawEnemyScorePerMin = '';
+
+  // 手动编辑的原始数据（非空时跳过 OCR 直接使用）
+  Map<String, String>? _manualFields;
 
   // 计算结果
   String? _resultTimeLeft;
@@ -91,6 +96,7 @@ class _TimeCalcScreenState extends State<TimeCalcScreen> {
         _showOverlay = false;
         _showRegions = false;
         _zoneBoundaries = null;
+        _manualFields = null;
       });
       _calculate();
     } catch (e) {
@@ -405,288 +411,6 @@ class _TimeCalcScreenState extends State<TimeCalcScreen> {
     );
   }
 
-  /// 将合并文本（如 "+9 19479" / "+124) 19479"）拆分为独立项
-  List<Map<String, dynamic>> _splitCombinedItems(
-    List<Map<String, dynamic>> items,
-  ) {
-    final result = <Map<String, dynamic>>[];
-    for (final it in items) {
-      final text = it['text'] as String;
-      final x = it['x'] as int;
-      final w = it['w'] as int;
-      final y = it['y'] as int;
-      final h = it['h'] as int;
-
-      // 找出所有数字序列及其前后缀
-      // 匹配: 可选 +/-(，然后 1-6 位数字，可选 )/%等噪声字符
-      final allMatches = <_NumMatch>[];
-      for (final m in RegExp(r'[+\-]?\(?\d{1,7}\)?').allMatches(text)) {
-        final raw = m.group(0)!;
-        final digitsOnly = raw.replaceAll(RegExp(r'[^\d]'), '');
-        if (digitsOnly.isEmpty) continue;
-        final val = int.parse(digitsOnly);
-        allMatches.add(
-          _NumMatch(
-            raw: raw,
-            digits: digitsOnly,
-            value: val,
-            start: m.start,
-            end: m.end,
-          ),
-        );
-      }
-
-      // 分类：SPM（1-3位, 值≤300）和 SCORE（值≤150000）
-      final spmMatches = allMatches
-          .where((m) => m.digits.length <= 3 && m.value <= 300)
-          .toList();
-      final scoreMatches = allMatches
-          .where((m) => m.value <= 150000 && m.value >= 100)
-          .toList();
-      // 如果一个数字同时符合两者（如 "126"），SPM 优先取短的，SCORE 取长的
-      final spmItem = spmMatches.isNotEmpty ? spmMatches.first : null;
-      final scoreItem = scoreMatches.isNotEmpty
-          ? scoreMatches.reduce(
-              (a, b) => a.digits.length >= b.digits.length ? a : b,
-            )
-          : null;
-
-      // 如果同时有 SPM 和 SCORE 且不重叠，则拆分
-      if (spmItem != null &&
-          scoreItem != null &&
-          spmItem.start != scoreItem.start) {
-        for (final m in [spmItem, scoreItem]) {
-          // 提取时标准化：-号变+号，去掉噪声字符
-          var clean = m.raw;
-          if (clean.startsWith('-')) clean = '+${clean.substring(1)}';
-          clean = clean.replaceAll(RegExp(r'[^+\d]'), '');
-          if (clean.startsWith('+') && clean.length == 1) continue;
-          // 保留原坐标（不估算位置，避免跨区错位）
-          result.add({'text': clean, 'x': x, 'y': y, 'w': w, 'h': h});
-        }
-      } else {
-        // 无法拆分，保留原文（不清除中文，避免 "20时 49分" 被破坏）
-        result.add({'text': text.trim(), 'x': x, 'y': y, 'w': w, 'h': h});
-      }
-    }
-    return result;
-  }
-
-  /// 根据文字坐标动态划定三区并分类（Android 端使用）
-  Map<String, dynamic> _classifyByPosition(
-    List<Map<String, dynamic>> items,
-    int imgW,
-    int imgH,
-  ) {
-    final result = {
-      'my_score_per_min': '',
-      'my_score': '',
-      'score_line': '',
-      'time_left': '',
-      'enemy_score': '',
-      'enemy_score_per_min': '',
-    };
-
-    if (items.isEmpty || imgW <= 0) {
-      return {'fields': result, 'boundaries': null};
-    }
-
-    // 给每个 item 加上中心坐标和左四分之一坐标（用于区域划分）
-    for (final it in items) {
-      it['cx'] = (it['x'] as int) + (it['w'] as int) ~/ 2;
-      it['cy'] = (it['y'] as int) + (it['h'] as int) ~/ 2;
-      it['qx'] = (it['x'] as int) + (it['w'] as int) ~/ 4; // 左四分之一，避免宽框跨区
-    }
-
-    // 只分析顶部 30%
-    final topItems = items
-        .where((it) => (it['cy'] as int) < imgH * 0.30)
-        .toList();
-    if (topItems.isEmpty) {
-      return {'fields': result, 'boundaries': null};
-    }
-
-    // 按 qx 排序
-    topItems.sort((a, b) => (a['qx'] as int).compareTo(b['qx'] as int));
-
-    // 用固定百分比划分三区（基于左四分之一坐标，避免宽框跨区）
-    final lb = imgW * 0.38;
-    final rb = imgW * 0.62;
-    final groups = [
-      topItems.where((it) => (it['qx'] as int) < lb).toList(),
-      topItems
-          .where((it) => (it['qx'] as int) >= lb && (it['qx'] as int) <= rb)
-          .toList(),
-      topItems.where((it) => (it['qx'] as int) > rb).toList(),
-    ];
-
-    // 取每组的最下行
-    List<Map<String, dynamic>> bottomRow(List<Map<String, dynamic>> zone) {
-      if (zone.isEmpty) return [];
-      zone.sort((a, b) => (a['cy'] as int).compareTo(b['cy'] as int));
-      final rows = <List<Map<String, dynamic>>>[];
-      var cur = [zone.first];
-      for (var i = 1; i < zone.length; i++) {
-        final gap = (zone[i]['cy'] as int) - (cur.last['cy'] as int);
-        final avgH = ((cur.last['h'] as int) + (zone[i]['h'] as int)) / 2;
-        if (gap < avgH * 0.7) {
-          cur.add(zone[i]);
-        } else {
-          rows.add(cur);
-          cur = [zone[i]];
-        }
-      }
-      if (cur.isNotEmpty) rows.add(cur);
-      return rows.isNotEmpty ? rows.last : [];
-    }
-
-    /// 提取每分钟得分：值 1-300，可选 +/-
-    String spm(List<Map<String, dynamic>> items) {
-      final cand = <(String, int)>[];
-      for (final it in items) {
-        final t = (it['text'] as String).trim().replaceAll(',', '');
-        final digits = t.replaceAll(RegExp(r'[^\d]'), '');
-        if (digits.isEmpty) continue;
-        final v = int.tryParse(digits);
-        if (v != null && v >= 1 && v <= 300) {
-          // 标准化：确保有 + 前缀
-          final normalized = t.startsWith('-')
-              ? '+$digits'
-              : t.startsWith('+')
-              ? t
-              : '+$digits';
-          cand.add((normalized, v));
-        }
-      }
-      if (cand.isNotEmpty) {
-        cand.sort((a, b) => b.$2.compareTo(a.$2));
-        return cand.first.$1;
-      }
-      return '';
-    }
-
-    /// 提取分数：值 0-150000，排除以 + 开头且 ≤300 的 SPM 值
-    String num(List<Map<String, dynamic>> items) {
-      final cand = <(String, int)>[];
-      for (final it in items) {
-        final t = (it['text'] as String).trim().replaceAll(',', '');
-        final digits = t.replaceAll(RegExp(r'[^\d]'), '');
-        if (digits.isEmpty) continue;
-        final v = int.tryParse(digits);
-        if (v == null || v < 0 || v > 150000) continue;
-        // 排除 SPM 格式：以 + 开头且值 ≤ 300
-        if ((t.startsWith('+') || t.startsWith('-')) && v <= 300) continue;
-        cand.add((digits, v));
-      }
-      if (cand.isNotEmpty) {
-        cand.sort((a, b) => b.$2.compareTo(a.$2));
-        return cand.first.$1;
-      }
-      return '';
-    }
-
-    /// 提取时间文本："Xh Ym" / "X时Y分" / "X分" / "X时" 等
-    String tm(List<Map<String, dynamic>> items) {
-      // 优先匹配含有明确时间单位的完整文本
-      for (final it in items) {
-        final t = (it['text'] as String).trim();
-        // 有中文时间单位的文本 -> 提取纯净时间部分
-        if (t.contains('分') || t.contains('时')) {
-          // 宽松匹配：数字后可能有若干噪声字符再到单位（如 "8B时"）
-          final hourM = RegExp(r'(\d+)\S*\s*时').firstMatch(t);
-          final minM = RegExp(r'(\d+)\s*分').firstMatch(t);
-          final hour = hourM?.group(1);
-          final min = minM?.group(1);
-          if (hour != null && min != null) return '$hour时$min分';
-          if (hour != null) return '$hour时';
-          if (min != null) return '$min分';
-          return t;
-        }
-        if (RegExp(r'\d+\s*[hm]', caseSensitive: false).hasMatch(t)) {
-          return t;
-        }
-      }
-      // 回退：扫描含两个数字的文本
-      for (final it in items) {
-        final t = (it['text'] as String).trim();
-        final nums = RegExp(r'\d+').allMatches(t).toList();
-        if (nums.length >= 2) {
-          final v1 = int.parse(nums[0].group(0)!);
-          final v2 = int.parse(nums[1].group(0)!);
-          if (v1 >= 0 && v1 <= 23 && v2 >= 0 && v2 <= 59) {
-            return '$v1时$v2分';
-          }
-        }
-      }
-      return '';
-    }
-
-    // 三区分别取最下行提取字段
-    final leftItems = groups.isNotEmpty ? groups[0] : <Map<String, dynamic>>[];
-    final centerItems = groups.length > 1
-        ? groups[1]
-        : <Map<String, dynamic>>[];
-    final rightItems = groups.length > 2 ? groups[2] : <Map<String, dynamic>>[];
-    final leftGroup = bottomRow(leftItems);
-    final centerGroup = bottomRow(centerItems);
-    final rightGroup = bottomRow(rightItems);
-
-    result['my_score_per_min'] = spm(leftGroup);
-    result['my_score'] = num(leftGroup);
-    // 时间从中区全部项中扫描（不限最下行）
-    result['time_left'] = tm(
-      centerGroup.isNotEmpty && tm(centerGroup).isNotEmpty
-          ? centerGroup
-          : centerItems,
-    );
-    result['score_line'] = num(centerGroup);
-    result['enemy_score'] = num(rightGroup);
-    result['enemy_score_per_min'] = spm(rightGroup);
-
-    // ---- 后处理：左右两侧 SPM/分数互换修正 ----
-    // 有时 SPM 较小被当作分数，较大的分数被当作 SPM
-    void fixSwap(Map<String, dynamic> r, String spmKey, String scoreKey) {
-      final spmV = int.tryParse((r[spmKey] as String).replaceAll('+', ''));
-      final scoreV = int.tryParse((r[scoreKey] as String).replaceAll(',', ''));
-      if (spmV != null &&
-          scoreV != null &&
-          spmV > 300 &&
-          scoreV <= 300 &&
-          scoreV > 0) {
-        // 交换
-        r[spmKey] = '+$scoreV';
-        r[scoreKey] = spmV.toString();
-      }
-    }
-
-    fixSwap(result, 'my_score_per_min', 'my_score');
-    fixSwap(result, 'enemy_score_per_min', 'enemy_score');
-
-    // 计算动态边界（各组最左和最右的 cx 范围）
-    double l = 0, r = imgW.toDouble();
-    if (groups.isNotEmpty && groups[0].isNotEmpty) {
-      final g0 = groups[0];
-      g0.sort((a, b) => (a['cx'] as int).compareTo(b['cx'] as int));
-      if (groups.length > 1 && groups[1].isNotEmpty) {
-        final g1 = groups[1];
-        g1.sort((a, b) => (a['cx'] as int).compareTo(b['cx'] as int));
-        l = ((g0.last['cx'] as int) + (g1.first['cx'] as int)) / 2;
-      }
-      if (groups.length > 2 && groups[2].isNotEmpty) {
-        final g2 = groups[2];
-        g2.sort((a, b) => (a['cx'] as int).compareTo(b['cx'] as int));
-        if (groups.length > 1 && groups[1].isNotEmpty) {
-          final g1 = groups[1];
-          g1.sort((a, b) => (a['cx'] as int).compareTo(b['cx'] as int));
-          r = ((g1.last['cx'] as int) + (g2.first['cx'] as int)) / 2;
-        }
-      }
-    }
-    final boundaries = [l, r];
-
-    return {'fields': result, 'boundaries': boundaries};
-  }
-
   Future<void> _calculate() async {
     if (_image == null) return;
 
@@ -697,23 +421,29 @@ class _TimeCalcScreenState extends State<TimeCalcScreen> {
       Map<String, String> fields = {};
       List<Map<String, dynamic>> androidItems = [];
 
-      try {
-        if (Platform.isAndroid) {
-          androidItems = await _runAndroidOcr(_image!);
-          // 拆分合并文本后再分类
-          final splitItems = _splitCombinedItems(androidItems);
-          final classified = _classifyByPosition(
-            splitItems,
-            _imageWidth,
-            _imageHeight,
-          );
-          fields = classified['fields'] as Map<String, String>;
-          _zoneBoundaries = classified['boundaries'] as List<double>?;
-        } else {
-          fields = await _runPythonOcr(_image!);
+      // 手动编辑模式：直接使用用户修改后的原始数据，跳过 OCR
+      if (_manualFields != null) {
+        fields = _manualFields!;
+        androidItems = _textItems;
+      } else {
+        try {
+          if (Platform.isAndroid) {
+            androidItems = await _runAndroidOcr(_image!);
+            // 拆分合并文本后再分类
+            final splitItems = splitCombinedItems(androidItems);
+            final classified = classifyByPosition(
+              splitItems,
+              _imageWidth,
+              _imageHeight,
+            );
+            fields = classified['fields'] as Map<String, String>;
+            _zoneBoundaries = classified['boundaries'] as List<double>?;
+          } else {
+            fields = await _runPythonOcr(_image!);
+          }
+        } catch (e) {
+          throw Exception('OCR识别失败: $e');
         }
-      } catch (e) {
-        throw Exception('OCR识别失败: $e');
       }
 
       final myScorePerMin = fields['my_score_per_min'] ?? '';
@@ -895,6 +625,168 @@ class _TimeCalcScreenState extends State<TimeCalcScreen> {
     } finally {
       if (mounted) setState(() => _isProcessing = false);
     }
+  }
+
+  /// 编辑「原始数据」，手动修改 OCR 字段并重新计算
+  Future<void> _editRawData() async {
+    final mySpmCtrl = TextEditingController(text: _rawMyScorePerMin);
+    final myScoreCtrl = TextEditingController(text: _rawMyScore);
+    final lineCtrl = TextEditingController(text: _rawScoreLine);
+    final timeParts = _splitTimeParts(_rawTimeLeft);
+    final hourCtrl = TextEditingController(
+      text: timeParts[0] > 0 ? timeParts[0].toString() : '',
+    );
+    final minCtrl = TextEditingController(
+      text: timeParts[1] > 0 ? timeParts[1].toString() : '',
+    );
+    final enemyScoreCtrl = TextEditingController(text: _rawEnemyScore);
+    final enemySpmCtrl = TextEditingController(text: _rawEnemyScorePerMin);
+
+    final saved = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(_isZh ? '编辑原始数据' : 'Edit Raw Data'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _editField(_isZh ? '我方每分钟得分' : 'Our SPM', mySpmCtrl),
+              _editField(_isZh ? '我方分数' : 'Our Score', myScoreCtrl),
+              _editField(_isZh ? '分数线' : 'Target Score', lineCtrl),
+              _editTimeFields(hourCtrl, minCtrl),
+              _editField(_isZh ? '敌方分数' : 'Enemy Score', enemyScoreCtrl),
+              _editField(_isZh ? '敌方每分钟得分' : 'Enemy SPM', enemySpmCtrl),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(_isZh ? '取消' : 'Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text(_isZh ? '保存并重新计算' : 'Save & Recalculate'),
+          ),
+        ],
+      ),
+    );
+
+    // 先取出文本再释放控制器
+    final textValues = {
+      'my_score_per_min': mySpmCtrl.text.trim(),
+      'my_score': myScoreCtrl.text.trim(),
+      'score_line': lineCtrl.text.trim(),
+      'time_left': _formatTimeLeft(hourCtrl.text.trim(), minCtrl.text.trim()),
+      'enemy_score': enemyScoreCtrl.text.trim(),
+      'enemy_score_per_min': enemySpmCtrl.text.trim(),
+    };
+    for (final c in [
+      mySpmCtrl,
+      myScoreCtrl,
+      lineCtrl,
+      hourCtrl,
+      minCtrl,
+      enemyScoreCtrl,
+      enemySpmCtrl,
+    ]) {
+      c.dispose();
+    }
+
+    if (saved != true || !mounted) return;
+
+    _manualFields = textValues;
+    await _calculate();
+  }
+
+  Widget _editField(String label, TextEditingController controller) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: TextField(
+        controller: controller,
+        decoration: InputDecoration(
+          labelText: label,
+          border: const OutlineInputBorder(),
+          isDense: true,
+        ),
+      ),
+    );
+  }
+
+  /// 将剩余时间字符串拆分为 [小时, 分钟]
+  List<int> _splitTimeParts(String timeStr) {
+    final s = timeStr.toLowerCase().trim();
+    int h = 0, m = 0;
+    final hourMatch =
+        RegExp(r'(\d+)\s*h').firstMatch(s) ??
+        RegExp(r'(\d+)\s*时').firstMatch(s);
+    final minMatch =
+        RegExp(r'(\d+)\s*m').firstMatch(s) ??
+        RegExp(r'(\d+)\s*分').firstMatch(s);
+    if (hourMatch != null) h = int.tryParse(hourMatch.group(1)!) ?? 0;
+    if (minMatch != null) m = int.tryParse(minMatch.group(1)!) ?? 0;
+    return [h, m];
+  }
+
+  /// 将小时/分钟组合为可解析的时间字符串
+  String _formatTimeLeft(String hourText, String minText) {
+    final h = int.tryParse(hourText.trim()) ?? 0;
+    final m = int.tryParse(minText.trim()) ?? 0;
+    if (h <= 0 && m <= 0) return '';
+    if (h > 0 && m > 0) return '${h}h ${m}m';
+    if (h > 0) return '${h}h';
+    return '${m}m';
+  }
+
+  /// 剩余时间编辑区：小时 + 分钟 两个输入框
+  Widget _editTimeFields(
+    TextEditingController hourCtrl,
+    TextEditingController minCtrl,
+  ) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            _isZh ? '剩余时间' : 'Time Left',
+            style: TextStyle(fontSize: 13, color: Colors.grey[700]),
+          ),
+          const SizedBox(height: 4),
+          Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: hourCtrl,
+                  keyboardType: TextInputType.number,
+                  decoration: InputDecoration(
+                    labelText: _isZh ? '小时' : 'Hours',
+                    border: const OutlineInputBorder(),
+                    isDense: true,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Text(_isZh ? '小时' : 'h'),
+              const SizedBox(width: 8),
+              Expanded(
+                child: TextField(
+                  controller: minCtrl,
+                  keyboardType: TextInputType.number,
+                  decoration: InputDecoration(
+                    labelText: _isZh ? '分钟' : 'Minutes',
+                    border: const OutlineInputBorder(),
+                    isDense: true,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Text(_isZh ? '分' : 'm'),
+            ],
+          ),
+        ],
+      ),
+    );
   }
 
   void _showPickOptions() {
@@ -1267,6 +1159,12 @@ class _TimeCalcScreenState extends State<TimeCalcScreen> {
                     _rawEnemyScorePerMin,
                   ),
                 ],
+                trailing: IconButton(
+                  icon: const Icon(Icons.edit, size: 20),
+                  color: Colors.blue,
+                  tooltip: _isZh ? '编辑数据' : 'Edit Data',
+                  onPressed: _editRawData,
+                ),
               ),
               const SizedBox(height: 8),
               // ---- 结算结果 ----
@@ -1282,8 +1180,9 @@ class _TimeCalcScreenState extends State<TimeCalcScreen> {
     String title,
     IconData icon,
     Color color,
-    List<Widget> children,
-  ) {
+    List<Widget> children, {
+    Widget? trailing,
+  }) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
       child: Card(
@@ -1298,13 +1197,16 @@ class _TimeCalcScreenState extends State<TimeCalcScreen> {
                 children: [
                   Icon(icon, size: 20, color: color),
                   const SizedBox(width: 8),
-                  Text(
-                    title,
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
+                  Expanded(
+                    child: Text(
+                      title,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ),
+                  ?trailing,
                 ],
               ),
               const Divider(),
@@ -1640,20 +1542,4 @@ class _RegionPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant _RegionPainter oldDelegate) => true;
-}
-
-/// OCR 文本中提取的数字匹配辅助类
-class _NumMatch {
-  final String raw;
-  final String digits;
-  final int value;
-  final int start;
-  final int end;
-  const _NumMatch({
-    required this.raw,
-    required this.digits,
-    required this.value,
-    required this.start,
-    required this.end,
-  });
 }

@@ -10,7 +10,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'parts_data.dart';
 import 'time_calc_screen.dart';
 
-const String appVersion = '0.8.3';
+const String appVersion = '0.9.0';
 
 /// 获取部件在当前语言下的显示名称
 String pn(PartData part, String? locale) {
@@ -782,6 +782,15 @@ class _BuildToolScreenState extends State<BuildToolScreen> {
   int _activeIndex = 0;
   final Map<String, int> _partLevels = {};
 
+  /// 每个部件的额外加成百分比（独立乘区，0~150%，10%一档）
+  final Map<String, int> _partExtraBonus = {};
+
+  /// 批量赋值模式：待赋值的等级（非 null 表示处于等级赋值模式）
+  int? _pendingAssignLevel;
+
+  /// 批量赋值模式：待赋值的额外加成（非 null 表示处于额外加成赋值模式）
+  int? _pendingAssignBonus;
+
   _VehicleBuild get _activeVehicle => _vehicles[_activeIndex];
   CarValidation _validation = CarValidation.empty();
 
@@ -792,10 +801,15 @@ class _BuildToolScreenState extends State<BuildToolScreen> {
       _activeVehicle.wheels,
       _activeVehicle.gadgets,
       _partLevels,
+      _partExtraBonus,
     );
   }
 
   int _level(PartData p) => _partLevels[p.id] ?? 1;
+
+  /// 部件的额外加成百分比（归一到 10% 档，0~150%）
+  int _extraBonus(PartData p) =>
+      ((_partExtraBonus[p.id] ?? 0).clamp(0, 150) / 10).floor() * 10;
 
   String _t(String zh, String en) => widget.locale == 'zh' ? zh : en;
 
@@ -815,16 +829,94 @@ class _BuildToolScreenState extends State<BuildToolScreen> {
   void _removeVehicle(int index) {
     if (_vehicles.length <= 1) return;
     setState(() {
-      // 清理被删车辆中部件记录的等级
+      // 清理被删车辆中部件记录的等级与额外加成
       final v = _vehicles[index];
       for (final p in [v.body, ...v.weapons, ...v.wheels, ...v.gadgets]) {
-        if (p != null) _partLevels.remove(p.id);
+        if (p != null) {
+          _partLevels.remove(p.id);
+          _partExtraBonus.remove(p.id);
+        }
       }
       _vehicles.removeAt(index);
       if (_activeIndex >= _vehicles.length) {
         _activeIndex = _vehicles.length - 1;
       }
     });
+  }
+
+  /// 通用数值选择弹窗
+  Future<int?> _pickValue({
+    required String title,
+    required List<int> values,
+    required String Function(int) label,
+  }) {
+    return showDialog<int>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(title),
+        scrollable: true,
+        contentPadding: const EdgeInsets.symmetric(vertical: 8),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            for (final v in values)
+              SimpleDialogOption(
+                onPressed: () => Navigator.pop(ctx, v),
+                child: Text(label(v)),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// 批量等级赋值：点击后进入赋值模式，再点击组车区部件对其赋等级
+  Future<void> _startBatchLevel() async {
+    if (_pendingAssignLevel != null) {
+      setState(() => _pendingAssignLevel = null);
+      return;
+    }
+    final choice = await _pickValue(
+      title: _t('批量等级赋值', 'Set Levels'),
+      values: [for (int lv = 1; lv <= 20; lv++) lv],
+      label: (lv) => 'Lv$lv',
+    );
+    if (choice == null) return;
+    setState(() {
+      _pendingAssignLevel = choice;
+      _pendingAssignBonus = null;
+    });
+  }
+
+  /// 批量额外加成赋值：点击后进入赋值模式，再点击组车区部件对其赋额外加成（0~150%，10%一档）
+  Future<void> _startBatchBonus() async {
+    if (_pendingAssignBonus != null) {
+      setState(() => _pendingAssignBonus = null);
+      return;
+    }
+    final choice = await _pickValue(
+      title: _t('批量额外加成赋值', 'Set Extra Bonus'),
+      values: [for (int pct = 0; pct <= 150; pct += 10) pct],
+      label: (pct) => pct == 0 ? '+0%' : '+$pct%',
+    );
+    if (choice == null) return;
+    setState(() {
+      _pendingAssignBonus = choice;
+      _pendingAssignLevel = null;
+    });
+  }
+
+  /// 处理组车区部件点击：赋值模式下对部件赋值，否则移除部件
+  void _handleSlotTap(PartData part, VoidCallback onRemove) {
+    final lv = _pendingAssignLevel;
+    final bns = _pendingAssignBonus;
+    if (lv != null) {
+      setState(() => _partLevels[part.id] = lv.clamp(1, part.maxLevel));
+    } else if (bns != null) {
+      setState(() => _partExtraBonus[part.id] = bns);
+    } else {
+      onRemove();
+    }
   }
 
   @override
@@ -885,14 +977,50 @@ class _BuildToolScreenState extends State<BuildToolScreen> {
 
   // ==================== 组车区 ====================
   Widget _buildAssemblyArea() {
+    final inAssignMode =
+        _pendingAssignLevel != null || _pendingAssignBonus != null;
     return Column(
       children: [
+        if (_isAssemblyMode && inAssignMode) _buildAssignHint(),
         for (int i = 0; i < _vehicles.length; i++) ...[
           _buildSingleVehicleArea(_vehicles[i], i),
           if (_isAssemblyMode && i < _vehicles.length - 1)
             const Divider(height: 8),
         ],
       ],
+    );
+  }
+
+  /// 批量赋值模式提示条
+  Widget _buildAssignHint() {
+    final isLv = _pendingAssignLevel != null;
+    final color = isLv ? Colors.blue : Colors.deepPurple;
+    final msg = isLv
+        ? _t(
+            '等级赋值模式：点击组车区部件设为 Lv$_pendingAssignLevel，再次点击按钮取消',
+            'Level mode: tap parts to set Lv$_pendingAssignLevel, tap the button again to cancel',
+          )
+        : _t(
+            '额外加成赋值模式：点击组车区部件设为 +$_pendingAssignBonus%，再次点击按钮取消',
+            'Bonus mode: tap parts to set +$_pendingAssignBonus%, tap the button again to cancel',
+          );
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.fromLTRB(8, 6, 8, 2),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: color),
+      ),
+      child: Text(
+        msg,
+        style: TextStyle(
+          fontSize: 12,
+          color: color,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
     );
   }
 
@@ -905,6 +1033,7 @@ class _BuildToolScreenState extends State<BuildToolScreen> {
             vh.wheels,
             vh.gadgets,
             _partLevels,
+            _partExtraBonus,
           );
     final powerOk = v.powerSupply >= v.powerConsumption;
     final isActive = vi == _activeIndex;
@@ -920,21 +1049,52 @@ class _BuildToolScreenState extends State<BuildToolScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // —— 删除按钮（数据查询模式隐藏） ——
-            if (_isAssemblyMode && _vehicles.length > 1)
+            // —— 操作按钮（数据查询模式隐藏） ——
+            if (_isAssemblyMode)
               Align(
                 alignment: Alignment.centerRight,
-                child: TextButton.icon(
-                  icon: const Icon(
-                    Icons.delete_outline,
-                    size: 16,
-                    color: Colors.red,
-                  ),
-                  label: Text(
-                    _t('删除组车区', 'Delete'),
-                    style: TextStyle(fontSize: 12, color: Colors.red),
-                  ),
-                  onPressed: () => _removeVehicle(vi),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // 批量等级赋值（点击进入/退出赋值模式）
+                    IconButton(
+                      visualDensity: VisualDensity.compact,
+                      icon: Icon(
+                        Icons.format_list_numbered,
+                        size: 18,
+                        color: _pendingAssignLevel != null ? Colors.blue : null,
+                      ),
+                      tooltip: _t('批量等级赋值', 'Set Levels'),
+                      onPressed: _startBatchLevel,
+                    ),
+                    const SizedBox(width: 2),
+                    // 批量额外加成赋值（点击进入/退出赋值模式）
+                    IconButton(
+                      visualDensity: VisualDensity.compact,
+                      icon: Icon(
+                        Icons.work_outline,
+                        size: 18,
+                        color: _pendingAssignBonus != null
+                            ? Colors.deepPurple
+                            : null,
+                      ),
+                      tooltip: _t('批量额外加成赋值', 'Set Extra Bonus'),
+                      onPressed: _startBatchBonus,
+                    ),
+                    const SizedBox(width: 2),
+                    // 删除组车区（仅图标）
+                    if (_vehicles.length > 1)
+                      IconButton(
+                        visualDensity: VisualDensity.compact,
+                        icon: const Icon(
+                          Icons.delete_outline,
+                          size: 18,
+                          color: Colors.red,
+                        ),
+                        tooltip: _t('删除组车区', 'Delete'),
+                        onPressed: () => _removeVehicle(vi),
+                      ),
+                  ],
                 ),
               ),
             // ---- 状态行 ----
@@ -1001,7 +1161,7 @@ class _BuildToolScreenState extends State<BuildToolScreen> {
                   if (v.weaponBonusPct > 0) ...[
                     const SizedBox(width: 4),
                     _statChip(
-                      '${_t('武器', 'Weapon')}+${v.weaponBonusPct}%',
+                      '${_t('攻击', 'ATK')}+${v.weaponBonusPct}%',
                       '',
                       Colors.red,
                     ),
@@ -1034,76 +1194,69 @@ class _BuildToolScreenState extends State<BuildToolScreen> {
               ),
             ],
             const SizedBox(height: 6),
-            // ---- 插槽行 ----
+            // ---- 插槽行（自动换行，最多两行） ----
             LayoutBuilder(
               builder: (context, constraints) {
                 final totalSlots =
                     1 + v.numWeaponSlots + v.numWheelSlots + v.numGadgetSlots;
+                // 每行槽位数：按总槽数均分到最多两行
+                final slotsPerLine = (totalSlots / 2).ceil();
+                const spacing = 6.0;
                 final slotWidth =
-                    ((constraints.maxWidth - 6 * totalSlots) / totalSlots)
-                        .clamp(70.0, 120.0);
-                return SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: Row(
-                    children: [
-                      _buildSlot(
-                        _t('车身', 'Body'),
-                        vh.body,
-                        Colors.orange,
-                        () => setState(() => vh.body = null),
+                    ((constraints.maxWidth - spacing * (slotsPerLine - 1)) /
+                            slotsPerLine)
+                        .clamp(75.0, 120.0);
+                return Wrap(
+                  spacing: spacing,
+                  runSpacing: spacing,
+                  children: [
+                    _buildSlot(
+                      _t('车身', 'Body'),
+                      vh.body,
+                      Colors.orange,
+                      () => setState(() => vh.body = null),
+                      slotWidth,
+                    ),
+                    ...List.generate(
+                      v.numWeaponSlots,
+                      (i) => _buildSlot(
+                        '${_t('武', 'Wpn')}${i + 1}',
+                        i < vh.weapons.length ? vh.weapons[i] : null,
+                        Colors.red,
+                        () {
+                          if (i < vh.weapons.length)
+                            setState(() => vh.weapons.removeAt(i));
+                        },
                         slotWidth,
                       ),
-                      const SizedBox(width: 6),
-                      ...List.generate(
-                        v.numWeaponSlots,
-                        (i) => Padding(
-                          padding: const EdgeInsets.only(right: 6),
-                          child: _buildSlot(
-                            '${_t('武', 'Wpn')}${i + 1}',
-                            i < vh.weapons.length ? vh.weapons[i] : null,
-                            Colors.red,
-                            () {
-                              if (i < vh.weapons.length)
-                                setState(() => vh.weapons.removeAt(i));
-                            },
-                            slotWidth,
-                          ),
-                        ),
+                    ),
+                    ...List.generate(
+                      v.numWheelSlots,
+                      (i) => _buildSlot(
+                        '${_t('轮', 'Whl')}${i + 1}',
+                        i < vh.wheels.length ? vh.wheels[i] : null,
+                        Colors.green,
+                        () {
+                          if (i < vh.wheels.length)
+                            setState(() => vh.wheels.removeAt(i));
+                        },
+                        slotWidth,
                       ),
-                      ...List.generate(
-                        v.numWheelSlots,
-                        (i) => Padding(
-                          padding: const EdgeInsets.only(right: 6),
-                          child: _buildSlot(
-                            '${_t('轮', 'Whl')}${i + 1}',
-                            i < vh.wheels.length ? vh.wheels[i] : null,
-                            Colors.green,
-                            () {
-                              if (i < vh.wheels.length)
-                                setState(() => vh.wheels.removeAt(i));
-                            },
-                            slotWidth,
-                          ),
-                        ),
+                    ),
+                    ...List.generate(
+                      v.numGadgetSlots,
+                      (i) => _buildSlot(
+                        '${_t('配', 'Gad')}${i + 1}',
+                        i < vh.gadgets.length ? vh.gadgets[i] : null,
+                        Colors.purple,
+                        () {
+                          if (i < vh.gadgets.length)
+                            setState(() => vh.gadgets.removeAt(i));
+                        },
+                        slotWidth,
                       ),
-                      ...List.generate(
-                        v.numGadgetSlots,
-                        (i) => Padding(
-                          padding: const EdgeInsets.only(right: 6),
-                          child: _buildSlot(
-                            '${_t('配', 'Gad')}${i + 1}',
-                            i < vh.gadgets.length ? vh.gadgets[i] : null,
-                            Colors.purple,
-                            () {
-                              if (i < vh.gadgets.length)
-                                setState(() => vh.gadgets.removeAt(i));
-                            },
-                            slotWidth,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
+                    ),
+                  ],
                 );
               },
             ),
@@ -1139,7 +1292,7 @@ class _BuildToolScreenState extends State<BuildToolScreen> {
     double w,
   ) {
     return GestureDetector(
-      onTap: part != null ? onRemove : null,
+      onTap: part != null ? () => _handleSlotTap(part, onRemove) : null,
       child: Container(
         width: w,
         decoration: BoxDecoration(
@@ -1148,7 +1301,7 @@ class _BuildToolScreenState extends State<BuildToolScreen> {
           color: part != null ? color.withValues(alpha: 0.15) : Colors.white,
         ),
         child: part != null
-            ? _buildSlotContent(part, color)
+            ? _buildSlotContent(part, color, onRemove)
             : Center(
                 child: Text(
                   label,
@@ -1159,8 +1312,12 @@ class _BuildToolScreenState extends State<BuildToolScreen> {
     );
   }
 
-  Widget _buildSlotContent(PartData part, Color color) {
+  Widget _buildSlotContent(PartData part, Color color, VoidCallback onRemove) {
     final lv = _level(part);
+    final xb = _extraBonus(part);
+    // 计算赋值后的数据（含额外加成独立乘区）
+    final hp = part.hp(lv) * (1 + xb / 100.0);
+    final atk = part.atk(lv) * (1 + xb / 100.0);
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
@@ -1171,9 +1328,17 @@ class _BuildToolScreenState extends State<BuildToolScreen> {
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
         ),
-        Text(
-          'Lv$lv HP${part.hp(lv).floor()} ATK${part.atk(lv).floor()}',
-          style: TextStyle(fontSize: 8, color: Colors.grey[700]),
+        Column(
+          children: [
+            Text(
+              'HP${hp.floor()}',
+              style: TextStyle(fontSize: 8, color: Colors.grey[700]),
+            ),
+            Text(
+              'ATK${atk.floor()}',
+              style: TextStyle(fontSize: 8, color: Colors.grey[700]),
+            ),
+          ],
         ),
         SizedBox(
           width: 60,
@@ -1193,6 +1358,24 @@ class _BuildToolScreenState extends State<BuildToolScreen> {
             ),
           ),
         ),
+        // 额外加成（独立乘区，下拉选择，与等级设置一致）
+        SizedBox(
+          width: 60,
+          height: 18,
+          child: DropdownButtonHideUnderline(
+            child: DropdownButton<int>(
+              value: xb,
+              isDense: true,
+              isExpanded: true,
+              style: const TextStyle(fontSize: 10, color: Colors.black),
+              items: [
+                for (int pct = 0; pct <= 150; pct += 10)
+                  DropdownMenuItem(value: pct, child: Text('+$pct%')),
+              ],
+              onChanged: (v) => setState(() => _partExtraBonus[part.id] = v!),
+            ),
+          ),
+        ),
       ],
     );
   }
@@ -1204,8 +1387,11 @@ class _BuildToolScreenState extends State<BuildToolScreen> {
         children: [
           Expanded(
             child: ElevatedButton.icon(
-              onPressed: () =>
-                  setState(() => _isAssemblyMode = !_isAssemblyMode),
+              onPressed: () => setState(() {
+                _isAssemblyMode = !_isAssemblyMode;
+                _pendingAssignLevel = null;
+                _pendingAssignBonus = null;
+              }),
               icon: Icon(
                 _isAssemblyMode ? Icons.handyman : Icons.bar_chart,
                 size: 20,
@@ -1558,6 +1744,7 @@ class _BuildToolScreenState extends State<BuildToolScreen> {
           if (v.body?.id == part.id) {
             v.clear();
             _partLevels.remove(part.id);
+            _partExtraBonus.remove(part.id);
           } else {
             v.clear();
             v.body = part;
@@ -1567,6 +1754,7 @@ class _BuildToolScreenState extends State<BuildToolScreen> {
           if (v.weapons.any((p) => p.id == part.id)) {
             v.weapons.removeWhere((p) => p.id == part.id);
             _partLevels.remove(part.id);
+            _partExtraBonus.remove(part.id);
           } else {
             v.weapons.add(part);
             _partLevels[part.id] ??= 1;
@@ -1575,6 +1763,7 @@ class _BuildToolScreenState extends State<BuildToolScreen> {
           if (v.wheels.any((p) => p.id == part.id)) {
             v.wheels.removeWhere((p) => p.id == part.id);
             _partLevels.remove(part.id);
+            _partExtraBonus.remove(part.id);
           } else {
             v.wheels.add(part);
             _partLevels[part.id] ??= 1;
@@ -1583,6 +1772,7 @@ class _BuildToolScreenState extends State<BuildToolScreen> {
           if (v.gadgets.any((p) => p.id == part.id)) {
             v.gadgets.removeWhere((p) => p.id == part.id);
             _partLevels.remove(part.id);
+            _partExtraBonus.remove(part.id);
           } else {
             v.gadgets.add(part);
             _partLevels[part.id] ??= 1;
@@ -1673,6 +1863,7 @@ class CarValidation {
     List<PartData> wheels,
     List<PartData> gadgets,
     Map<String, int> levels,
+    Map<String, int> extraBonuses,
   ) {
     final allParts = <PartData>[];
     if (body != null) allParts.add(body);
@@ -1681,6 +1872,10 @@ class CarValidation {
     allParts.addAll(gadgets);
 
     int lv(PartData p) => (levels[p.id] ?? 1).clamp(1, p.maxLevel);
+
+    // 额外加成：独立乘区，0~150%，10%一档
+    int xb(PartData p) =>
+        ((extraBonuses[p.id] ?? 0).clamp(0, 150) / 10).floor() * 10;
 
     // Slot limits from body
     final numBodies = body != null ? 1 : 0;
@@ -1734,26 +1929,29 @@ class CarValidation {
       if (cnt >= 3) sponsorBonusPct += 10 + (cnt - 3) * 5;
     }
 
-    // HP: bodyHp*(1+bodyBonus/100) + wheelHp*(1+wheelBonus/100) + gadgetHp*(1+gadgetBonus/100)
-    double bodyHp = 0, wheelHp = 0, gadgetHp = 0, weaponAtk = 0, wheelAtk = 0;
+    // HP/ATK：分类加成与额外加成为独立乘区，逐部件相乘
+    // HP = Σ hp*(1+分类加成/100)*(1+额外加成/100)，ATK 同理
+    double hp = 0, atk = 0;
     for (final p in allParts) {
-      final hp = p.hp(lv(p));
-      final atk = p.atk(lv(p));
-      if (p.category == PartCategory.body) bodyHp += hp;
-      if (p.category == PartCategory.wheel) {
-        wheelHp += hp;
-        wheelAtk += atk;
+      final hpV = p.hp(lv(p));
+      final atkV = p.atk(lv(p));
+      final xm = 1 + xb(p) / 100.0;
+      switch (p.category) {
+        case PartCategory.body:
+          hp += hpV * (1 + bodyBonusPct / 100.0) * xm;
+          break;
+        case PartCategory.weapon:
+          atk += atkV * (1 + weaponBonusPct / 100.0) * xm;
+          break;
+        case PartCategory.wheel:
+          hp += hpV * (1 + wheelBonusPct / 100.0) * xm;
+          atk += atkV * (1 + wheelBonusPct / 100.0) * xm;
+          break;
+        case PartCategory.gadget:
+          hp += hpV * (1 + gadgetBonusPct / 100.0) * xm;
+          break;
       }
-      if (p.category == PartCategory.gadget) gadgetHp += hp;
-      if (p.category == PartCategory.weapon) weaponAtk += atk;
     }
-    double hp =
-        bodyHp * (1 + bodyBonusPct / 100.0) +
-        wheelHp * (1 + wheelBonusPct / 100.0) +
-        gadgetHp * (1 + gadgetBonusPct / 100.0);
-    double atk =
-        weaponAtk * (1 + weaponBonusPct / 100.0) +
-        wheelAtk * (1 + wheelBonusPct / 100.0);
     hp *= 1 + sponsorBonusPct / 100.0;
     atk *= 1 + sponsorBonusPct / 100.0;
 
@@ -2995,6 +3193,22 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
           const Divider(),
           Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: ElevatedButton(
+              onPressed: () {
+                Navigator.pop(context, {
+                  'locale': locale,
+                  'server': server,
+                  'showSnackBar': showSnackBar,
+                  'githubUpdateUrl': updateUrlController.text.trim(),
+                  'mirrorUrl': mirrorController.text.trim(),
+                });
+              },
+              child: Text(locale == 'zh' ? '保存' : 'Save'),
+            ),
+          ),
+          const Divider(),
+          Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16.0),
             child: Text(
               locale == 'zh' ? 'GitHub 更新包地址' : 'GitHub update package URL',
@@ -3315,8 +3529,22 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ListTile(
             leading: const Icon(Icons.emoji_events, color: Colors.amber),
             title: Text(locale == 'zh' ? '鸣谢' : 'Acknowledgments'),
-            subtitle: Text('Navimoe C.A.T.S. Engine'),
-            trailing: const Icon(Icons.open_in_new, size: 18),
+            subtitle: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Navimoe 链接图标与 Navimoe 文字对齐（紧跟文字行）
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Text('Navimoe C.A.T.S. Engine'),
+                    const SizedBox(width: 4),
+                    const Icon(Icons.open_in_new, size: 14, color: Colors.grey),
+                  ],
+                ),
+                const SizedBox(height: 2),
+                Text(locale == 'zh' ? '国服数据提供：防防猫' : 'CN data by: 防防猫'),
+              ],
+            ),
             onTap: () async {
               final uri = Uri.parse('https://github.com/SAK-20744/Navimoe');
               if (await canLaunchUrl(uri)) {
@@ -3339,26 +3567,25 @@ class _SettingsScreenState extends State<SettingsScreen> {
             title: Text(locale == 'zh' ? '网络诊断' : 'Network Diagnosis'),
             subtitle: Text(
               locale == 'zh' ? '检测 DNS 解析和网络连通性' : 'Test DNS & connectivity',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
             trailing: const Icon(Icons.chevron_right, size: 18),
             onTap: () => showNetworkDiagnosis(context, locale),
           ),
-          const SizedBox(height: 20),
-          Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: ElevatedButton(
-              onPressed: () {
-                Navigator.pop(context, {
-                  'locale': locale,
-                  'server': server,
-                  'showSnackBar': showSnackBar,
-                  'githubUpdateUrl': updateUrlController.text.trim(),
-                  'mirrorUrl': mirrorController.text.trim(),
-                });
-              },
-              child: Text(locale == 'zh' ? '保存' : 'Save'),
+          const SizedBox(height: 16),
+          const Divider(),
+          // ---- 测试群 ----
+          ListTile(
+            leading: const Icon(Icons.groups, color: Colors.blue),
+            title: Text(locale == 'zh' ? '测试群' : 'Test Group'),
+            subtitle: Text(
+              locale == 'zh' ? 'QQ测试群：791499287' : 'QQ Test Group: 791499287',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
           ),
+          const SizedBox(height: 20),
         ],
       ),
     );

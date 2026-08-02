@@ -214,7 +214,7 @@ class PartData {
     final cat = bonus!.category == PartCategory.body
         ? '车身'
         : bonus!.category == PartCategory.weapon
-        ? '武器'
+        ? '攻击'
         : bonus!.category == PartCategory.wheel
         ? '车轮'
         : '配件';
@@ -227,7 +227,7 @@ class PartData {
     final cat = bonus!.category == PartCategory.body
         ? 'Body'
         : bonus!.category == PartCategory.weapon
-        ? 'Weapon'
+        ? 'ATK'
         : bonus!.category == PartCategory.wheel
         ? 'Wheel'
         : 'Gadget';
@@ -2511,7 +2511,7 @@ class PartDatabase {
       hp1: 42383,
       power: 40,
       bonus: bWeapon10,
-      slots: s232,
+      slots: s322,
       sip: StatsIncrementPattern.r6,
       imageCn: 'assets/images_cn/popsicle_beast_cn.jpg',
     );
@@ -2547,7 +2547,7 @@ class PartDatabase {
       sip: StatsIncrementPattern.r6,
       imageCn: 'assets/images_cn/schrodintech_cn.jpg',
     );
-    // 电鳗：atk12000 耗电10 武器+10%
+    // 电鳗：atk10000 耗电10 武器+10%
     map['eel'] = const PartData(
       id: 'eel',
       name: 'Electric Eel',
@@ -2556,7 +2556,7 @@ class PartDatabase {
       category: PartCategory.weapon,
       rarity: Rarity.r6,
       sponsor: Sponsor.gluttony,
-      atk1: 12000,
+      atk1: 10000,
       power: -10,
       partClass: PartClass.special,
       bonus: bWeapon10,
@@ -2607,6 +2607,199 @@ class PartDatabase {
       bonus: bGadget10,
       sip: StatsIncrementPattern.r6,
     );
+    // 手卷旋钮轮：hp9440（国际服 hp8260）
+    map['maki_knob'] = const PartData(
+      id: 'maki_knob',
+      name: 'Maki Knob',
+      nameZh: '手卷旋钮轮',
+      nameJa: '巻き寿司ノブ',
+      category: PartCategory.wheel,
+      rarity: Rarity.r6,
+      sponsor: Sponsor.gluttony,
+      hp1: 9440,
+      bonus: bBody10,
+      sip: StatsIncrementPattern.r6,
+    );
+    // 鱼板旋钮轮：hp9440（国际服 hp8260）
+    map['naruto_knob'] = const PartData(
+      id: 'naruto_knob',
+      name: 'Naruto Knob',
+      nameZh: '鱼板旋钮轮',
+      nameJa: 'ナルトノブ',
+      category: PartCategory.wheel,
+      rarity: Rarity.r6,
+      sponsor: Sponsor.gluttony,
+      hp1: 9440,
+      bonus: bWeapon10,
+      sip: StatsIncrementPattern.r6,
+    );
+    // 扰频器：hp9440（国际服 hp7080）
+    map['scrambler'] = const PartData(
+      id: 'scrambler',
+      name: 'Scrambler',
+      nameZh: '扰频器',
+      nameJa: 'スクランブラー',
+      category: PartCategory.gadget,
+      rarity: Rarity.r5,
+      hp1: 9440,
+      power: -10,
+      partClass: PartClass.special,
+      bonus: bBody10,
+      sip: StatsIncrementPattern.r5,
+    );
+    // 咕噜战车：hp21240（国际服 hp18880）
+    map['purr_mobile'] = const PartData(
+      id: 'purr_mobile',
+      name: 'Purr-Mobile',
+      nameZh: '咕噜战车',
+      nameJa: 'ニャーモービル',
+      category: PartCategory.body,
+      rarity: Rarity.r5,
+      hp1: 21240,
+      power: 35,
+      bonus: bWeapon10,
+      slots: s222,
+      sip: StatsIncrementPattern.r5,
+    );
+    // 流星雨：atk4500（国际服 atk3500）
+    map['meteo_shower'] = const PartData(
+      id: 'meteo_shower',
+      name: 'Meteo Shower',
+      nameZh: '流星雨',
+      nameJa: 'メテオシャワー',
+      category: PartCategory.weapon,
+      rarity: Rarity.r4,
+      atk1: 4500,
+      power: -10,
+      partClass: PartClass.autoAim,
+      sip: StatsIncrementPattern.r4,
+    );
+    // 魔法灯：R5 武器+10% hp4720（国际服 R3 hp2360）
+    map['magic_lamp'] = const PartData(
+      id: 'magic_lamp',
+      name: 'Magic Lamp',
+      nameZh: '魔法灯',
+      nameJa: '魔法のランプ',
+      category: PartCategory.gadget,
+      rarity: Rarity.r5,
+      hp1: 4720,
+      power: -5,
+      partClass: PartClass.special,
+      bonus: bWeapon10,
+      sip: StatsIncrementPattern.r5,
+    );
+    // 间歇泉：电量0（国际服耗电5）
+    map['geyser'] = const PartData(
+      id: 'geyser',
+      name: 'Geyser',
+      nameZh: '间歇泉',
+      nameJa: 'ガイザー',
+      category: PartCategory.gadget,
+      rarity: Rarity.r6,
+      sponsor: Sponsor.naturalis,
+      hp1: 18880,
+      power: 0,
+      partClass: PartClass.autoAim,
+      bonus: bGadget10,
+      sip: StatsIncrementPattern.r6Legacy,
+    );
+    // 猫咪鬼魂：电量0（国际服耗电5）
+    map['kitty_ghost'] = const PartData(
+      id: 'kitty_ghost',
+      name: 'Kitty Ghost',
+      nameZh: '猫咪鬼魂',
+      nameJa: 'キティゴースト',
+      category: PartCategory.gadget,
+      rarity: Rarity.r6,
+      sponsor: Sponsor.mecha,
+      hp1: 16284,
+      power: 0,
+      partClass: PartClass.autoAim,
+      bonus: bWeapon10,
+      sip: StatsIncrementPattern.r6,
+    );
+    // 制冷器：电量10（国际服耗电15）
+    map['frost_sprinkler'] = const PartData(
+      id: 'frost_sprinkler',
+      name: 'Frost Sprinkler',
+      nameZh: '制冷器',
+      nameJa: 'フリーザー',
+      category: PartCategory.gadget,
+      rarity: Rarity.r3,
+      hp1: 4720,
+      power: -10,
+      partClass: PartClass.ranged,
+      sip: StatsIncrementPattern.r3,
+    );
+    // 死亡之眼：atk5625（国际服 atk4500）
+    map['eye_of_death'] = const PartData(
+      id: 'eye_of_death',
+      name: 'Eye of Death',
+      nameZh: '死亡之眼',
+      nameJa: 'デスアイ',
+      category: PartCategory.weapon,
+      rarity: Rarity.r3,
+      atk1: 5625,
+      power: -10,
+      partClass: PartClass.autoAim,
+      sip: StatsIncrementPattern.r3,
+    );
+    // 篮球大炮：电量5（国际服耗电10）
+    map['basketball_cannon'] = const PartData(
+      id: 'basketball_cannon',
+      name: 'Basketball Cannon',
+      nameZh: '篮球大炮',
+      nameJa: 'バスケットボールキャノン',
+      category: PartCategory.weapon,
+      rarity: Rarity.r5,
+      atk1: 2800,
+      power: -5,
+      partClass: PartClass.ranged,
+      bonus: bGadget25,
+      sip: StatsIncrementPattern.r5,
+    );
+    // 隐秘之爪：电量10（国际服耗电15）
+    map['hidden_claw'] = const PartData(
+      id: 'hidden_claw',
+      name: 'Hidden Claw',
+      nameZh: '隐秘之爪',
+      nameJa: '隠しクロー',
+      category: PartCategory.weapon,
+      rarity: Rarity.r4,
+      atk1: 5000,
+      power: -10,
+      partClass: PartClass.melee,
+      sip: StatsIncrementPattern.r4,
+    );
+    // 根茎之鞭：R5 配件+20% atk5250（国际服 R4 atk4500）
+    map['root_whip'] = const PartData(
+      id: 'root_whip',
+      name: 'Root Whip',
+      nameZh: '根茎之鞭',
+      nameJa: 'ポイズンルート',
+      category: PartCategory.weapon,
+      rarity: Rarity.r5,
+      atk1: 5250,
+      power: -10,
+      partClass: PartClass.special,
+      bonus: bGadget20,
+      sip: StatsIncrementPattern.r5,
+    );
+    // 繁花之星：hp44350（国际服 hp40164）
+    map['blossom_star'] = const PartData(
+      id: 'blossom_star',
+      name: 'Blossom Star',
+      nameZh: '繁花之星',
+      nameJa: 'ブロッサムスター',
+      category: PartCategory.body,
+      rarity: Rarity.r6,
+      sponsor: Sponsor.naturalis,
+      hp1: 44350,
+      power: 35,
+      bonus: bWeapon10,
+      slots: s222,
+      sip: StatsIncrementPattern.r6,
+    );
 
     // ========== 国服专属部件 ==========
     // 火凤：hp40164 电量35 自然赞助 配件+20% 可组装2武2轮3配
@@ -2637,7 +2830,7 @@ class PartDatabase {
       sip: StatsIncrementPattern.r6,
       imageCn: 'assets/images_cn/red_flame_wheel.jpg',
     );
-    // 落羽弓：atk12660 耗电15
+    // 落羽弓：atk10550 耗电15
     map['falling_feather'] = const PartData(
       id: 'falling_feather',
       name: 'Falling Feather',
@@ -2645,14 +2838,14 @@ class PartDatabase {
       category: PartCategory.weapon,
       rarity: Rarity.r6,
       sponsor: Sponsor.naturalis,
-      atk1: 12660,
+      atk1: 10550,
       power: -15,
       partClass: PartClass.ranged,
       bonus: bWeapon10,
       sip: StatsIncrementPattern.r6,
       imageCn: 'assets/images_cn/falling_feather.jpg',
     );
-    // 流光轮：hp24086 自然赞助 车轮+20%
+    // 流光轮：hp20072 自然赞助 车轮+20%
     map['flowing_light_wheel'] = const PartData(
       id: 'flowing_light_wheel',
       name: 'Flowing Light Wheel',
@@ -2660,7 +2853,7 @@ class PartDatabase {
       category: PartCategory.wheel,
       rarity: Rarity.r6,
       sponsor: Sponsor.naturalis,
-      hp1: 24086,
+      hp1: 20072,
       bonus: bWheel20,
       sip: StatsIncrementPattern.r6,
       imageCn: 'assets/images_cn/flowing_light_wheel.jpg',
