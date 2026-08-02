@@ -7,6 +7,7 @@ import 'package:flutter/services.dart';
 import 'package:open_filex/open_filex.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import 'fragment_calc_screen.dart';
 import 'parts_data.dart';
 import 'time_calc_screen.dart';
 
@@ -670,6 +671,16 @@ class _MainMenuScreenState extends State<MainMenuScreen> {
                 color: Colors.purple,
                 onTap: () =>
                     _navigateAndAwaitLocale(TimeCalcScreen(locale: _locale)),
+              ),
+              const SizedBox(height: 16),
+              _buildMenuItem(
+                context,
+                icon: Icons.auto_awesome,
+                label: _t('碎片计算', 'Fragment Calc'),
+                color: Colors.teal,
+                onTap: () => _navigateAndAwaitLocale(
+                  FragmentCalcScreen(locale: _locale),
+                ),
               ),
               const SizedBox(height: 16),
               _buildMenuItem(
