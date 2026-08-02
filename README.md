@@ -26,3 +26,4 @@ QQ Group: 791499287
 
 感谢 [SAK-20744/Navimoe](https://github.com/SAK-20744/Navimoe) 项目的数据参考与算法支持。
 感谢 "防防猫" 提供的国服数据。
+pig
