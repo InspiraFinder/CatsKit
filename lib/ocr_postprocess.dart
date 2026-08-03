@@ -95,6 +95,14 @@ List<Map<String, dynamic>> splitCombinedItems(
   return result;
 }
 
+/// 判断文本是否为「纯 0」数字（去除数字/空白/符号后无其他字符，且含 0）
+/// 用于把独立的 `0`（如敌方零分）识别为零分保底，同时排除
+/// `0天。|我的派`、`有爪你就来9` 这类混入中文/字母的噪声文本。
+bool _isZeroOnlyText(String text) {
+  final stripped = text.replaceAll(RegExp(r'[\d\s\.,\-+()]'), '');
+  return stripped.isEmpty && text.contains('0');
+}
+
 /// 判断文本是否含时间单位（中文 分/时/吋，或英文 h/m）
 bool _isTimeText(String text) {
   return text.contains('分') ||
@@ -213,6 +221,8 @@ Map<String, dynamic> classifyByPosition(
   final rightSpm = <(int, String)>[];
   final leftNum = <(int, String)>[];
   final rightNum = <(int, String)>[];
+  final leftZero = <String>[]; // 纯 0 文本（零分保底）
+  final rightZero = <String>[];
 
   for (final it in topItems) {
     final t = (it['text'] as String).trim().replaceAll(',', '');
@@ -232,12 +242,21 @@ Map<String, dynamic> classifyByPosition(
       } else {
         rightSpm.add((v, raw));
       }
-    } else if (!signed && v >= 100 && v <= 150000) {
-      // 普通数字：分数 / 分数线
-      if (isLeft(it)) {
-        leftNum.add((v, digits));
-      } else {
-        rightNum.add((v, digits));
+    } else if (!signed && v <= 150000) {
+      if (v >= 100) {
+        // 普通数字：分数 / 分数线
+        if (isLeft(it)) {
+          leftNum.add((v, digits));
+        } else {
+          rightNum.add((v, digits));
+        }
+      } else if (v == 0 && _isZeroOnlyText(t)) {
+        // 纯 0 文本：作为该侧「零分」保底
+        if (isLeft(it)) {
+          leftZero.add(digits);
+        } else {
+          rightZero.add(digits);
+        }
       }
     }
   }
@@ -287,7 +306,13 @@ Map<String, dynamic> classifyByPosition(
   }
 
   result['my_score'] = bestNumExcluding(leftNum, scoreLineVal);
+  if ((result['my_score'] ?? '').isEmpty && leftZero.isNotEmpty) {
+    result['my_score'] = '0';
+  }
   result['enemy_score'] = bestNumExcluding(rightNum, scoreLineVal);
+  if ((result['enemy_score'] ?? '').isEmpty && rightZero.isNotEmpty) {
+    result['enemy_score'] = '0';
+  }
 
   // ---- 后处理：左右两侧 SPM/分数互换修正 ----
   // 有时 SPM 较小被当作分数，较大的分数被当作 SPM
