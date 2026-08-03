@@ -5,13 +5,14 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:open_filex/open_filex.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import 'fragment_calc_screen.dart';
 import 'parts_data.dart';
 import 'time_calc_screen.dart';
 
-const String appVersion = '0.10.1';
+const String appVersion = '0.10.2';
 
 /// 获取部件在当前语言下的显示名称
 String pn(PartData part, String? locale) {
@@ -761,6 +762,7 @@ class BuildToolScreen extends StatefulWidget {
 /// 单个组车区的数据
 class _VehicleBuild {
   PartData? body;
+  PartData? extraWeapon; // 额外武器槽（不占普通武器槽位、不计算电力）
   final weapons = <PartData>[];
   final wheels = <PartData>[];
   final gadgets = <PartData>[];
@@ -768,12 +770,14 @@ class _VehicleBuild {
   /// 该车辆中是否使用了指定部件
   bool usesPart(PartData p) =>
       body?.id == p.id ||
+      extraWeapon?.id == p.id ||
       weapons.any((x) => x.id == p.id) ||
       wheels.any((x) => x.id == p.id) ||
       gadgets.any((x) => x.id == p.id);
 
   void clear() {
     body = null;
+    extraWeapon = null;
     weapons.clear();
     wheels.clear();
     gadgets.clear();
@@ -805,12 +809,39 @@ class _BuildToolScreenState extends State<BuildToolScreen> {
   _VehicleBuild get _activeVehicle => _vehicles[_activeIndex];
   CarValidation _validation = CarValidation.empty();
 
+  @override
+  void initState() {
+    super.initState();
+    _loadPrefs();
+  }
+
+  /// 读取持久化的显示设置
+  Future<void> _loadPrefs() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (!mounted) return;
+    setState(() {
+      _showImages = prefs.getBool('buildShowImages') ?? false;
+      _gridColumns = prefs.getInt('buildGridColumns') ?? 3;
+    });
+  }
+
+  /// 保存显示设置（bool/int）
+  Future<void> _savePref(String key, Object value) async {
+    final prefs = await SharedPreferences.getInstance();
+    if (value is bool) {
+      await prefs.setBool(key, value);
+    } else if (value is int) {
+      await prefs.setInt(key, value);
+    }
+  }
+
   void _recalc() {
     _validation = CarValidation.compute(
       _activeVehicle.body,
       _activeVehicle.weapons,
       _activeVehicle.wheels,
       _activeVehicle.gadgets,
+      _activeVehicle.extraWeapon,
       _partLevels,
       _partExtraBonus,
     );
@@ -842,7 +873,13 @@ class _BuildToolScreenState extends State<BuildToolScreen> {
     setState(() {
       // 清理被删车辆中部件记录的等级与额外加成
       final v = _vehicles[index];
-      for (final p in [v.body, ...v.weapons, ...v.wheels, ...v.gadgets]) {
+      for (final p in [
+        v.body,
+        v.extraWeapon,
+        ...v.weapons,
+        ...v.wheels,
+        ...v.gadgets,
+      ]) {
         if (p != null) {
           _partLevels.remove(p.id);
           _partExtraBonus.remove(p.id);
@@ -943,13 +980,20 @@ class _BuildToolScreenState extends State<BuildToolScreen> {
               _showImages ? Icons.image : Icons.text_fields,
               color: _showImages ? Colors.orange : null,
             ),
-            onPressed: () => setState(() => _showImages = !_showImages),
+            onPressed: () {
+              final newVal = !_showImages;
+              setState(() => _showImages = newVal);
+              _savePref('buildShowImages', newVal);
+            },
             tooltip: _showImages ? _t('文字模式', 'Text') : _t('图片模式', 'Image'),
           ),
           PopupMenuButton<int>(
             icon: Icon(Icons.grid_view, size: 20),
             tooltip: _t('每行数量', 'Columns'),
-            onSelected: (v) => setState(() => _gridColumns = v),
+            onSelected: (v) {
+              setState(() => _gridColumns = v);
+              _savePref('buildGridColumns', v);
+            },
             itemBuilder: (_) => [2, 3, 4, 5]
                 .map(
                   (n) => PopupMenuItem(
@@ -1043,6 +1087,7 @@ class _BuildToolScreenState extends State<BuildToolScreen> {
             vh.weapons,
             vh.wheels,
             vh.gadgets,
+            vh.extraWeapon,
             _partLevels,
             _partExtraBonus,
           );
@@ -1150,7 +1195,7 @@ class _BuildToolScreenState extends State<BuildToolScreen> {
               children: [
                 _statChip(
                   _t('插槽', 'Slots'),
-                  '${_t('武器', 'Wpn')}${v.numWeapons}/${v.numWeaponSlots} ${_t('车轮', 'Whl')}${v.numWheels}/${v.numWheelSlots} ${_t('配件', 'Gad')}${v.numGadgets}/${v.numGadgetSlots}',
+                  '${_t('武器', 'Wpn')}${v.numWeapons}/${v.numWeaponSlots} ${_t('车轮', 'Whl')}${v.numWheels}/${v.numWheelSlots} ${_t('配件', 'Gad')}${v.numGadgets}/${v.numGadgetSlots}${v.numExtraWeapons > 0 ? ' ${_t('额外武', 'X-Wpn')}1' : ''}',
                   Colors.grey,
                 ),
               ],
@@ -1209,7 +1254,11 @@ class _BuildToolScreenState extends State<BuildToolScreen> {
             LayoutBuilder(
               builder: (context, constraints) {
                 final totalSlots =
-                    1 + v.numWeaponSlots + v.numWheelSlots + v.numGadgetSlots;
+                    1 +
+                    v.numWeaponSlots +
+                    v.numWheelSlots +
+                    v.numGadgetSlots +
+                    (vh.extraWeapon != null ? 1 : 0);
                 // 每行槽位数：按总槽数均分到最多两行
                 final slotsPerLine = (totalSlots / 2).ceil();
                 const spacing = 6.0;
@@ -1241,6 +1290,15 @@ class _BuildToolScreenState extends State<BuildToolScreen> {
                         slotWidth,
                       ),
                     ),
+                    // 额外武器槽（仅在有武器时显示；不占普通武器槽位、不计算电力）
+                    if (vh.extraWeapon != null)
+                      _buildSlot(
+                        _t('额外武', 'X-Wpn'),
+                        vh.extraWeapon,
+                        Colors.brown,
+                        () => setState(() => vh.extraWeapon = null),
+                        slotWidth,
+                      ),
                     ...List.generate(
                       v.numWheelSlots,
                       (i) => _buildSlot(
@@ -1745,6 +1803,7 @@ class _BuildToolScreenState extends State<BuildToolScreen> {
       for (final other in _vehicles) {
         if (other == v) continue;
         if (other.body?.id == part.id) other.body = null;
+        if (other.extraWeapon?.id == part.id) other.extraWeapon = null;
         other.weapons.removeWhere((p) => p.id == part.id);
         other.wheels.removeWhere((p) => p.id == part.id);
         other.gadgets.removeWhere((p) => p.id == part.id);
@@ -1766,8 +1825,22 @@ class _BuildToolScreenState extends State<BuildToolScreen> {
             v.weapons.removeWhere((p) => p.id == part.id);
             _partLevels.remove(part.id);
             _partExtraBonus.remove(part.id);
+          } else if (v.extraWeapon?.id == part.id) {
+            v.extraWeapon = null;
+            _partLevels.remove(part.id);
+            _partExtraBonus.remove(part.id);
           } else {
-            v.weapons.add(part);
+            // 普通武器槽未满 → 加入普通武器；否则放入额外武器槽
+            final freeNormal = (v.body?.slots?.weapon ?? 0) - v.weapons.length;
+            if (freeNormal > 0) {
+              v.weapons.add(part);
+            } else {
+              if (v.extraWeapon != null) {
+                _partLevels.remove(v.extraWeapon!.id);
+                _partExtraBonus.remove(v.extraWeapon!.id);
+              }
+              v.extraWeapon = part;
+            }
             _partLevels[part.id] ??= 1;
           }
         case PartCategory.wheel:
@@ -1812,10 +1885,12 @@ class CarValidation {
   final int powerConsumption;
   final int numBodies;
   final int numWeapons;
+  final int numExtraWeapons;
   final int numWheels;
   final int numGadgets;
   final int numBodySlots;
   final int numWeaponSlots;
+  final int numExtraWeaponSlots;
   final int numWheelSlots;
   final int numGadgetSlots;
   final int bodyBonusPct;
@@ -1833,10 +1908,12 @@ class CarValidation {
     required this.powerConsumption,
     required this.numBodies,
     required this.numWeapons,
+    required this.numExtraWeapons,
     required this.numWheels,
     required this.numGadgets,
     required this.numBodySlots,
     required this.numWeaponSlots,
+    required this.numExtraWeaponSlots,
     required this.numWheelSlots,
     required this.numGadgetSlots,
     required this.bodyBonusPct,
@@ -1855,10 +1932,12 @@ class CarValidation {
     powerConsumption: 0,
     numBodies: 0,
     numWeapons: 0,
+    numExtraWeapons: 0,
     numWheels: 0,
     numGadgets: 0,
     numBodySlots: 0,
     numWeaponSlots: 0,
+    numExtraWeaponSlots: 0,
     numWheelSlots: 0,
     numGadgetSlots: 0,
     bodyBonusPct: 0,
@@ -1873,14 +1952,25 @@ class CarValidation {
     List<PartData> weapons,
     List<PartData> wheels,
     List<PartData> gadgets,
+    PartData? extraWeapon,
     Map<String, int> levels,
     Map<String, int> extraBonuses,
   ) {
+    // allParts：参与 HP/ATK/加成/赞助计算（含额外武器）
+    // powerParts：参与电力计算（不含额外武器，额外武器不耗电）
     final allParts = <PartData>[];
-    if (body != null) allParts.add(body);
+    final powerParts = <PartData>[];
+    if (body != null) {
+      allParts.add(body);
+      powerParts.add(body);
+    }
     allParts.addAll(weapons);
+    powerParts.addAll(weapons);
     allParts.addAll(wheels);
+    powerParts.addAll(wheels);
     allParts.addAll(gadgets);
+    powerParts.addAll(gadgets);
+    if (extraWeapon != null) allParts.add(extraWeapon);
 
     int lv(PartData p) => (levels[p.id] ?? 1).clamp(1, p.maxLevel);
 
@@ -1891,19 +1981,21 @@ class CarValidation {
     // Slot limits from body
     final numBodies = body != null ? 1 : 0;
     final numWeapons = weapons.length;
+    final numExtraWeapons = extraWeapon != null ? 1 : 0;
     final numWheels = wheels.length;
     final numGadgets = gadgets.length;
     final numBodySlots = 1;
     final numWeaponSlots = body?.slots?.weapon ?? 0;
+    final numExtraWeaponSlots = body != null ? 1 : 0;
     final numWheelSlots = body?.slots?.wheel ?? 0;
     final numGadgetSlots = body?.slots?.gadget ?? 0;
 
-    // Power
-    final powerSupply = allParts.fold(
+    // Power（额外武器不计电力）
+    final powerSupply = powerParts.fold(
       0,
       (s, p) => s + (p.power > 0 ? p.power : 0),
     );
-    final powerConsumption = allParts.fold(
+    final powerConsumption = powerParts.fold(
       0,
       (s, p) => s + (p.power < 0 ? -p.power : 0),
     );
@@ -1993,10 +2085,12 @@ class CarValidation {
       powerConsumption: powerConsumption,
       numBodies: numBodies,
       numWeapons: numWeapons,
+      numExtraWeapons: numExtraWeapons,
       numWheels: numWheels,
       numGadgets: numGadgets,
       numBodySlots: numBodySlots,
       numWeaponSlots: numWeaponSlots,
+      numExtraWeaponSlots: numExtraWeaponSlots,
       numWheelSlots: numWheelSlots,
       numGadgetSlots: numGadgetSlots,
       bodyBonusPct: bodyBonusPct,
