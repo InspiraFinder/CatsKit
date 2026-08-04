@@ -12,7 +12,7 @@ import 'fragment_calc_screen.dart';
 import 'parts_data.dart';
 import 'time_calc_screen.dart';
 
-const String appVersion = '0.10.2';
+const String appVersion = '0.10.3';
 
 /// 获取部件在当前语言下的显示名称
 String pn(PartData part, String? locale) {
@@ -21,32 +21,59 @@ String pn(PartData part, String? locale) {
   return part.name;
 }
 
-void main() {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  SystemChrome.setPreferredOrientations([
+  await SystemChrome.setPreferredOrientations([
     DeviceOrientation.portraitUp,
     DeviceOrientation.portraitDown,
   ]);
-  runApp(const MyApp());
+  // 读取持久化的语言/服务器设置
+  final prefs = await SharedPreferences.getInstance();
+  var savedLocale = prefs.getString('appLocale') ?? 'zh';
+  final savedServer = prefs.getString('appServer') ?? 'cn';
+  // 国服只能使用中文
+  if (savedServer == 'cn') {
+    savedLocale = 'zh';
+  }
+  runApp(MyApp(initialLocale: savedLocale, initialServer: savedServer));
 }
 
 class MyApp extends StatefulWidget {
-  const MyApp({super.key});
+  final String initialLocale;
+  final String initialServer;
+  const MyApp({
+    super.key,
+    this.initialLocale = 'zh',
+    this.initialServer = 'cn',
+  });
 
   @override
   State<MyApp> createState() => _MyAppState();
 }
 
 class _MyAppState extends State<MyApp> {
-  String _appLocale = 'zh';
-  String _appServer = 'cn'; // 'cn' 国服, 'intl' 国际服
+  late String _appLocale;
+  late String _appServer; // 'cn' 国服, 'intl' 国际服
+
+  @override
+  void initState() {
+    super.initState();
+    _appLocale = widget.initialLocale;
+    _appServer = widget.initialServer;
+  }
 
   void _onLocaleChanged(String newLocale) {
     setState(() => _appLocale = newLocale);
+    SharedPreferences.getInstance().then(
+      (prefs) => prefs.setString('appLocale', newLocale),
+    );
   }
 
   void _onServerChanged(String newServer) {
     setState(() => _appServer = newServer);
+    SharedPreferences.getInstance().then(
+      (prefs) => prefs.setString('appServer', newServer),
+    );
   }
 
   @override
@@ -793,6 +820,15 @@ class _BuildToolScreenState extends State<BuildToolScreen> {
   final Set<PartCategory> _selectedCategories = {};
   final Set<Rarity> _selectedRarities = {};
   final TextEditingController _searchController = TextEditingController();
+
+  // 精确检索模式：筛选与排序
+  final Set<PartCategory> _searchCategories = {};
+  final Set<Rarity> _searchRarities = {};
+  final TextEditingController _searchAtkController = TextEditingController();
+  final TextEditingController _searchHpController = TextEditingController();
+  int _searchMinAtk = 0; // ATK 筛选下限（0=不限，由输入框解析）
+  int _searchMinHp = 0; // HP 筛选下限（0=不限，由输入框解析）
+  int _searchSort = 0; // 0=不排序 1=ATK升 2=ATK降 3=HP升 4=HP降
   final List<_VehicleBuild> _vehicles = [_VehicleBuild()];
   int _activeIndex = 0;
   final Map<String, int> _partLevels = {};
@@ -1485,7 +1521,9 @@ class _BuildToolScreenState extends State<BuildToolScreen> {
                 size: 20,
               ),
               label: Text(
-                _isFilterMode ? _t('筛选', 'Filter') : _t('搜索', 'Search'),
+                _isFilterMode
+                    ? _t('筛选', 'Filter')
+                    : _t('精确检索', 'Precise Search'),
                 style: const TextStyle(fontSize: 16),
               ),
               style: ElevatedButton.styleFrom(
@@ -1533,17 +1571,45 @@ class _BuildToolScreenState extends State<BuildToolScreen> {
         return true;
       }).toList();
     } else {
-      // 搜索模式：按文字搜索（部件名/ID）
+      // 精确检索模式：文字搜索 + 类型/ATK/HP 筛选 + 排序
       final q = _searchController.text.trim().toLowerCase();
-      if (q.isEmpty) {
-        parts = db;
-      } else {
-        parts = db.where((p) {
-          return p.id.toLowerCase().contains(q) ||
-              p.name.toLowerCase().contains(q) ||
-              p.nameZh.contains(q) ||
-              p.nameJa.contains(q);
-        }).toList();
+      parts = db.where((p) {
+        if (q.isNotEmpty &&
+            !(p.id.toLowerCase().contains(q) ||
+                p.name.toLowerCase().contains(q) ||
+                p.nameZh.contains(q) ||
+                p.nameJa.contains(q))) {
+          return false;
+        }
+        if (_searchCategories.isNotEmpty &&
+            !_searchCategories.contains(p.category)) {
+          return false;
+        }
+        if (_searchRarities.isNotEmpty && !_searchRarities.contains(p.rarity)) {
+          return false;
+        }
+        if (_searchMinAtk > 0 && p.atk1 < _searchMinAtk) {
+          return false;
+        }
+        if (_searchMinHp > 0 && p.hp1 < _searchMinHp) {
+          return false;
+        }
+        return true;
+      }).toList();
+      // 排序
+      switch (_searchSort) {
+        case 1:
+          parts.sort((a, b) => a.atk1.compareTo(b.atk1));
+          break;
+        case 2:
+          parts.sort((a, b) => b.atk1.compareTo(a.atk1));
+          break;
+        case 3:
+          parts.sort((a, b) => a.hp1.compareTo(b.hp1));
+          break;
+        case 4:
+          parts.sort((a, b) => b.hp1.compareTo(a.hp1));
+          break;
       }
     }
 
@@ -1650,32 +1716,201 @@ class _BuildToolScreenState extends State<BuildToolScreen> {
     );
   }
 
-  Widget _buildSearchBar() {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(8, 4, 8, 8),
-      child: TextField(
-        controller: _searchController,
-        decoration: InputDecoration(
-          hintText: _t('搜索部件名称或ID...', 'Search part name or ID...'),
-          prefixIcon: const Icon(Icons.search, size: 20),
-          suffixIcon: _searchController.text.isNotEmpty
-              ? IconButton(
-                  icon: const Icon(Icons.clear, size: 18),
-                  onPressed: () {
-                    _searchController.clear();
-                    setState(() {});
-                  },
-                )
-              : null,
-          border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-          contentPadding: const EdgeInsets.symmetric(
-            vertical: 8,
-            horizontal: 12,
+  /// 水平居中的可滚动按钮行（内容不足时居中，超出时可横向滚动）
+  Widget _buildCenteredChipRow(List<Widget> children) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        return SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: ConstrainedBox(
+            constraints: BoxConstraints(minWidth: constraints.maxWidth),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: children,
+            ),
           ),
-          isDense: true,
+        );
+      },
+    );
+  }
+
+  Widget _buildSearchBar() {
+    return Column(
+      children: [
+        // 搜索框
+        Padding(
+          padding: const EdgeInsets.fromLTRB(8, 4, 8, 4),
+          child: TextField(
+            controller: _searchController,
+            decoration: InputDecoration(
+              hintText: _t('搜索部件名称或ID...', 'Search part name or ID...'),
+              prefixIcon: const Icon(Icons.search, size: 20),
+              suffixIcon: _searchController.text.isNotEmpty
+                  ? IconButton(
+                      icon: const Icon(Icons.clear, size: 18),
+                      onPressed: () {
+                        _searchController.clear();
+                        setState(() {});
+                      },
+                    )
+                  : null,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+              contentPadding: const EdgeInsets.symmetric(
+                vertical: 8,
+                horizontal: 12,
+              ),
+              isDense: true,
+            ),
+            onChanged: (_) => setState(() {}),
+          ),
         ),
-        onChanged: (_) => setState(() {}),
+        // 类型筛选
+        Container(
+          padding: const EdgeInsets.symmetric(vertical: 2),
+          child: _buildCenteredChipRow(
+            PartCategory.values.map((cat) {
+              final labels = {
+                PartCategory.body: _t('车身', 'Body'),
+                PartCategory.weapon: _t('武器', 'Weapon'),
+                PartCategory.wheel: _t('车轮', 'Wheel'),
+                PartCategory.gadget: _t('配件', 'Gadget'),
+              };
+              const icons = {
+                PartCategory.body: Icons.directions_car,
+                PartCategory.weapon: Icons.gps_fixed,
+                PartCategory.wheel: Icons.radio_button_checked,
+                PartCategory.gadget: Icons.build,
+              };
+              final selected = _searchCategories.contains(cat);
+              return Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 4),
+                child: FilterChip(
+                  label: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(icons[cat]!, size: 16),
+                      const SizedBox(width: 4),
+                      Text(labels[cat]!),
+                    ],
+                  ),
+                  selected: selected,
+                  onSelected: (v) => setState(() {
+                    if (v) {
+                      _searchCategories.add(cat);
+                    } else {
+                      _searchCategories.remove(cat);
+                    }
+                  }),
+                ),
+              );
+            }).toList(),
+          ),
+        ),
+        // 稀有度筛选
+        Container(
+          padding: const EdgeInsets.symmetric(vertical: 2, horizontal: 8),
+          child: _buildCenteredChipRow(
+            Rarity.values.map((r) {
+              final selected = _searchRarities.contains(r);
+              return Padding(
+                padding: const EdgeInsets.only(right: 6),
+                child: FilterChip(
+                  label: Text(
+                    r.name.toUpperCase(),
+                    style: const TextStyle(fontSize: 12),
+                  ),
+                  selected: selected,
+                  onSelected: (v) => setState(() {
+                    if (v) {
+                      _searchRarities.add(r);
+                    } else {
+                      _searchRarities.remove(r);
+                    }
+                  }),
+                ),
+              );
+            }).toList(),
+          ),
+        ),
+        // ATK / HP 手动输入筛选
+        Container(
+          padding: const EdgeInsets.symmetric(vertical: 2, horizontal: 8),
+          child: Row(
+            children: [
+              Expanded(
+                child: _buildMinInput(
+                  label: _t('ATK≥', 'ATK≥'),
+                  controller: _searchAtkController,
+                  onChanged: (_) => setState(() {
+                    _searchMinAtk = _parseMin(_searchAtkController.text);
+                  }),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _buildMinInput(
+                  label: _t('HP≥', 'HP≥'),
+                  controller: _searchHpController,
+                  onChanged: (_) => setState(() {
+                    _searchMinHp = _parseMin(_searchHpController.text);
+                  }),
+                ),
+              ),
+            ],
+          ),
+        ),
+        // 排序
+        Container(
+          padding: const EdgeInsets.symmetric(vertical: 2, horizontal: 8),
+          child: _buildCenteredChipRow([
+            for (final s in const [
+              (1, 'ATK↑', 'ATK↑'),
+              (2, 'ATK↓', 'ATK↓'),
+              (3, 'HP↑', 'HP↑'),
+              (4, 'HP↓', 'HP↓'),
+            ])
+              Padding(
+                padding: const EdgeInsets.only(right: 6),
+                child: FilterChip(
+                  label: Text(
+                    _t(s.$2, s.$3),
+                    style: const TextStyle(fontSize: 12),
+                  ),
+                  selected: _searchSort == s.$1,
+                  onSelected: (v) => setState(() => _searchSort = v ? s.$1 : 0),
+                ),
+              ),
+          ]),
+        ),
+      ],
+    );
+  }
+
+  /// 解析手动输入的下限值（非法/负数视为 0=不限）
+  int _parseMin(String text) {
+    final v = int.tryParse(text.trim());
+    return v == null || v < 0 ? 0 : v;
+  }
+
+  /// 精确检索：ATK/HP 筛选下限手动输入框
+  Widget _buildMinInput({
+    required String label,
+    required TextEditingController controller,
+    required ValueChanged<String> onChanged,
+  }) {
+    return TextField(
+      controller: controller,
+      keyboardType: TextInputType.number,
+      decoration: InputDecoration(
+        labelText: label,
+        hintText: _t('不限', 'Any'),
+        isDense: true,
+        contentPadding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
       ),
+      onChanged: onChanged,
     );
   }
 
@@ -3199,499 +3434,522 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(locale == 'zh' ? '设置' : 'Settings'),
-        centerTitle: true,
-      ),
-      body: ListView(
-        children: [
-          const SizedBox(height: 12),
-          // ---- 服务器 ----
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16.0),
-            child: Text(
-              locale == 'zh' ? '服务器' : 'Server',
-              style: const TextStyle(fontWeight: FontWeight.bold),
-            ),
-          ),
-          ListTile(
-            title: Text(locale == 'zh' ? '国服' : 'CN Server'),
-            subtitle: server == 'cn'
-                ? Text(
-                    locale == 'zh' ? '仅支持中文' : 'Chinese only',
-                    style: const TextStyle(fontSize: 12),
-                  )
-                : null,
-            leading: Radio<String>(
-              value: 'cn',
-              groupValue: server,
-              onChanged: (value) {
-                setState(() {
-                  server = value!;
-                  // 国服只能使用中文
-                  if (server == 'cn' && locale != 'zh') {
-                    locale = 'zh';
-                  }
-                });
-              },
-            ),
-          ),
-          ListTile(
-            title: Text(locale == 'zh' ? '国际服' : 'International'),
-            leading: Radio<String>(
-              value: 'intl',
-              groupValue: server,
-              onChanged: (value) {
-                setState(() => server = value!);
-              },
-            ),
-          ),
-          const Divider(),
-          ListTile(
-            title: Text(locale == 'zh' ? '中文' : 'Chinese'),
-            leading: Radio<String>(
-              value: 'zh',
-              groupValue: locale,
-              onChanged: (value) {
-                setState(() {
-                  locale = value!;
-                });
-              },
-            ),
-          ),
-          ListTile(
-            title: Text(locale == 'zh' ? 'English' : 'English'),
-            subtitle: server == 'cn'
-                ? Text(
-                    locale == 'zh' ? '国服下不可用' : 'Unavailable on CN server',
-                    style: const TextStyle(fontSize: 12),
-                  )
-                : null,
-            enabled: server != 'cn',
-            leading: Radio<String>(
-              value: 'en',
-              groupValue: locale,
-              onChanged: server == 'cn'
-                  ? null
-                  : (value) {
-                      setState(() {
-                        locale = value!;
-                      });
-                    },
-            ),
-          ),
-          const Divider(),
-          SwitchListTile(
-            title: Text(locale == 'zh' ? '显示操作提示' : 'Show operation hints'),
-            subtitle: Text(
-              locale == 'zh'
-                  ? '每次点击按钮时显示灰色提示条'
-                  : 'Show snackbar when clicking buttons',
-            ),
-            value: showSnackBar,
-            onChanged: (value) {
-              setState(() {
-                showSnackBar = value;
-              });
-            },
-          ),
-          const Divider(),
-          Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: ElevatedButton(
-              onPressed: () {
-                Navigator.pop(context, {
-                  'locale': locale,
-                  'server': server,
-                  'showSnackBar': showSnackBar,
-                  'githubUpdateUrl': updateUrlController.text.trim(),
-                  'mirrorUrl': mirrorController.text.trim(),
-                });
-              },
-              child: Text(locale == 'zh' ? '保存' : 'Save'),
-            ),
-          ),
-          const Divider(),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16.0),
-            child: Text(
-              locale == 'zh' ? 'GitHub 更新包地址' : 'GitHub update package URL',
-              style: const TextStyle(fontWeight: FontWeight.bold),
-            ),
-          ),
-          const SizedBox(height: 8),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16.0),
-            child: TextField(
-              controller: updateUrlController,
-              decoration: InputDecoration(
-                border: const OutlineInputBorder(),
-                hintText: locale == 'zh'
-                    ? '请输入 GitHub release 直链'
-                    : 'Enter GitHub release direct URL',
+    return PopScope<Map<String, dynamic>>(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) {
+        if (!didPop) {
+          Navigator.pop(context, {
+            'locale': locale,
+            'server': server,
+            'showSnackBar': showSnackBar,
+            'githubUpdateUrl': updateUrlController.text.trim(),
+            'mirrorUrl': mirrorController.text.trim(),
+          });
+        }
+      },
+      child: Scaffold(
+        appBar: AppBar(
+          title: Text(locale == 'zh' ? '设置' : 'Settings'),
+          centerTitle: true,
+        ),
+        body: ListView(
+          children: [
+            const SizedBox(height: 12),
+            // ---- 服务器 ----
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16.0),
+              child: Text(
+                locale == 'zh' ? '服务器' : 'Server',
+                style: const TextStyle(fontWeight: FontWeight.bold),
               ),
             ),
-          ),
-          const SizedBox(height: 12),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16.0),
-            child: ElevatedButton.icon(
-              onPressed: isDownloading ? null : checkForUpdate,
-              icon: const Icon(Icons.search),
-              label: Text(locale == 'zh' ? '检测最新更新' : 'Check for updates'),
+            ListTile(
+              title: Text(locale == 'zh' ? '国服' : 'CN Server'),
+              subtitle: server == 'cn'
+                  ? Text(
+                      locale == 'zh' ? '仅支持中文' : 'Chinese only',
+                      style: const TextStyle(fontSize: 12),
+                    )
+                  : null,
+              leading: Radio<String>(
+                value: 'cn',
+                groupValue: server,
+                onChanged: (value) {
+                  setState(() {
+                    server = value!;
+                    // 国服只能使用中文
+                    if (server == 'cn' && locale != 'zh') {
+                      locale = 'zh';
+                    }
+                  });
+                },
+              ),
             ),
-          ),
-          const SizedBox(height: 8),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16.0),
-            child: Row(
-              children: [
-                Expanded(
-                  child: ElevatedButton.icon(
-                    onPressed: isDownloading ? null : downloadUpdatePackage,
-                    icon: isDownloading
-                        ? const SizedBox(
-                            width: 18,
-                            height: 18,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : const Icon(Icons.system_update),
-                    label: Text(
-                      isDownloading
-                          ? (locale == 'zh' ? '下载中...' : 'Downloading...')
-                          : (locale == 'zh' ? '下载更新包' : 'Download'),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: ElevatedButton.icon(
-                    onPressed: downloadedFilePath.isEmpty
-                        ? null
-                        : installPackage,
-                    icon: const Icon(Icons.install_mobile),
-                    label: Text(locale == 'zh' ? '安装' : 'Install'),
-                  ),
-                ),
-              ],
+            ListTile(
+              title: Text(locale == 'zh' ? '国际服' : 'International'),
+              leading: Radio<String>(
+                value: 'intl',
+                groupValue: server,
+                onChanged: (value) {
+                  setState(() => server = value!);
+                },
+              ),
             ),
-          ),
-          if (isDownloading) ...[
+            const Divider(),
+            ListTile(
+              title: Text(locale == 'zh' ? '中文' : 'Chinese'),
+              leading: Radio<String>(
+                value: 'zh',
+                groupValue: locale,
+                onChanged: (value) {
+                  setState(() {
+                    locale = value!;
+                  });
+                },
+              ),
+            ),
+            ListTile(
+              title: Text(locale == 'zh' ? 'English' : 'English'),
+              subtitle: server == 'cn'
+                  ? Text(
+                      locale == 'zh' ? '国服下不可用' : 'Unavailable on CN server',
+                      style: const TextStyle(fontSize: 12),
+                    )
+                  : null,
+              enabled: server != 'cn',
+              leading: Radio<String>(
+                value: 'en',
+                groupValue: locale,
+                onChanged: server == 'cn'
+                    ? null
+                    : (value) {
+                        setState(() {
+                          locale = value!;
+                        });
+                      },
+              ),
+            ),
+            const Divider(),
+            SwitchListTile(
+              title: Text(locale == 'zh' ? '显示操作提示' : 'Show operation hints'),
+              subtitle: Text(
+                locale == 'zh'
+                    ? '每次点击按钮时显示灰色提示条'
+                    : 'Show snackbar when clicking buttons',
+              ),
+              value: showSnackBar,
+              onChanged: (value) {
+                setState(() {
+                  showSnackBar = value;
+                });
+              },
+            ),
+            const Divider(),
+            Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: ElevatedButton(
+                onPressed: () {
+                  Navigator.pop(context, {
+                    'locale': locale,
+                    'server': server,
+                    'showSnackBar': showSnackBar,
+                    'githubUpdateUrl': updateUrlController.text.trim(),
+                    'mirrorUrl': mirrorController.text.trim(),
+                  });
+                },
+                child: Text(locale == 'zh' ? '保存' : 'Save'),
+              ),
+            ),
+            const Divider(),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16.0),
+              child: Text(
+                locale == 'zh' ? 'GitHub 更新包地址' : 'GitHub update package URL',
+                style: const TextStyle(fontWeight: FontWeight.bold),
+              ),
+            ),
+            const SizedBox(height: 8),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16.0),
+              child: TextField(
+                controller: updateUrlController,
+                decoration: InputDecoration(
+                  border: const OutlineInputBorder(),
+                  hintText: locale == 'zh'
+                      ? '请输入 GitHub release 直链'
+                      : 'Enter GitHub release direct URL',
+                ),
+              ),
+            ),
             const SizedBox(height: 12),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16.0),
-              child: Column(
+              child: ElevatedButton.icon(
+                onPressed: isDownloading ? null : checkForUpdate,
+                icon: const Icon(Icons.search),
+                label: Text(locale == 'zh' ? '检测最新更新' : 'Check for updates'),
+              ),
+            ),
+            const SizedBox(height: 8),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16.0),
+              child: Row(
                 children: [
-                  // 显示下载路径
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: Colors.grey[100],
-                      borderRadius: BorderRadius.circular(6),
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      onPressed: isDownloading ? null : downloadUpdatePackage,
+                      icon: isDownloading
+                          ? const SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Icon(Icons.system_update),
+                      label: Text(
+                        isDownloading
+                            ? (locale == 'zh' ? '下载中...' : 'Downloading...')
+                            : (locale == 'zh' ? '下载更新包' : 'Download'),
+                      ),
                     ),
-                    child: Row(
-                      children: [
-                        Icon(
-                          Icons.folder_open,
-                          size: 16,
-                          color: Colors.grey[600],
-                        ),
-                        const SizedBox(width: 6),
-                        Expanded(
-                          child: Text(
-                            '${locale == 'zh' ? '下载到' : 'Save to'}: ${downloadPathController.text}',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Colors.grey[600],
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      onPressed: downloadedFilePath.isEmpty
+                          ? null
+                          : installPackage,
+                      icon: const Icon(Icons.install_mobile),
+                      label: Text(locale == 'zh' ? '安装' : 'Install'),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            if (isDownloading) ...[
+              const SizedBox(height: 12),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                child: Column(
+                  children: [
+                    // 显示下载路径
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Colors.grey[100],
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.folder_open,
+                            size: 16,
+                            color: Colors.grey[600],
+                          ),
+                          const SizedBox(width: 6),
+                          Expanded(
+                            child: Text(
+                              '${locale == 'zh' ? '下载到' : 'Save to'}: ${downloadPathController.text}',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.grey[600],
+                              ),
+                              overflow: TextOverflow.ellipsis,
                             ),
-                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    LinearProgressIndicator(
+                      value: downloadProgress > 0 ? downloadProgress : null,
+                      minHeight: 6,
+                      borderRadius: BorderRadius.circular(3),
+                    ),
+                    const SizedBox(height: 6),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          '$downloadedSize${downloadProgress > 0 ? ' (${(downloadProgress * 100).toStringAsFixed(1)}%)' : ''}',
+                          style: const TextStyle(fontSize: 13),
+                        ),
+                        Text(
+                          downloadSpeed,
+                          style: const TextStyle(
+                            fontSize: 13,
+                            color: Colors.blue,
                           ),
                         ),
                       ],
                     ),
-                  ),
-                  const SizedBox(height: 8),
-                  LinearProgressIndicator(
-                    value: downloadProgress > 0 ? downloadProgress : null,
-                    minHeight: 6,
-                    borderRadius: BorderRadius.circular(3),
-                  ),
-                  const SizedBox(height: 6),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        '$downloadedSize${downloadProgress > 0 ? ' (${(downloadProgress * 100).toStringAsFixed(1)}%)' : ''}',
-                        style: const TextStyle(fontSize: 13),
+                    const SizedBox(height: 8),
+                    if (!isCheckingUpdate)
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          buildControlButton(
+                            icon: isPaused ? Icons.play_arrow : Icons.pause,
+                            label: isPaused ? '继续' : '暂停',
+                            color: Colors.orange,
+                            onPressed: onPauseResume,
+                          ),
+                          const SizedBox(width: 16),
+                          buildControlButton(
+                            icon: Icons.stop,
+                            label: '停止',
+                            color: Colors.redAccent,
+                            onPressed: onStopDownload,
+                          ),
+                        ],
                       ),
-                      Text(
-                        downloadSpeed,
-                        style: const TextStyle(
-                          fontSize: 13,
-                          color: Colors.blue,
-                        ),
+                  ],
+                ),
+              ),
+            ],
+            const SizedBox(height: 16),
+            const Divider(),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16.0),
+              child: Text(
+                locale == 'zh' ? '镜像加速地址（可选）' : 'Mirror URL (optional)',
+                style: const TextStyle(fontWeight: FontWeight.bold),
+              ),
+            ),
+            const SizedBox(height: 4),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16.0),
+              child: Text(
+                locale == 'zh'
+                    ? '如果无法连接 GitHub，可使用镜像加速。留空则直连。'
+                    : 'If GitHub is unreachable, use a mirror. Leave empty for direct.',
+                style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+              ),
+            ),
+            const SizedBox(height: 8),
+            // 预设镜像快速选择
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16.0),
+              child: Wrap(
+                spacing: 6,
+                runSpacing: 6,
+                children: presetMirrors.map((mirror) {
+                  final label = mirror.isEmpty
+                      ? (locale == 'zh' ? '直连' : 'Direct')
+                      : mirror.replaceAll('https://', '').replaceAll('/', '');
+                  final isActive = mirrorController.text.trim() == mirror;
+                  return ActionChip(
+                    label: Text(label, style: const TextStyle(fontSize: 11)),
+                    backgroundColor: isActive ? Colors.blue[100] : null,
+                    onPressed: () {
+                      setState(() {
+                        mirrorController.text = mirror;
+                      });
+                    },
+                  );
+                }).toList(),
+              ),
+            ),
+            const SizedBox(height: 8),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16.0),
+              child: TextField(
+                controller: mirrorController,
+                decoration: InputDecoration(
+                  border: const OutlineInputBorder(),
+                  hintText: locale == 'zh'
+                      ? 'https://ghproxy.net/'
+                      : 'https://ghproxy.net/',
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            const Divider(),
+            // ---- 下载保存路径 ----
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16.0),
+              child: Text(
+                locale == 'zh' ? '下载保存路径' : 'Download save path',
+                style: const TextStyle(fontWeight: FontWeight.bold),
+              ),
+            ),
+            const SizedBox(height: 8),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16.0),
+              child: TextField(
+                controller: downloadPathController,
+                decoration: InputDecoration(
+                  border: const OutlineInputBorder(),
+                  hintText: locale == 'zh'
+                      ? '输入下载保存路径'
+                      : 'Enter download save path',
+                  suffixIcon: IconButton(
+                    icon: const Icon(Icons.restore),
+                    onPressed: () {
+                      final defaultPath = Platform.isAndroid
+                          ? '${Directory.systemTemp.path}${Platform.pathSeparator}CatsKit'
+                          : '${Platform.environment['USERPROFILE'] ?? Platform.environment['HOME'] ?? Directory.current.path}${Platform.pathSeparator}Downloads${Platform.pathSeparator}CatsKit';
+                      downloadPathController.text = defaultPath;
+                    },
+                    tooltip: locale == 'zh' ? '恢复默认' : 'Reset default',
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 8),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16.0),
+              child: Wrap(
+                spacing: 6,
+                runSpacing: 4,
+                children: [
+                  ActionChip(
+                    label: Text(
+                      locale == 'zh' ? '默认路径' : 'Default',
+                      style: const TextStyle(fontSize: 12),
+                    ),
+                    onPressed: () {
+                      final defaultPath = Platform.isAndroid
+                          ? '${Directory.systemTemp.path}${Platform.pathSeparator}CatsKit'
+                          : '${Platform.environment['USERPROFILE'] ?? Platform.environment['HOME'] ?? Directory.current.path}${Platform.pathSeparator}Downloads${Platform.pathSeparator}CatsKit';
+                      downloadPathController.text = defaultPath;
+                    },
+                  ),
+                  if (Platform.isAndroid) ...[
+                    ActionChip(
+                      label: const Text(
+                        'Downloads',
+                        style: TextStyle(fontSize: 12),
+                      ),
+                      onPressed: () => downloadPathController.text =
+                          '/storage/emulated/0/Download/CatsKit',
+                    ),
+                    ActionChip(
+                      label: const Text(
+                        'Documents',
+                        style: TextStyle(fontSize: 12),
+                      ),
+                      onPressed: () => downloadPathController.text =
+                          '/storage/emulated/0/Documents/CatsKit',
+                    ),
+                    ActionChip(
+                      label: const Text('DCIM', style: TextStyle(fontSize: 12)),
+                      onPressed: () => downloadPathController.text =
+                          '/storage/emulated/0/DCIM/CatsKit',
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+            const Divider(),
+            // ---- 版本信息 ----
+            ListTile(
+              leading: const Icon(Icons.info_outline, color: Colors.grey),
+              title: Text(locale == 'zh' ? '当前版本' : 'Version'),
+              trailing: Text(
+                'v$appVersion',
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+            const Divider(),
+            // ---- 项目主页 ----
+            ListTile(
+              leading: const Icon(Icons.favorite, color: Colors.red),
+              title: Text(locale == 'zh' ? '项目主页' : 'Project Homepage'),
+              subtitle: Text(
+                locale == 'zh'
+                    ? 'CatsKit — 猫猫车工具\n请在 GitHub 上 Star (点赞) 以支持本项目'
+                    : 'CatsKit — Cat Car Builder\nPlease ⭐ on GitHub to support',
+              ),
+              trailing: const Icon(Icons.open_in_new, size: 18),
+              onTap: () async {
+                final uri = Uri.parse(
+                  'https://github.com/InspiraFinder/CatsKit',
+                );
+                if (await canLaunchUrl(uri)) {
+                  await launchUrl(uri, mode: LaunchMode.externalApplication);
+                } else if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(
+                        '${locale == 'zh' ? '无法打开链接' : 'Cannot open link'}: $uri',
+                      ),
+                    ),
+                  );
+                }
+              },
+            ),
+            const Divider(),
+            // ---- 鸣谢 ----
+            ListTile(
+              leading: const Icon(Icons.emoji_events, color: Colors.amber),
+              title: Text(locale == 'zh' ? '鸣谢' : 'Acknowledgments'),
+              subtitle: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Navimoe 链接图标与 Navimoe 文字对齐（紧跟文字行）
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Text('Navimoe C.A.T.S. Engine'),
+                      const SizedBox(width: 4),
+                      const Icon(
+                        Icons.open_in_new,
+                        size: 14,
+                        color: Colors.grey,
                       ),
                     ],
                   ),
-                  const SizedBox(height: 8),
-                  if (!isCheckingUpdate)
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        buildControlButton(
-                          icon: isPaused ? Icons.play_arrow : Icons.pause,
-                          label: isPaused ? '继续' : '暂停',
-                          color: Colors.orange,
-                          onPressed: onPauseResume,
-                        ),
-                        const SizedBox(width: 16),
-                        buildControlButton(
-                          icon: Icons.stop,
-                          label: '停止',
-                          color: Colors.redAccent,
-                          onPressed: onStopDownload,
-                        ),
-                      ],
-                    ),
+                  const SizedBox(height: 2),
+                  Text(locale == 'zh' ? '国服数据提供：防防猫' : 'CN data by: 防防猫'),
                 ],
               ),
+              onTap: () async {
+                final uri = Uri.parse('https://github.com/SAK-20744/Navimoe');
+                if (await canLaunchUrl(uri)) {
+                  await launchUrl(uri, mode: LaunchMode.externalApplication);
+                } else if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(
+                        '${locale == 'zh' ? '无法打开链接' : 'Cannot open link'}: $uri',
+                      ),
+                    ),
+                  );
+                }
+              },
             ),
+            const Divider(),
+            // ---- 网络诊断 ----
+            ListTile(
+              leading: const Icon(Icons.bug_report, color: Colors.deepOrange),
+              title: Text(locale == 'zh' ? '网络诊断' : 'Network Diagnosis'),
+              subtitle: Text(
+                locale == 'zh' ? '检测 DNS 解析和网络连通性' : 'Test DNS & connectivity',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              trailing: const Icon(Icons.chevron_right, size: 18),
+              onTap: () => showNetworkDiagnosis(context, locale),
+            ),
+            const SizedBox(height: 16),
+            const Divider(),
+            // ---- 测试群 ----
+            ListTile(
+              leading: const Icon(Icons.groups, color: Colors.blue),
+              title: Text(locale == 'zh' ? '测试群' : 'Test Group'),
+              subtitle: Text(
+                locale == 'zh' ? 'QQ测试群：791499287' : 'QQ Test Group: 791499287',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            const SizedBox(height: 20),
           ],
-          const SizedBox(height: 16),
-          const Divider(),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16.0),
-            child: Text(
-              locale == 'zh' ? '镜像加速地址（可选）' : 'Mirror URL (optional)',
-              style: const TextStyle(fontWeight: FontWeight.bold),
-            ),
-          ),
-          const SizedBox(height: 4),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16.0),
-            child: Text(
-              locale == 'zh'
-                  ? '如果无法连接 GitHub，可使用镜像加速。留空则直连。'
-                  : 'If GitHub is unreachable, use a mirror. Leave empty for direct.',
-              style: TextStyle(fontSize: 12, color: Colors.grey[600]),
-            ),
-          ),
-          const SizedBox(height: 8),
-          // 预设镜像快速选择
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16.0),
-            child: Wrap(
-              spacing: 6,
-              runSpacing: 6,
-              children: presetMirrors.map((mirror) {
-                final label = mirror.isEmpty
-                    ? (locale == 'zh' ? '直连' : 'Direct')
-                    : mirror.replaceAll('https://', '').replaceAll('/', '');
-                final isActive = mirrorController.text.trim() == mirror;
-                return ActionChip(
-                  label: Text(label, style: const TextStyle(fontSize: 11)),
-                  backgroundColor: isActive ? Colors.blue[100] : null,
-                  onPressed: () {
-                    setState(() {
-                      mirrorController.text = mirror;
-                    });
-                  },
-                );
-              }).toList(),
-            ),
-          ),
-          const SizedBox(height: 8),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16.0),
-            child: TextField(
-              controller: mirrorController,
-              decoration: InputDecoration(
-                border: const OutlineInputBorder(),
-                hintText: locale == 'zh'
-                    ? 'https://ghproxy.net/'
-                    : 'https://ghproxy.net/',
-              ),
-            ),
-          ),
-          const SizedBox(height: 16),
-          const Divider(),
-          // ---- 下载保存路径 ----
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16.0),
-            child: Text(
-              locale == 'zh' ? '下载保存路径' : 'Download save path',
-              style: const TextStyle(fontWeight: FontWeight.bold),
-            ),
-          ),
-          const SizedBox(height: 8),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16.0),
-            child: TextField(
-              controller: downloadPathController,
-              decoration: InputDecoration(
-                border: const OutlineInputBorder(),
-                hintText: locale == 'zh'
-                    ? '输入下载保存路径'
-                    : 'Enter download save path',
-                suffixIcon: IconButton(
-                  icon: const Icon(Icons.restore),
-                  onPressed: () {
-                    final defaultPath = Platform.isAndroid
-                        ? '${Directory.systemTemp.path}${Platform.pathSeparator}CatsKit'
-                        : '${Platform.environment['USERPROFILE'] ?? Platform.environment['HOME'] ?? Directory.current.path}${Platform.pathSeparator}Downloads${Platform.pathSeparator}CatsKit';
-                    downloadPathController.text = defaultPath;
-                  },
-                  tooltip: locale == 'zh' ? '恢复默认' : 'Reset default',
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(height: 8),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16.0),
-            child: Wrap(
-              spacing: 6,
-              runSpacing: 4,
-              children: [
-                ActionChip(
-                  label: Text(
-                    locale == 'zh' ? '默认路径' : 'Default',
-                    style: const TextStyle(fontSize: 12),
-                  ),
-                  onPressed: () {
-                    final defaultPath = Platform.isAndroid
-                        ? '${Directory.systemTemp.path}${Platform.pathSeparator}CatsKit'
-                        : '${Platform.environment['USERPROFILE'] ?? Platform.environment['HOME'] ?? Directory.current.path}${Platform.pathSeparator}Downloads${Platform.pathSeparator}CatsKit';
-                    downloadPathController.text = defaultPath;
-                  },
-                ),
-                if (Platform.isAndroid) ...[
-                  ActionChip(
-                    label: const Text(
-                      'Downloads',
-                      style: TextStyle(fontSize: 12),
-                    ),
-                    onPressed: () => downloadPathController.text =
-                        '/storage/emulated/0/Download/CatsKit',
-                  ),
-                  ActionChip(
-                    label: const Text(
-                      'Documents',
-                      style: TextStyle(fontSize: 12),
-                    ),
-                    onPressed: () => downloadPathController.text =
-                        '/storage/emulated/0/Documents/CatsKit',
-                  ),
-                  ActionChip(
-                    label: const Text('DCIM', style: TextStyle(fontSize: 12)),
-                    onPressed: () => downloadPathController.text =
-                        '/storage/emulated/0/DCIM/CatsKit',
-                  ),
-                ],
-              ],
-            ),
-          ),
-          const SizedBox(height: 16),
-          const Divider(),
-          // ---- 版本信息 ----
-          ListTile(
-            leading: const Icon(Icons.info_outline, color: Colors.grey),
-            title: Text(locale == 'zh' ? '当前版本' : 'Version'),
-            trailing: Text(
-              'v$appVersion',
-              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-            ),
-          ),
-          const Divider(),
-          // ---- 项目主页 ----
-          ListTile(
-            leading: const Icon(Icons.favorite, color: Colors.red),
-            title: Text(locale == 'zh' ? '项目主页' : 'Project Homepage'),
-            subtitle: Text(
-              locale == 'zh'
-                  ? 'CatsKit — 猫猫车工具\n请在 GitHub 上 Star (点赞) 以支持本项目'
-                  : 'CatsKit — Cat Car Builder\nPlease ⭐ on GitHub to support',
-            ),
-            trailing: const Icon(Icons.open_in_new, size: 18),
-            onTap: () async {
-              final uri = Uri.parse('https://github.com/InspiraFinder/CatsKit');
-              if (await canLaunchUrl(uri)) {
-                await launchUrl(uri, mode: LaunchMode.externalApplication);
-              } else if (context.mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(
-                      '${locale == 'zh' ? '无法打开链接' : 'Cannot open link'}: $uri',
-                    ),
-                  ),
-                );
-              }
-            },
-          ),
-          const Divider(),
-          // ---- 鸣谢 ----
-          ListTile(
-            leading: const Icon(Icons.emoji_events, color: Colors.amber),
-            title: Text(locale == 'zh' ? '鸣谢' : 'Acknowledgments'),
-            subtitle: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Navimoe 链接图标与 Navimoe 文字对齐（紧跟文字行）
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Text('Navimoe C.A.T.S. Engine'),
-                    const SizedBox(width: 4),
-                    const Icon(Icons.open_in_new, size: 14, color: Colors.grey),
-                  ],
-                ),
-                const SizedBox(height: 2),
-                Text(locale == 'zh' ? '国服数据提供：防防猫' : 'CN data by: 防防猫'),
-              ],
-            ),
-            onTap: () async {
-              final uri = Uri.parse('https://github.com/SAK-20744/Navimoe');
-              if (await canLaunchUrl(uri)) {
-                await launchUrl(uri, mode: LaunchMode.externalApplication);
-              } else if (context.mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(
-                      '${locale == 'zh' ? '无法打开链接' : 'Cannot open link'}: $uri',
-                    ),
-                  ),
-                );
-              }
-            },
-          ),
-          const Divider(),
-          // ---- 网络诊断 ----
-          ListTile(
-            leading: const Icon(Icons.bug_report, color: Colors.deepOrange),
-            title: Text(locale == 'zh' ? '网络诊断' : 'Network Diagnosis'),
-            subtitle: Text(
-              locale == 'zh' ? '检测 DNS 解析和网络连通性' : 'Test DNS & connectivity',
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-            trailing: const Icon(Icons.chevron_right, size: 18),
-            onTap: () => showNetworkDiagnosis(context, locale),
-          ),
-          const SizedBox(height: 16),
-          const Divider(),
-          // ---- 测试群 ----
-          ListTile(
-            leading: const Icon(Icons.groups, color: Colors.blue),
-            title: Text(locale == 'zh' ? '测试群' : 'Test Group'),
-            subtitle: Text(
-              locale == 'zh' ? 'QQ测试群：791499287' : 'QQ Test Group: 791499287',
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-          const SizedBox(height: 20),
-        ],
+        ),
       ),
     );
   }
