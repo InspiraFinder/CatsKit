@@ -87,6 +87,8 @@ class PartData {
   final SlotData? slots;
   final StatsIncrementPattern sip;
   final String? imageCn; // 国服专用图片路径；null 时使用 assets/images/<id>.png
+  final double? density; // 密度（用于重量计算，如 0.1）
+  final String? shapeDesc; // 碰撞形状描述，如 'circle r=30' / 'polygon n=11'
 
   const PartData({
     required this.id,
@@ -105,6 +107,8 @@ class PartData {
     this.slots,
     this.sip = StatsIncrementPattern.r1,
     this.imageCn,
+    this.density,
+    this.shapeDesc,
   });
 
   int get maxLevel => maxLevelForRarity(rarity);
@@ -1748,7 +1752,7 @@ class PartDatabase {
     PartData(
       id: 'bandit_knob',
       name: 'Bandit Knob',
-      nameZh: '强盗旋钮轮',
+      nameZh: '强盗旋纽轮',
       nameJa: 'バンディットノブ',
       category: PartCategory.wheel,
       rarity: Rarity.r5,
@@ -1770,7 +1774,7 @@ class PartDatabase {
     PartData(
       id: 'rogue_knob',
       name: 'Rogue Knob',
-      nameZh: '流氓旋钮轮',
+      nameZh: '流氓旋纽轮',
       nameJa: 'ローグノブ',
       category: PartCategory.wheel,
       rarity: Rarity.r5,
@@ -1781,7 +1785,7 @@ class PartDatabase {
     PartData(
       id: 'stingy_knob',
       name: 'Stingy Knob',
-      nameZh: '尖刺旋钮轮',
+      nameZh: '尖刺旋纽轮',
       nameJa: 'スティンギーノブ',
       category: PartCategory.wheel,
       rarity: Rarity.r5,
@@ -1864,6 +1868,73 @@ class PartDatabase {
       rarity: Rarity.r4,
       hp1: 7080,
       sip: StatsIncrementPattern.r4,
+    ),
+    // 国际服旧版 R4 车轮（density/shape/hp1 已从游戏内存提取）
+    PartData(
+      id: 'shark_bite_scooter',
+      name: 'SHARK BITE SCOOTER',
+      nameZh: 'SHARK BITE车轮',
+      category: PartCategory.wheel,
+      rarity: Rarity.r4,
+      hp1: 9345,
+      sip: StatsIncrementPattern.r4,
+      density: 0.1,
+      shapeDesc: 'circle r=30',
+    ),
+    PartData(
+      id: 'bone_shaker_roller',
+      name: 'BONE SHAKER ROLLER',
+      nameZh: 'BONE SHAKER辊轴',
+      category: PartCategory.wheel,
+      rarity: Rarity.r4,
+      hp1: 8496,
+      sip: StatsIncrementPattern.r4,
+      density: 0.1,
+      shapeDesc: 'circle r=25',
+    ),
+    PartData(
+      id: 'shark_bite_roller',
+      name: 'SHARK BITE ROLLER',
+      nameZh: 'SHARK BITE辊轴',
+      category: PartCategory.wheel,
+      rarity: Rarity.r4,
+      hp1: 8496,
+      sip: StatsIncrementPattern.r4,
+      density: 0.1,
+      shapeDesc: 'circle r=25',
+    ),
+    PartData(
+      id: 'twin_mill_roller',
+      name: 'TWIN MILL ROLLER',
+      nameZh: 'TWIN MILL辊轴',
+      category: PartCategory.wheel,
+      rarity: Rarity.r4,
+      hp1: 8496,
+      sip: StatsIncrementPattern.r4,
+      density: 0.1,
+      shapeDesc: 'circle r=25',
+    ),
+    PartData(
+      id: 'bone_shaker_knob',
+      name: 'BONE SHAKER KNOB',
+      nameZh: 'BONE SHAKER手柄',
+      category: PartCategory.wheel,
+      rarity: Rarity.r4,
+      hp1: 7646,
+      sip: StatsIncrementPattern.r4,
+      density: 0.1,
+      shapeDesc: 'circle r=20',
+    ),
+    PartData(
+      id: 'twin_mill_knob',
+      name: 'TWIN MILL KNOB',
+      nameZh: 'TWIN MILL手柄',
+      category: PartCategory.wheel,
+      rarity: Rarity.r4,
+      hp1: 7646,
+      sip: StatsIncrementPattern.r4,
+      density: 0.1,
+      shapeDesc: 'circle r=20',
     ),
     // R3
     PartData(
@@ -2250,7 +2321,7 @@ class PartDatabase {
     PartData(
       id: 'squid_cannon',
       name: 'Squid Cannon',
-      nameZh: '鱿鱼炮',
+      nameZh: '鱿鱼大炮',
       nameJa: 'イカ大砲',
       category: PartCategory.gadget,
       rarity: Rarity.r6,
@@ -2683,6 +2754,13 @@ class PartDatabase {
       'twin_mill_engine',
       'tiger_shark_engine',
       '5_alarm_engine',
+      // 国际服旧版 R4 车轮（国服无）
+      'shark_bite_scooter',
+      'bone_shaker_roller',
+      'shark_bite_roller',
+      'twin_mill_roller',
+      'bone_shaker_knob',
+      'twin_mill_knob',
     ]) {
       map.remove(id);
     }

@@ -12,7 +12,7 @@ import 'fragment_calc_screen.dart';
 import 'parts_data.dart';
 import 'time_calc_screen.dart';
 
-const String appVersion = '0.10.3';
+const String appVersion = '1.0.0';
 
 /// 获取部件在当前语言下的显示名称
 String pn(PartData part, String? locale) {
@@ -3904,7 +3904,25 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     ],
                   ),
                   const SizedBox(height: 2),
+                  Text(
+                    locale == 'zh'
+                        ? '感谢 "威廉博士" 国际服限定部件的图片'
+                        : 'Thanks to "威廉博士" for intl-exclusive part images',
+                  ),
+                  const SizedBox(height: 2),
                   Text(locale == 'zh' ? '国服数据提供：防防猫' : 'CN data by: 防防猫'),
+                  const SizedBox(height: 2),
+                  Text(
+                    locale == 'zh'
+                        ? '感谢 "三体老鸽子", "木小七" 对本项目的贡献'
+                        : 'Thanks to "三体老鸽子", "木小七" for their contributions',
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    locale == 'zh'
+                        ? '感谢各位反馈者对本项目的支持'
+                        : 'Thanks to all feedback providers',
+                  ),
                 ],
               ),
               onTap: () async {
