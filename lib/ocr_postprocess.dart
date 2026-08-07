@@ -68,16 +68,28 @@ List<Map<String, dynamic>> splitCombinedItems(
         .toList();
     // 如果一个数字同时符合两者（如 "126"），SPM 优先取短的，SCORE 取长的
     final spmItem = spmMatches.isNotEmpty ? spmMatches.first : null;
-    final scoreItem = scoreMatches.isNotEmpty
-        ? scoreMatches.reduce(
+    // 分数：优先排除与 SPM 重叠位置的匹配，
+    // 避免 "+148 824" 中 SPM(148) 与分数(824) 同为 3 位时 reduce 选中同一个位置而无法拆分
+    final scoreCandidates = spmItem == null
+        ? scoreMatches
+        : scoreMatches.where((m) => m.start != spmItem.start).toList();
+    final scoreItem = scoreCandidates.isNotEmpty
+        ? scoreCandidates.reduce(
             (a, b) => a.digits.length >= b.digits.length ? a : b,
           )
         : null;
 
-    // 如果同时有 SPM 和 SCORE 且不重叠，则拆分
+    // 真实战场 SPM+SCORE 组合中至少一个数字带 +/- 号或紧邻 ) 括号
+    // （如 "+148) 824"、"126) 67368"、"44051+38"）；裸数字文本
+    // （如网速 "389 17,"、"389 174"）不应被拆分。
+    bool hasSignOrParen(_NumMatch m) =>
+        m.raw.contains('+') || m.raw.contains('-') || m.raw.contains(')');
+
+    // 如果同时有 SPM 和 SCORE、不重叠，且符合真实组合特征，则拆分
     if (spmItem != null &&
         scoreItem != null &&
-        spmItem.start != scoreItem.start) {
+        spmItem.start != scoreItem.start &&
+        (hasSignOrParen(spmItem) || hasSignOrParen(scoreItem))) {
       for (final m in [spmItem, scoreItem]) {
         // 提取时标准化：-号变+号，去掉噪声字符
         var clean = m.raw;
@@ -103,12 +115,20 @@ bool _isZeroOnlyText(String text) {
   return stripped.isEmpty && text.contains('0');
 }
 
-/// 判断文本是否含时间单位（中文 分/时/吋，或英文 h/m）
+/// 判断文本是否含时间单位（中文 分/时/吋，或英文 h/m），
+/// 或疑似时间噪声（两个数字块且末块 ≤59，如 `238 39 O` ≈ `23时39分`，
+/// 此时/分被 OCR 识别成数字/字母，无任何时间单位字符）。
 bool _isTimeText(String text) {
-  return text.contains('分') ||
-      text.contains('时') ||
-      text.contains('吋') ||
-      RegExp(r'\d+\s*[hm]', caseSensitive: false).hasMatch(text);
+  if (text.contains('分') || text.contains('时') || text.contains('吋')) {
+    return true;
+  }
+  if (RegExp(r'\d+\s*[hm]', caseSensitive: false).hasMatch(text)) {
+    return true;
+  }
+  final nums = RegExp(
+    r'\d+',
+  ).allMatches(text).map((m) => int.parse(m.group(0)!)).toList();
+  return nums.length >= 2 && nums.last <= 59;
 }
 
 /// 从候选文本中提取剩余时间（语义识别，不依赖区域）
