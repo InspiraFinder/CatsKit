@@ -123,15 +123,14 @@ jobs:
           name: "CatsKit ${{ steps.version.outputs.TAG }}"
           prerelease: false
           body: |
-            ## 🎉 正式版发布 - ${{ steps.version.outputs.TAG }}
+            ## 正式版 - ${{ steps.version.outputs.TAG }}
               - 发布日期：${{ steps.version.outputs.DATE }}
               
               ### 新功能
-              - 无。
+              - 增加国际服部件重量，孔位的查询。
 
               ### 修复与调整
-              - 增加部分国际服缺失的部件
-              - 优化时间计算识别处理算法
+              - 调整部分UI
               - 🐽
             
             ### 📱 Android 下载安装
