@@ -9,10 +9,12 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import 'fragment_calc_screen.dart';
+import 'part_shape_view.dart';
 import 'parts_data.dart';
+import 'parts_shape_data.dart';
 import 'time_calc_screen.dart';
 
-const String appVersion = '1.0.0';
+const String appVersion = '1.1.0';
 
 /// 获取部件在当前语言下的显示名称
 String pn(PartData part, String? locale) {
@@ -2104,7 +2106,11 @@ class _BuildToolScreenState extends State<BuildToolScreen> {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => _PartDataScreen(part: part, locale: widget.locale),
+        builder: (_) => _PartDataScreen(
+          part: part,
+          locale: widget.locale,
+          server: widget.server,
+        ),
       ),
     );
   }
@@ -2341,11 +2347,17 @@ class CarValidation {
 class _PartDataScreen extends StatelessWidget {
   final PartData part;
   final String locale;
-  const _PartDataScreen({required this.part, this.locale = 'zh'});
+  final String server;
+  const _PartDataScreen({
+    required this.part,
+    this.locale = 'zh',
+    this.server = 'cn',
+  });
 
   @override
   Widget build(BuildContext context) {
     String t(String zh, String en) => locale == 'zh' ? zh : en;
+    final sd = kPartShapeData[part.id];
     return Scaffold(
       appBar: AppBar(title: Text(pn(part, locale)), centerTitle: true),
       body: SingleChildScrollView(
@@ -2415,6 +2427,42 @@ class _PartDataScreen extends StatelessWidget {
               _chip(t('类型', 'Class'), part.classLabelEn(locale), Colors.brown),
             if (part.mHp1 > 0)
               _chip(t('随从HP', 'Minion HP'), part.mHp1.toString(), Colors.teal),
+            // ---- 形状 / 插槽位置 / 面积 / 密度 / 重量（仅国际服） ----
+            if (server == 'intl' && sd != null) ...[
+              const SizedBox(height: 12),
+              Text(
+                t('形状与物理数据', 'Shape & Physics'),
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 8),
+              PartShapeView(data: sd, locale: locale),
+              const SizedBox(height: 4),
+              Text(
+                t(
+                  '形状数据仅供参考，未确认完全准确',
+                  'Shape data for reference only, not verified',
+                ),
+                style: TextStyle(fontSize: 11, color: Colors.grey[600]),
+              ),
+              const SizedBox(height: 8),
+              _chip(t('面积', 'Area'), sd.area.toStringAsFixed(1), Colors.indigo),
+              _chip(t('密度', 'Density'), '${sd.density}', Colors.brown),
+              _chip(
+                t('重量', 'Weight'),
+                sd.weight.toStringAsFixed(1),
+                Colors.deepOrange,
+              ),
+              _chip(
+                t('形状', 'Shape'),
+                sd.shapeType == 'circle'
+                    ? 'circle r=${sd.radius}'
+                    : 'polygon ${sd.points?.length}点',
+                Colors.grey,
+              ),
+            ],
             const SizedBox(height: 12),
             // ---- 等级数据 + 升级费用表 ----
             Text(
