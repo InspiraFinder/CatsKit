@@ -9,12 +9,14 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import 'fragment_calc_screen.dart';
+import 'garage_data.dart';
+import 'my_garage_screen.dart';
 import 'part_shape_view.dart';
 import 'parts_data.dart';
 import 'parts_shape_data.dart';
 import 'time_calc_screen.dart';
 
-const String appVersion = '1.1.1';
+const String appVersion = '1.2.0';
 
 /// 获取部件在当前语言下的显示名称
 String pn(PartData part, String? locale) {
@@ -33,20 +35,29 @@ Future<void> main() async {
   final prefs = await SharedPreferences.getInstance();
   var savedLocale = prefs.getString('appLocale') ?? 'zh';
   final savedServer = prefs.getString('appServer') ?? 'cn';
+  final savedDarkMode = prefs.getBool('appDarkMode') ?? false;
   // 国服只能使用中文
   if (savedServer == 'cn') {
     savedLocale = 'zh';
   }
-  runApp(MyApp(initialLocale: savedLocale, initialServer: savedServer));
+  runApp(
+    MyApp(
+      initialLocale: savedLocale,
+      initialServer: savedServer,
+      initialDarkMode: savedDarkMode,
+    ),
+  );
 }
 
 class MyApp extends StatefulWidget {
   final String initialLocale;
   final String initialServer;
+  final bool initialDarkMode;
   const MyApp({
     super.key,
     this.initialLocale = 'zh',
     this.initialServer = 'cn',
+    this.initialDarkMode = false,
   });
 
   @override
@@ -56,12 +67,14 @@ class MyApp extends StatefulWidget {
 class _MyAppState extends State<MyApp> {
   late String _appLocale;
   late String _appServer; // 'cn' 国服, 'intl' 国际服
+  late bool _appDarkMode;
 
   @override
   void initState() {
     super.initState();
     _appLocale = widget.initialLocale;
     _appServer = widget.initialServer;
+    _appDarkMode = widget.initialDarkMode;
   }
 
   void _onLocaleChanged(String newLocale) {
@@ -78,16 +91,31 @@ class _MyAppState extends State<MyApp> {
     );
   }
 
+  void _onDarkModeChanged(bool newValue) {
+    setState(() => _appDarkMode = newValue);
+    SharedPreferences.getInstance().then(
+      (prefs) => prefs.setBool('appDarkMode', newValue),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'CatsKit',
       theme: ThemeData(primarySwatch: Colors.blue, useMaterial3: true),
+      darkTheme: ThemeData(
+        brightness: Brightness.dark,
+        primarySwatch: Colors.blue,
+        useMaterial3: true,
+      ),
+      themeMode: _appDarkMode ? ThemeMode.dark : ThemeMode.light,
       home: MainMenuScreen(
         locale: _appLocale,
         onLocaleChanged: _onLocaleChanged,
         server: _appServer,
         onServerChanged: _onServerChanged,
+        darkMode: _appDarkMode,
+        onDarkModeChanged: _onDarkModeChanged,
       ),
     );
   }
@@ -96,7 +124,15 @@ class _MyAppState extends State<MyApp> {
 class MainScreen extends StatefulWidget {
   final String locale;
   final String server;
-  const MainScreen({super.key, this.locale = 'zh', this.server = 'cn'});
+  final bool darkMode;
+  final ValueChanged<bool>? onDarkModeChanged;
+  const MainScreen({
+    super.key,
+    this.locale = 'zh',
+    this.server = 'cn',
+    this.darkMode = false,
+    this.onDarkModeChanged,
+  });
 
   @override
   State<MainScreen> createState() => _MainScreenState();
@@ -568,6 +604,7 @@ class _MainScreenState extends State<MainScreen> {
           currentLocale: _locale,
           currentServer: _server,
           currentShowSnackBar: _showSnackBar,
+          currentDarkMode: widget.darkMode,
           currentGithubUpdateUrl: githubUpdateUrl,
           currentMirrorUrl: _mirrorUrl,
         ),
@@ -581,6 +618,9 @@ class _MainScreenState extends State<MainScreen> {
         githubUpdateUrl = result['githubUpdateUrl'] ?? githubUpdateUrl;
         _mirrorUrl = result['mirrorUrl'] ?? _mirrorUrl;
       });
+      if (result['darkMode'] != null) {
+        widget.onDarkModeChanged?.call(result['darkMode'] as bool);
+      }
       _showMessage('语言已切换', 'Language changed');
     }
   }
@@ -592,12 +632,16 @@ class MainMenuScreen extends StatefulWidget {
   final ValueChanged<String>? onLocaleChanged;
   final String server;
   final ValueChanged<String>? onServerChanged;
+  final bool darkMode;
+  final ValueChanged<bool>? onDarkModeChanged;
   const MainMenuScreen({
     super.key,
     this.locale = 'zh',
     this.onLocaleChanged,
     this.server = 'cn',
     this.onServerChanged,
+    this.darkMode = false,
+    this.onDarkModeChanged,
   });
 
   @override
@@ -607,6 +651,7 @@ class MainMenuScreen extends StatefulWidget {
 class _MainMenuScreenState extends State<MainMenuScreen> {
   late String _locale;
   late String _server;
+  late bool _darkMode;
 
   String _t(String zh, String en) => _locale == 'zh' ? zh : en;
 
@@ -615,6 +660,7 @@ class _MainMenuScreenState extends State<MainMenuScreen> {
     super.initState();
     _locale = widget.locale;
     _server = widget.server;
+    _darkMode = widget.darkMode;
   }
 
   @override
@@ -625,6 +671,9 @@ class _MainMenuScreenState extends State<MainMenuScreen> {
     }
     if (widget.server != oldWidget.server) {
       _server = widget.server;
+    }
+    if (widget.darkMode != oldWidget.darkMode) {
+      _darkMode = widget.darkMode;
     }
   }
 
@@ -649,6 +698,13 @@ class _MainMenuScreenState extends State<MainMenuScreen> {
           widget.onServerChanged?.call(newServer);
         }
       }
+      if (result['darkMode'] != null) {
+        final newDarkMode = result['darkMode'] as bool;
+        if (newDarkMode != _darkMode) {
+          setState(() => _darkMode = newDarkMode);
+          widget.onDarkModeChanged?.call(newDarkMode);
+        }
+      }
     }
   }
 
@@ -657,10 +713,10 @@ class _MainMenuScreenState extends State<MainMenuScreen> {
     return Scaffold(
       appBar: AppBar(title: const Text('CatsKit'), centerTitle: true),
       body: Center(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 32),
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 24),
           child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisSize: MainAxisSize.min,
             children: [
               const Icon(Icons.directions_car, size: 80, color: Colors.blue),
               const SizedBox(height: 24),
@@ -680,7 +736,12 @@ class _MainMenuScreenState extends State<MainMenuScreen> {
                 label: _t('查车工具', 'Vehicle Check'),
                 color: Colors.blue,
                 onTap: () => _navigateAndAwaitLocale(
-                  MainScreen(locale: _locale, server: _server),
+                  MainScreen(
+                    locale: _locale,
+                    server: _server,
+                    darkMode: _darkMode,
+                    onDarkModeChanged: widget.onDarkModeChanged,
+                  ),
                 ),
               ),
               const SizedBox(height: 16),
@@ -715,6 +776,16 @@ class _MainMenuScreenState extends State<MainMenuScreen> {
               const SizedBox(height: 16),
               _buildMenuItem(
                 context,
+                icon: Icons.garage,
+                label: _t('我的车库', 'My Garage'),
+                color: Colors.indigo,
+                onTap: () => _navigateAndAwaitLocale(
+                  MyGarageScreen(locale: _locale, server: _server),
+                ),
+              ),
+              const SizedBox(height: 16),
+              _buildMenuItem(
+                context,
                 icon: Icons.settings,
                 label: _t('通用设置', 'Settings'),
                 color: Colors.green,
@@ -723,6 +794,7 @@ class _MainMenuScreenState extends State<MainMenuScreen> {
                     currentLocale: _locale,
                     currentServer: _server,
                     currentShowSnackBar: false,
+                    currentDarkMode: _darkMode,
                     currentGithubUpdateUrl:
                         'https://github.com/InspiraFinder/CatsKit/releases',
                     currentMirrorUrl: '',
@@ -1005,6 +1077,144 @@ class _BuildToolScreenState extends State<BuildToolScreen> {
     }
   }
 
+  /// 将当前组车区保存到车库的某个车位（1~10）
+  Future<void> _saveVehicleToGarage(_VehicleBuild vh) async {
+    if (vh.body == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            _t('请先组好一辆车（需要有车身）', 'Build a car first (body required)'),
+          ),
+        ),
+      );
+      return;
+    }
+    final slots = await GarageStore.load();
+    if (!mounted) return;
+
+    final partIds = <String>{
+      if (vh.body != null) vh.body!.id,
+      if (vh.extraWeapon != null) vh.extraWeapon!.id,
+      ...vh.weapons.map((p) => p.id),
+      ...vh.wheels.map((p) => p.id),
+      ...vh.gadgets.map((p) => p.id),
+    };
+    final bodySlots = vh.body!.slots;
+    List<String?> makeSlots(List<PartData> parts, int count) {
+      final result = List<String?>.filled(count, null);
+      for (int i = 0; i < parts.length && i < count; i++) {
+        result[i] = parts[i].id;
+      }
+      return result;
+    }
+
+    final vehicle = GarageVehicle(
+      bodyId: vh.body!.id,
+      extraWeaponId: vh.extraWeapon?.id,
+      weaponSlots: makeSlots(vh.weapons, bodySlots?.weapon ?? 0),
+      wheelSlots: makeSlots(vh.wheels, bodySlots?.wheel ?? 0),
+      gadgetSlots: makeSlots(vh.gadgets, bodySlots?.gadget ?? 0),
+      levels: Map.fromEntries(
+        _partLevels.entries.where((e) => partIds.contains(e.key)),
+      ),
+      bonuses: Map.fromEntries(
+        _partExtraBonus.entries.where((e) => partIds.contains(e.key)),
+      ),
+    );
+
+    final selected = await showDialog<int>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(_t('选择保存车位', 'Select slot')),
+        contentPadding: const EdgeInsets.fromLTRB(24, 8, 24, 16),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            for (int r = 0; r < 2; r++)
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  for (int c = 0; c < 5; c++)
+                    buildSlotPickerButton(ctx, r * 5 + c + 1, slots[r * 5 + c]),
+                ],
+              ),
+          ],
+        ),
+      ),
+    );
+    if (selected == null || !mounted) return;
+
+    slots[selected - 1] = vehicle;
+    await GarageStore.save(slots);
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(_t('已保存到车位 $selected', 'Saved to slot $selected')),
+      ),
+    );
+  }
+
+  /// 保存弹窗中的单个车位按钮
+  Widget buildSlotPickerButton(BuildContext ctx, int slot, GarageVehicle? v) {
+    final filled = v != null && !v.isEmpty;
+    return Padding(
+      padding: const EdgeInsets.all(4),
+      child: Material(
+        color: filled ? Colors.teal[50] : Colors.grey[100],
+        borderRadius: BorderRadius.circular(8),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(8),
+          onTap: () async {
+            if (filled) {
+              final ok = await showDialog<bool>(
+                context: ctx,
+                builder: (c2) => AlertDialog(
+                  title: Text(_t('覆盖车位$slot？', 'Overwrite slot $slot?')),
+                  content: Text(
+                    _t('该车位已有一辆车，确定覆盖？', 'Slot already has a car. Overwrite?'),
+                  ),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(c2, false),
+                      child: Text(_t('取消', 'Cancel')),
+                    ),
+                    TextButton(
+                      onPressed: () => Navigator.pop(c2, true),
+                      child: Text(_t('覆盖', 'Overwrite')),
+                    ),
+                  ],
+                ),
+              );
+              if (ok != true) return;
+            }
+            Navigator.pop(ctx, slot);
+          },
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  _t('车位$slot', 'Slot $slot'),
+                  style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Icon(
+                  filled ? Icons.directions_car : Icons.add_circle_outline,
+                  size: 18,
+                  color: filled ? Colors.teal : Colors.grey,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     _recalc();
@@ -1058,10 +1268,10 @@ class _BuildToolScreenState extends State<BuildToolScreen> {
       body: SingleChildScrollView(
         child: Column(
           children: [
-            _buildAssemblyArea(),
-            _buildButtonRow(),
+            buildAssemblyArea(),
+            buildButtonRow(),
             const Divider(height: 1),
-            _buildPartsSelector(),
+            buildPartsSelector(),
           ],
         ),
       ),
@@ -1069,14 +1279,14 @@ class _BuildToolScreenState extends State<BuildToolScreen> {
   }
 
   // ==================== 组车区 ====================
-  Widget _buildAssemblyArea() {
+  Widget buildAssemblyArea() {
     final inAssignMode =
         _pendingAssignLevel != null || _pendingAssignBonus != null;
     return Column(
       children: [
-        if (_isAssemblyMode && inAssignMode) _buildAssignHint(),
+        if (_isAssemblyMode && inAssignMode) buildAssignHint(),
         for (int i = 0; i < _vehicles.length; i++) ...[
-          _buildSingleVehicleArea(_vehicles[i], i),
+          buildSingleVehicleArea(_vehicles[i], i),
           if (_isAssemblyMode && i < _vehicles.length - 1)
             const Divider(height: 8),
         ],
@@ -1085,7 +1295,7 @@ class _BuildToolScreenState extends State<BuildToolScreen> {
   }
 
   /// 批量赋值模式提示条
-  Widget _buildAssignHint() {
+  Widget buildAssignHint() {
     final isLv = _pendingAssignLevel != null;
     final color = isLv ? Colors.blue : Colors.deepPurple;
     final msg = isLv
@@ -1117,7 +1327,7 @@ class _BuildToolScreenState extends State<BuildToolScreen> {
     );
   }
 
-  Widget _buildSingleVehicleArea(_VehicleBuild vh, int vi) {
+  Widget buildSingleVehicleArea(_VehicleBuild vh, int vi) {
     final v = vi == _activeIndex
         ? _validation
         : CarValidation.compute(
@@ -1131,15 +1341,16 @@ class _BuildToolScreenState extends State<BuildToolScreen> {
           );
     final powerOk = v.powerSupply >= v.powerConsumption;
     final isActive = vi == _activeIndex;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return GestureDetector(
       onTap: () => setState(() => _activeIndex = vi),
       child: Container(
         padding: const EdgeInsets.all(6),
         color: isActive
-            ? Colors.blue[50]
+            ? (isDark ? const Color(0xFF0D1B2A) : Colors.blue[50])
             : _isAssemblyMode
-            ? Colors.grey[100]
-            : Colors.teal[50],
+            ? (isDark ? Colors.grey.shade900 : Colors.grey[100])
+            : (isDark ? Colors.teal.shade900 : Colors.teal[50]),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -1150,6 +1361,18 @@ class _BuildToolScreenState extends State<BuildToolScreen> {
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
+                    // 保存到车库（点击选择车位）
+                    IconButton(
+                      visualDensity: VisualDensity.compact,
+                      icon: const Icon(
+                        Icons.save_alt,
+                        size: 18,
+                        color: Colors.teal,
+                      ),
+                      tooltip: _t('保存到车库', 'Save to Garage'),
+                      onPressed: () => _saveVehicleToGarage(vh),
+                    ),
+                    const SizedBox(width: 2),
                     // 批量等级赋值（点击进入/退出赋值模式）
                     IconButton(
                       visualDensity: VisualDensity.compact,
@@ -1216,11 +1439,11 @@ class _BuildToolScreenState extends State<BuildToolScreen> {
             // ---- 属性行 ----
             Row(
               children: [
-                _statChip('HP', '${v.hp.floor()}', Colors.blue),
+                statChip('HP', '${v.hp.floor()}', Colors.blue),
                 const SizedBox(width: 4),
-                _statChip('ATK', '${v.atk.floor()}', Colors.red),
+                statChip('ATK', '${v.atk.floor()}', Colors.red),
                 const SizedBox(width: 4),
-                _statChip(
+                statChip(
                   _t('电力', 'PWR'),
                   '${v.powerConsumption}/${v.powerSupply}',
                   powerOk ? Colors.green : Colors.red,
@@ -1231,7 +1454,7 @@ class _BuildToolScreenState extends State<BuildToolScreen> {
             // ---- 插槽与加成行 ----
             Row(
               children: [
-                _statChip(
+                statChip(
                   _t('插槽', 'Slots'),
                   '${_t('武器', 'Wpn')}${v.numWeapons}/${v.numWeaponSlots} ${_t('车轮', 'Whl')}${v.numWheels}/${v.numWheelSlots} ${_t('配件', 'Gad')}${v.numGadgets}/${v.numGadgetSlots}${v.numExtraWeapons > 0 ? ' ${_t('额外武', 'X-Wpn')}1' : ''}',
                   Colors.grey,
@@ -1247,14 +1470,14 @@ class _BuildToolScreenState extends State<BuildToolScreen> {
               Row(
                 children: [
                   if (v.bodyBonusPct > 0)
-                    _statChip(
+                    statChip(
                       '${_t('车身', 'Body')}+${v.bodyBonusPct}%',
                       '',
                       Colors.orange,
                     ),
                   if (v.weaponBonusPct > 0) ...[
                     const SizedBox(width: 4),
-                    _statChip(
+                    statChip(
                       '${_t('攻击', 'ATK')}+${v.weaponBonusPct}%',
                       '',
                       Colors.red,
@@ -1262,7 +1485,7 @@ class _BuildToolScreenState extends State<BuildToolScreen> {
                   ],
                   if (v.wheelBonusPct > 0) ...[
                     const SizedBox(width: 4),
-                    _statChip(
+                    statChip(
                       '${_t('车轮', 'Wheel')}+${v.wheelBonusPct}%',
                       '',
                       Colors.green,
@@ -1270,7 +1493,7 @@ class _BuildToolScreenState extends State<BuildToolScreen> {
                   ],
                   if (v.gadgetBonusPct > 0) ...[
                     const SizedBox(width: 4),
-                    _statChip(
+                    statChip(
                       '${_t('配件', 'Gadget')}+${v.gadgetBonusPct}%',
                       '',
                       Colors.purple,
@@ -1278,7 +1501,7 @@ class _BuildToolScreenState extends State<BuildToolScreen> {
                   ],
                   if (v.sponsorBonusPct > 0) ...[
                     const SizedBox(width: 4),
-                    _statChip(
+                    statChip(
                       '${_t('赞助', 'Sponsor')}+${v.sponsorBonusPct}%',
                       '',
                       Colors.teal,
@@ -1308,7 +1531,7 @@ class _BuildToolScreenState extends State<BuildToolScreen> {
                   spacing: spacing,
                   runSpacing: spacing,
                   children: [
-                    _buildSlot(
+                    buildSlot(
                       _t('车身', 'Body'),
                       vh.body,
                       Colors.orange,
@@ -1317,7 +1540,7 @@ class _BuildToolScreenState extends State<BuildToolScreen> {
                     ),
                     ...List.generate(
                       v.numWeaponSlots,
-                      (i) => _buildSlot(
+                      (i) => buildSlot(
                         '${_t('武', 'Wpn')}${i + 1}',
                         i < vh.weapons.length ? vh.weapons[i] : null,
                         Colors.red,
@@ -1330,7 +1553,7 @@ class _BuildToolScreenState extends State<BuildToolScreen> {
                     ),
                     // 额外武器槽（仅在有武器时显示；不占普通武器槽位、不计算电力）
                     if (vh.extraWeapon != null)
-                      _buildSlot(
+                      buildSlot(
                         _t('额外武', 'X-Wpn'),
                         vh.extraWeapon,
                         Colors.brown,
@@ -1339,7 +1562,7 @@ class _BuildToolScreenState extends State<BuildToolScreen> {
                       ),
                     ...List.generate(
                       v.numWheelSlots,
-                      (i) => _buildSlot(
+                      (i) => buildSlot(
                         '${_t('轮', 'Whl')}${i + 1}',
                         i < vh.wheels.length ? vh.wheels[i] : null,
                         Colors.green,
@@ -1352,7 +1575,7 @@ class _BuildToolScreenState extends State<BuildToolScreen> {
                     ),
                     ...List.generate(
                       v.numGadgetSlots,
-                      (i) => _buildSlot(
+                      (i) => buildSlot(
                         '${_t('配', 'Gad')}${i + 1}',
                         i < vh.gadgets.length ? vh.gadgets[i] : null,
                         Colors.purple,
@@ -1373,7 +1596,7 @@ class _BuildToolScreenState extends State<BuildToolScreen> {
     );
   }
 
-  Widget _statChip(String label, String value, Color color) {
+  Widget statChip(String label, String value, Color color) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
       decoration: BoxDecoration(
@@ -1391,13 +1614,14 @@ class _BuildToolScreenState extends State<BuildToolScreen> {
     );
   }
 
-  Widget _buildSlot(
+  Widget buildSlot(
     String label,
     PartData? part,
     Color color,
     VoidCallback onRemove,
     double w,
   ) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return GestureDetector(
       onTap: part != null ? () => _handleSlotTap(part, onRemove) : null,
       child: Container(
@@ -1405,10 +1629,12 @@ class _BuildToolScreenState extends State<BuildToolScreen> {
         decoration: BoxDecoration(
           border: Border.all(color: color, width: part != null ? 2 : 1),
           borderRadius: BorderRadius.circular(6),
-          color: part != null ? color.withValues(alpha: 0.15) : Colors.white,
+          color: part != null
+              ? color.withValues(alpha: 0.15)
+              : (isDark ? Colors.grey.shade900 : Colors.white),
         ),
         child: part != null
-            ? _buildSlotContent(part, color, onRemove)
+            ? buildSlotContent(part, color, onRemove)
             : Center(
                 child: Text(
                   label,
@@ -1419,7 +1645,7 @@ class _BuildToolScreenState extends State<BuildToolScreen> {
     );
   }
 
-  Widget _buildSlotContent(PartData part, Color color, VoidCallback onRemove) {
+  Widget buildSlotContent(PartData part, Color color, VoidCallback onRemove) {
     final lv = _level(part);
     final xb = _extraBonus(part);
     // 计算赋值后的数据（含额外加成独立乘区）
@@ -1487,7 +1713,7 @@ class _BuildToolScreenState extends State<BuildToolScreen> {
     );
   }
 
-  Widget _buildButtonRow() {
+  Widget buildButtonRow() {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
       child: Row(
@@ -1557,7 +1783,7 @@ class _BuildToolScreenState extends State<BuildToolScreen> {
   }
 
   // ==================== 部件备选区 ====================
-  Widget _buildPartsSelector() {
+  Widget buildPartsSelector() {
     // 根据当前模式筛选部件
     List<PartData> parts;
     final db = PartDatabase.partsForServer(widget.server);
@@ -1618,7 +1844,7 @@ class _BuildToolScreenState extends State<BuildToolScreen> {
     return Column(
       children: [
         // ---- 筛选/搜索控件 ----
-        if (_isFilterMode) _buildFilterChips() else _buildSearchBar(),
+        if (_isFilterMode) buildFilterChips() else buildSearchBar(),
         // ---- 网格 ----
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 8),
@@ -1632,14 +1858,14 @@ class _BuildToolScreenState extends State<BuildToolScreen> {
               mainAxisSpacing: 6,
             ),
             itemCount: parts.length,
-            itemBuilder: (_, i) => _buildPartCard(parts[i]),
+            itemBuilder: (_, i) => buildPartCard(parts[i]),
           ),
         ),
       ],
     );
   }
 
-  Widget _buildFilterChips() {
+  Widget buildFilterChips() {
     return Column(
       children: [
         // 分类筛选
@@ -1719,7 +1945,7 @@ class _BuildToolScreenState extends State<BuildToolScreen> {
   }
 
   /// 水平居中的可滚动按钮行（内容不足时居中，超出时可横向滚动）
-  Widget _buildCenteredChipRow(List<Widget> children) {
+  Widget buildCenteredChipRow(List<Widget> children) {
     return LayoutBuilder(
       builder: (context, constraints) {
         return SingleChildScrollView(
@@ -1736,7 +1962,7 @@ class _BuildToolScreenState extends State<BuildToolScreen> {
     );
   }
 
-  Widget _buildSearchBar() {
+  Widget buildSearchBar() {
     return Column(
       children: [
         // 搜索框
@@ -1771,7 +1997,7 @@ class _BuildToolScreenState extends State<BuildToolScreen> {
         // 类型筛选
         Container(
           padding: const EdgeInsets.symmetric(vertical: 2),
-          child: _buildCenteredChipRow(
+          child: buildCenteredChipRow(
             PartCategory.values.map((cat) {
               final labels = {
                 PartCategory.body: _t('车身', 'Body'),
@@ -1813,7 +2039,7 @@ class _BuildToolScreenState extends State<BuildToolScreen> {
         // 稀有度筛选
         Container(
           padding: const EdgeInsets.symmetric(vertical: 2, horizontal: 8),
-          child: _buildCenteredChipRow(
+          child: buildCenteredChipRow(
             Rarity.values.map((r) {
               final selected = _searchRarities.contains(r);
               return Padding(
@@ -1842,21 +2068,21 @@ class _BuildToolScreenState extends State<BuildToolScreen> {
           child: Row(
             children: [
               Expanded(
-                child: _buildMinInput(
+                child: buildMinInput(
                   label: _t('ATK≥', 'ATK≥'),
                   controller: _searchAtkController,
                   onChanged: (_) => setState(() {
-                    _searchMinAtk = _parseMin(_searchAtkController.text);
+                    _searchMinAtk = parseMin(_searchAtkController.text);
                   }),
                 ),
               ),
               const SizedBox(width: 8),
               Expanded(
-                child: _buildMinInput(
+                child: buildMinInput(
                   label: _t('HP≥', 'HP≥'),
                   controller: _searchHpController,
                   onChanged: (_) => setState(() {
-                    _searchMinHp = _parseMin(_searchHpController.text);
+                    _searchMinHp = parseMin(_searchHpController.text);
                   }),
                 ),
               ),
@@ -1866,7 +2092,7 @@ class _BuildToolScreenState extends State<BuildToolScreen> {
         // 排序
         Container(
           padding: const EdgeInsets.symmetric(vertical: 2, horizontal: 8),
-          child: _buildCenteredChipRow([
+          child: buildCenteredChipRow([
             for (final s in const [
               (1, 'ATK↑', 'ATK↑'),
               (2, 'ATK↓', 'ATK↓'),
@@ -1891,13 +2117,13 @@ class _BuildToolScreenState extends State<BuildToolScreen> {
   }
 
   /// 解析手动输入的下限值（非法/负数视为 0=不限）
-  int _parseMin(String text) {
+  int parseMin(String text) {
     final v = int.tryParse(text.trim());
     return v == null || v < 0 ? 0 : v;
   }
 
   /// 精确检索：ATK/HP 筛选下限手动输入框
-  Widget _buildMinInput({
+  Widget buildMinInput({
     required String label,
     required TextEditingController controller,
     required ValueChanged<String> onChanged,
@@ -1931,15 +2157,16 @@ class _BuildToolScreenState extends State<BuildToolScreen> {
     }
   }
 
-  Widget _buildPartCard(PartData part) {
+  Widget buildPartCard(PartData part) {
     final isUsed = _isPartUsedAnywhere(part);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return GestureDetector(
-      onTap: () => _isAssemblyMode ? _tryAddPart(part) : _showPartData(part),
+      onTap: () => _isAssemblyMode ? tryAddPart(part) : showPartData(part),
       child: Card(
         color: _isAssemblyMode && isUsed
-            ? Colors.green[100]
+            ? (isDark ? Colors.green.shade900 : Colors.green[100])
             : !_isAssemblyMode
-            ? Colors.teal[50]
+            ? (isDark ? Colors.teal.shade900 : Colors.teal[50])
             : null,
         elevation: isUsed ? 4 : 1,
         child: Padding(
@@ -2032,7 +2259,7 @@ class _BuildToolScreenState extends State<BuildToolScreen> {
     );
   }
 
-  void _tryAddPart(PartData part) {
+  void tryAddPart(PartData part) {
     setState(() {
       final v = _activeVehicle;
 
@@ -2102,7 +2329,7 @@ class _BuildToolScreenState extends State<BuildToolScreen> {
     });
   }
 
-  void _showPartData(PartData part) {
+  void showPartData(PartData part) {
     Navigator.push(
       context,
       MaterialPageRoute(
@@ -2358,6 +2585,7 @@ class _PartDataScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     String t(String zh, String en) => locale == 'zh' ? zh : en;
     final sd = kPartShapeData[part.id];
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Scaffold(
       appBar: AppBar(title: Text(pn(part, locale)), centerTitle: true),
       body: SingleChildScrollView(
@@ -2366,15 +2594,15 @@ class _PartDataScreen extends StatelessWidget {
           children: [
             // ---- 概览卡片 ----
             Card(
-              color: _categoryColor(part.category).withValues(alpha: 0.08),
+              color: categoryColor(part.category).withValues(alpha: 0.08),
               child: Padding(
                 padding: const EdgeInsets.all(12),
                 child: Row(
                   children: [
                     Icon(
-                      _categoryIcon(part.category),
+                      categoryIcon(part.category),
                       size: 40,
-                      color: _categoryColor(part.category),
+                      color: categoryColor(part.category),
                     ),
                     const SizedBox(width: 12),
                     Column(
@@ -2411,22 +2639,22 @@ class _PartDataScreen extends StatelessWidget {
             const SizedBox(height: 8),
             // ---- 基础属性 ----
             if (part.hp1 > 0)
-              _chip(t('HP基础', 'Base HP'), part.hp1.toString(), Colors.blue),
+              chip(t('HP基础', 'Base HP'), part.hp1.toString(), Colors.blue),
             if (part.atk1 > 0)
-              _chip(t('ATK基础', 'Base ATK'), part.atk1.toString(), Colors.red),
-            _chip(
+              chip(t('ATK基础', 'Base ATK'), part.atk1.toString(), Colors.red),
+            chip(
               t('电力', 'PWR'),
               part.power >= 0 ? '+${part.power}' : part.power.toString(),
               Colors.amber[800]!,
             ),
             if (part.slots != null)
-              _chip(t('插槽', 'Slots'), part.slotsLabelEn(locale), Colors.grey),
+              chip(t('插槽', 'Slots'), part.slotsLabelEn(locale), Colors.grey),
             if (part.bonus != null)
-              _chip(t('加成', 'Bonus'), part.bonusLabelEn(locale), Colors.orange),
+              chip(t('加成', 'Bonus'), part.bonusLabelEn(locale), Colors.orange),
             if (part.partClass != PartClass.none)
-              _chip(t('类型', 'Class'), part.classLabelEn(locale), Colors.brown),
+              chip(t('类型', 'Class'), part.classLabelEn(locale), Colors.brown),
             if (part.mHp1 > 0)
-              _chip(t('随从HP', 'Minion HP'), part.mHp1.toString(), Colors.teal),
+              chip(t('随从HP', 'Minion HP'), part.mHp1.toString(), Colors.teal),
             // ---- 形状 / 插槽位置 / 面积 / 密度 / 重量（仅国际服） ----
             if (server == 'intl' && sd != null) ...[
               const SizedBox(height: 12),
@@ -2448,14 +2676,14 @@ class _PartDataScreen extends StatelessWidget {
                 style: TextStyle(fontSize: 11, color: Colors.grey[600]),
               ),
               const SizedBox(height: 8),
-              _chip(t('面积', 'Area'), sd.area.toStringAsFixed(1), Colors.indigo),
-              _chip(t('密度', 'Density'), '${sd.density}', Colors.brown),
-              _chip(
+              chip(t('面积', 'Area'), sd.area.toStringAsFixed(1), Colors.indigo),
+              chip(t('密度', 'Density'), '${sd.density}', Colors.brown),
+              chip(
                 t('重量', 'Weight'),
                 sd.weight.toStringAsFixed(1),
                 Colors.deepOrange,
               ),
-              _chip(
+              chip(
                 t('形状', 'Shape'),
                 sd.shapeType == 'circle'
                     ? 'circle r=${sd.radius}'
@@ -2474,7 +2702,9 @@ class _PartDataScreen extends StatelessWidget {
               scrollDirection: Axis.horizontal,
               child: DataTable(
                 columnSpacing: 12,
-                headingRowColor: WidgetStateProperty.all(Colors.blue[50]),
+                headingRowColor: WidgetStateProperty.all(
+                  isDark ? const Color(0xFF0D1B2A) : Colors.blue[50],
+                ),
                 columns: [
                   DataColumn(
                     label: Text(
@@ -2654,7 +2884,7 @@ class _PartDataScreen extends StatelessWidget {
     );
   }
 
-  Widget _chip(String label, String value, Color color) {
+  Widget chip(String label, String value, Color color) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 2),
       child: Row(
@@ -2681,7 +2911,7 @@ class _PartDataScreen extends StatelessWidget {
     );
   }
 
-  IconData _categoryIcon(PartCategory c) {
+  IconData categoryIcon(PartCategory c) {
     switch (c) {
       case PartCategory.body:
         return Icons.directions_car;
@@ -2694,7 +2924,7 @@ class _PartDataScreen extends StatelessWidget {
     }
   }
 
-  Color _categoryColor(PartCategory c) {
+  Color categoryColor(PartCategory c) {
     switch (c) {
       case PartCategory.body:
         return Colors.orange;
@@ -2713,6 +2943,7 @@ class SettingsScreen extends StatefulWidget {
   final String currentLocale;
   final String currentServer;
   final bool currentShowSnackBar;
+  final bool currentDarkMode;
   final String currentGithubUpdateUrl;
   final String currentMirrorUrl;
 
@@ -2721,6 +2952,7 @@ class SettingsScreen extends StatefulWidget {
     required this.currentLocale,
     this.currentServer = 'cn',
     required this.currentShowSnackBar,
+    this.currentDarkMode = false,
     required this.currentGithubUpdateUrl,
     required this.currentMirrorUrl,
   });
@@ -2733,6 +2965,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   late String locale;
   late String server;
   late bool showSnackBar;
+  late bool darkMode;
   late TextEditingController updateUrlController;
   late TextEditingController mirrorController;
   late TextEditingController downloadPathController;
@@ -2774,6 +3007,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       locale = 'zh';
     }
     showSnackBar = widget.currentShowSnackBar;
+    darkMode = widget.currentDarkMode;
     updateUrlController = TextEditingController(
       text: widget.currentGithubUpdateUrl,
     );
@@ -3490,6 +3724,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             'locale': locale,
             'server': server,
             'showSnackBar': showSnackBar,
+            'darkMode': darkMode,
             'githubUpdateUrl': updateUrlController.text.trim(),
             'mirrorUrl': mirrorController.text.trim(),
           });
@@ -3592,6 +3827,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 });
               },
             ),
+            SwitchListTile(
+              title: Text(locale == 'zh' ? '夜间模式' : 'Dark mode'),
+              subtitle: Text(locale == 'zh' ? '使用深色主题' : 'Use dark theme'),
+              value: darkMode,
+              onChanged: (value) {
+                setState(() {
+                  darkMode = value;
+                });
+              },
+            ),
             const Divider(),
             Padding(
               padding: const EdgeInsets.all(16.0),
@@ -3601,6 +3846,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     'locale': locale,
                     'server': server,
                     'showSnackBar': showSnackBar,
+                    'darkMode': darkMode,
                     'githubUpdateUrl': updateUrlController.text.trim(),
                     'mirrorUrl': mirrorController.text.trim(),
                   });
