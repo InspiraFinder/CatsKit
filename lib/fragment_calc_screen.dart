@@ -122,6 +122,7 @@ class _FragmentCalcScreenState extends State<FragmentCalcScreen> {
     final rows = _computeRows();
     final reachable = _maxReachableLevel(rows);
     final cur = _currentLevel.clamp(1, _maxLevel);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
       appBar: AppBar(
@@ -223,7 +224,9 @@ class _FragmentCalcScreenState extends State<FragmentCalcScreen> {
                 scrollDirection: Axis.horizontal,
                 child: DataTable(
                   columnSpacing: 16,
-                  headingRowColor: WidgetStateProperty.all(Colors.indigo[50]),
+                  headingRowColor: WidgetStateProperty.all(
+                    isDark ? const Color(0xFF0E1026) : Colors.indigo[50],
+                  ),
                   columns: [
                     DataColumn(
                       label: Text(
@@ -268,9 +271,13 @@ class _FragmentCalcScreenState extends State<FragmentCalcScreen> {
                         color: WidgetStatePropertyAll(
                           row.remaining >= 0
                               ? (row.targetLevel == reachable
-                                    ? Colors.green[100]
+                                    ? (isDark
+                                          ? Colors.green.shade900
+                                          : Colors.green[100])
                                     : null)
-                              : Colors.red[50],
+                              : (isDark
+                                    ? Colors.brown.shade900
+                                    : Colors.red[50]),
                         ),
                         cells: [
                           DataCell(
@@ -309,13 +316,16 @@ class _FragmentCalcScreenState extends State<FragmentCalcScreen> {
 
   /// 结果摘要卡片
   Widget _buildSummary(int cur, int? reachable) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.indigo[50],
+        color: isDark ? const Color(0xFF0E1026) : Colors.indigo[50],
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: Colors.indigo.shade200),
+        border: Border.all(
+          color: isDark ? Colors.indigo.shade400 : Colors.indigo.shade200,
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

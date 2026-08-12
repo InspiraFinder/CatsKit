@@ -39,6 +39,7 @@ class PartShapeView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -46,13 +47,15 @@ class PartShapeView extends StatelessWidget {
           height: height,
           width: double.infinity,
           decoration: BoxDecoration(
-            border: Border.all(color: Colors.grey[300]!),
+            border: Border.all(
+              color: isDark ? Colors.grey.shade800 : Colors.grey[300]!,
+            ),
             borderRadius: BorderRadius.circular(8),
           ),
           child: ClipRRect(
             borderRadius: BorderRadius.circular(8),
             child: CustomPaint(
-              painter: _ShapePainter(data),
+              painter: _ShapePainter(data, isDark),
               child: const SizedBox.expand(),
             ),
           ),
@@ -86,7 +89,8 @@ class PartShapeView extends StatelessWidget {
 
 class _ShapePainter extends CustomPainter {
   final PartShapeData data;
-  _ShapePainter(this.data);
+  final bool isDark;
+  _ShapePainter(this.data, this.isDark);
 
   static const double _pad = 18.0;
   static const double _gridSize = 20.0;
@@ -96,12 +100,13 @@ class _ShapePainter extends CustomPainter {
     // 背景
     canvas.drawRect(
       Offset.zero & size,
-      Paint()..color = const Color(0xFFFAFAFA),
+      Paint()
+        ..color = isDark ? const Color(0xFF212121) : const Color(0xFFFAFAFA),
     );
 
     // 方格纸（单位长度统一）
     final gridPaint = Paint()
-      ..color = const Color(0xFFE3E3E3)
+      ..color = isDark ? const Color(0xFF424242) : const Color(0xFFE3E3E3)
       ..strokeWidth = 0.6;
     for (double x = 0; x <= size.width; x += _gridSize) {
       canvas.drawLine(Offset(x, 0), Offset(x, size.height), gridPaint);
@@ -228,7 +233,7 @@ class _ShapePainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant _ShapePainter oldDelegate) =>
-      oldDelegate.data != data;
+      oldDelegate.data != data || oldDelegate.isDark != isDark;
 }
 
 /// 图例标记（按插槽类型绘制形状）
