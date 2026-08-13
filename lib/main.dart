@@ -16,7 +16,7 @@ import 'parts_data.dart';
 import 'parts_shape_data.dart';
 import 'time_calc_screen.dart';
 
-const String appVersion = '1.2.1';
+const String appVersion = '1.2.2';
 
 /// 获取部件在当前语言下的显示名称
 String pn(PartData part, String? locale) {
@@ -854,7 +854,15 @@ class _MainMenuScreenState extends State<MainMenuScreen> {
 class BuildToolScreen extends StatefulWidget {
   final String locale;
   final String server;
-  const BuildToolScreen({super.key, this.locale = 'zh', this.server = 'cn'});
+
+  /// 初始车辆（从车库“重新组车”跳转时传入，null 表示空车）
+  final GarageVehicle? initialVehicle;
+  const BuildToolScreen({
+    super.key,
+    this.locale = 'zh',
+    this.server = 'cn',
+    this.initialVehicle,
+  });
 
   @override
   State<BuildToolScreen> createState() => _BuildToolScreenState();
@@ -923,6 +931,10 @@ class _BuildToolScreenState extends State<BuildToolScreen> {
   void initState() {
     super.initState();
     _loadPrefs();
+    final iv = widget.initialVehicle;
+    if (iv != null) {
+      _applyInitialVehicle(iv);
+    }
   }
 
   /// 读取持久化的显示设置
@@ -955,6 +967,41 @@ class _BuildToolScreenState extends State<BuildToolScreen> {
       _partLevels,
       _partExtraBonus,
     );
+  }
+
+  /// 从车库车辆数据恢复组车区（用于“重新组车”）
+  void _applyInitialVehicle(GarageVehicle v) {
+    if (v.isEmpty) return;
+    final byId = {
+      for (final p in PartDatabase.partsForServer(widget.server)) p.id: p,
+    };
+    PartData? find(String? id) => (id == null || id.isEmpty) ? null : byId[id];
+
+    List<PartData> resolve(List<String?> slots) => [
+      for (final id in slots)
+        if (id != null && byId.containsKey(id)) byId[id]!,
+    ];
+
+    final build = _vehicles.first;
+    build.body = find(v.bodyId);
+    build.extraWeapon = find(v.extraWeaponId);
+    build.weapons
+      ..clear()
+      ..addAll(resolve(v.weaponSlots));
+    build.wheels
+      ..clear()
+      ..addAll(resolve(v.wheelSlots));
+    build.gadgets
+      ..clear()
+      ..addAll(resolve(v.gadgetSlots));
+
+    for (final e in v.levels.entries) {
+      _partLevels[e.key] = e.value;
+    }
+    for (final e in v.bonuses.entries) {
+      _partExtraBonus[e.key] = e.value;
+    }
+    _recalc();
   }
 
   int _level(PartData p) => _partLevels[p.id] ?? 1;

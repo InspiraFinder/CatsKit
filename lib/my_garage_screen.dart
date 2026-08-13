@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import 'garage_data.dart';
+import 'main.dart';
 import 'part_shape_view.dart' show hexagonPath;
 import 'parts_data.dart';
 import 'parts_shape_data.dart';
@@ -47,6 +48,7 @@ class _MyGarageScreenState extends State<MyGarageScreen> {
   bool _showSlotNumbers = true;
   bool _swapMode = false;
   _ReorderEntry? _selectedPart; // 调整模式下选中的部件
+  double _shapeZoom = 1.0; // 形状缩放倍数
   late Map<String, PartData> _partById;
   final TextEditingController _codeController = TextEditingController();
 
@@ -176,6 +178,7 @@ class _MyGarageScreenState extends State<MyGarageScreen> {
         _selectedSlot = i;
         _swapMode = false;
         _selectedPart = null;
+        _shapeZoom = 1.0;
       }),
       child: Container(
         width: 62,
@@ -262,9 +265,9 @@ class _MyGarageScreenState extends State<MyGarageScreen> {
     return ListView(
       padding: const EdgeInsets.all(12),
       children: [
+        if (_isIntl) _buildShapeToolbar(v) else _buildRebuildButton(v),
+        const SizedBox(height: 12),
         if (_isIntl) ...[
-          _buildShapeToolbar(),
-          const SizedBox(height: 8),
           if (bodyShape != null) ...[
             _GarageShapeView(
               bodyData: bodyShape,
@@ -272,6 +275,7 @@ class _MyGarageScreenState extends State<MyGarageScreen> {
               showNumbers: _showSlotNumbers,
               locale: widget.locale,
               centerOfGravity: mass?.centerOfGravity,
+              zoom: _shapeZoom,
             ),
             if (mass != null) ...[
               const SizedBox(height: 6),
@@ -287,6 +291,8 @@ class _MyGarageScreenState extends State<MyGarageScreen> {
                 ),
               ),
             ],
+            const SizedBox(height: 4),
+            _buildZoomSlider(),
           ] else
             Text(
               _t('该车身暂无形状数据', 'No shape data for this body'),
@@ -301,6 +307,46 @@ class _MyGarageScreenState extends State<MyGarageScreen> {
         const SizedBox(height: 16),
       ],
     );
+  }
+
+  /// “重新组车”按钮：带着当前车位的车跳转到组车工具
+  Widget _buildRebuildButton(GarageVehicle v) {
+    return SizedBox(width: double.infinity, child: _rebuildButton(v));
+  }
+
+  /// “重新组车”按钮本体（可单独整行，也可与形状工具栏同排）
+  Widget _rebuildButton(GarageVehicle v) {
+    return ElevatedButton.icon(
+      onPressed: () => _rebuildVehicle(v),
+      icon: const Icon(Icons.build, size: 18),
+      label: Text(
+        _t('重新组车', 'Rebuild'),
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: const TextStyle(fontSize: 14),
+      ),
+      style: ElevatedButton.styleFrom(
+        backgroundColor: Colors.indigo,
+        foregroundColor: Colors.white,
+        padding: const EdgeInsets.symmetric(vertical: 12),
+      ),
+    );
+  }
+
+  /// 跳转到组车工具，返回后刷新车库数据
+  Future<void> _rebuildVehicle(GarageVehicle v) async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => BuildToolScreen(
+          locale: widget.locale,
+          server: widget.server,
+          initialVehicle: v,
+        ),
+      ),
+    );
+    if (!mounted) return;
+    await _load();
   }
 
   /// 构建与车身插槽一一对应的部件形状列表
@@ -413,9 +459,11 @@ class _MyGarageScreenState extends State<MyGarageScreen> {
     );
   }
 
-  Widget _buildShapeToolbar() {
+  Widget _buildShapeToolbar(GarageVehicle v) {
     return Row(
       children: [
+        Expanded(child: _rebuildButton(v)),
+        const SizedBox(width: 8),
         Expanded(
           child: ElevatedButton.icon(
             onPressed: () =>
@@ -454,6 +502,35 @@ class _MyGarageScreenState extends State<MyGarageScreen> {
               foregroundColor: Colors.white,
               padding: const EdgeInsets.symmetric(vertical: 10),
             ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// 形状缩放滑条（横向滑动缩放，附百分比显示）
+  Widget _buildZoomSlider() {
+    return Row(
+      children: [
+        const Icon(Icons.zoom_out, size: 18, color: Colors.grey),
+        Expanded(
+          child: Slider(
+            value: _shapeZoom,
+            min: 0.5,
+            max: 3.0,
+            divisions: 25,
+            label: '${(_shapeZoom * 100).round()}%',
+            onChanged: (v) => setState(() => _shapeZoom = v),
+          ),
+        ),
+        const Icon(Icons.zoom_in, size: 18, color: Colors.grey),
+        const SizedBox(width: 4),
+        SizedBox(
+          width: 40,
+          child: Text(
+            '${(_shapeZoom * 100).round()}%',
+            textAlign: TextAlign.right,
+            style: const TextStyle(fontSize: 12),
           ),
         ),
       ],
@@ -1156,12 +1233,14 @@ class _GarageShapeView extends StatelessWidget {
   final bool showNumbers;
   final String locale;
   final Offset? centerOfGravity;
+  final double zoom;
   const _GarageShapeView({
     required this.bodyData,
     required this.slotParts,
     required this.showNumbers,
     required this.locale,
     this.centerOfGravity,
+    this.zoom = 1.0,
   });
 
   @override
@@ -1186,6 +1265,7 @@ class _GarageShapeView extends StatelessWidget {
             locale,
             centerOfGravity,
             isDark,
+            zoom,
           ),
           child: const SizedBox.expand(),
         ),
@@ -1201,6 +1281,7 @@ class _GaragePainter extends CustomPainter {
   final String locale;
   final Offset? centerOfGravity;
   final bool isDark;
+  final double zoom;
 
   _GaragePainter(
     this.bodyData,
@@ -1209,6 +1290,7 @@ class _GaragePainter extends CustomPainter {
     this.locale,
     this.centerOfGravity,
     this.isDark,
+    this.zoom,
   );
 
   static const double _pad = 18.0;
@@ -1239,25 +1321,37 @@ class _GaragePainter extends CustomPainter {
     final bw = math.max(bbox.width, 0.001);
     final bh = math.max(bbox.height, 0.001);
     final scale = math.min(contentW / bw, contentH / bh);
+    final effScale = scale * zoom;
     Offset tr(Offset p) => Offset(
-      (size.width - bbox.width * scale) / 2 - bbox.left * scale + p.dx * scale,
-      (size.height - bbox.height * scale) / 2 - bbox.top * scale + p.dy * scale,
+      (size.width - bbox.width * effScale) / 2 -
+          bbox.left * effScale +
+          p.dx * effScale,
+      (size.height - bbox.height * effScale) / 2 -
+          bbox.top * effScale +
+          p.dy * effScale,
     );
 
     // 层1：车轮（底层，叠在车身下）
     for (int i = 0; i < bodyData.slots.length; i++) {
       if (bodyData.slots[i].type == 'wheel' && slotParts[i] != null) {
-        _drawPart(canvas, slotParts[i]!, bodyData.slots[i], tr, scale, 'wheel');
+        _drawPart(
+          canvas,
+          slotParts[i]!,
+          bodyData.slots[i],
+          tr,
+          effScale,
+          'wheel',
+        );
       }
     }
     // 层2：车身
-    _drawBody(canvas, tr, scale);
+    _drawBody(canvas, tr, effScale);
     // 层3：武器 / 特殊武器 / 配件（顶层，叠在车身上）
     for (int i = 0; i < bodyData.slots.length; i++) {
       final t = bodyData.slots[i].type;
       if (t == 'wheel') continue;
       if (slotParts[i] != null) {
-        _drawPart(canvas, slotParts[i]!, bodyData.slots[i], tr, scale, t);
+        _drawPart(canvas, slotParts[i]!, bodyData.slots[i], tr, effScale, t);
       }
     }
     // 层4：插槽定位图形 + 编号（字符在图形外）
@@ -1275,6 +1369,8 @@ class _GaragePainter extends CustomPainter {
     if (centerOfGravity != null) {
       _drawCenterOfGravity(canvas, tr(centerOfGravity!));
     }
+    // 层6：比例尺（左下角，与背景方格同步，标注实际意义长度）
+    _drawScaleBar(canvas, size, effScale);
   }
 
   Color _partFillColor(String type) {
@@ -1496,6 +1592,63 @@ class _GaragePainter extends CustomPainter {
     );
   }
 
+  /// 比例尺：与背景方格同步，展示 1 格与 5 格代表的实际长度（数据单位，非屏幕像素）
+  void _drawScaleBar(Canvas canvas, Size size, double effScale) {
+    const cells = 5;
+    final x0 = _gridSize * 2; // 从格线处起画，保证刻度与背景方格线对齐
+    final x1 = x0 + cells * _gridSize;
+    final y = size.height - 14.0;
+    final paint = Paint()
+      ..color = isDark ? Colors.white70 : Colors.black54
+      ..strokeWidth = 1.4;
+    // 主横线（总长 5 格）
+    canvas.drawLine(Offset(x0, y), Offset(x1, y), paint);
+    // 每个格线处画刻度（与背景方格对齐），端部刻度加高
+    for (int i = 0; i <= cells; i++) {
+      final x = x0 + i * _gridSize;
+      final isEnd = i == 0 || i == cells;
+      canvas.drawLine(
+        Offset(x, y - (isEnd ? 5 : 3)),
+        Offset(x, y + (isEnd ? 5 : 3)),
+        paint,
+      );
+    }
+    // 每格代表的数据长度 = 屏幕格子像素 ÷ 数据到画布的缩放比
+    final perCell = _gridSize / effScale;
+    final zh = locale == 'zh';
+    final oneLen = perCell.round();
+    final fiveLen = (perCell * cells).round();
+    // “1格”标签：第一个方格上方（标注实际意义长度）
+    _paintScaleText(
+      canvas,
+      zh ? '1格≈$oneLen' : '1 cell≈$oneLen',
+      x0 + _gridSize / 2,
+      y - 6,
+    );
+    // “5格”标签：整条比例尺末端（标注实际意义长度）
+    _paintScaleText(canvas, zh ? '5格≈$fiveLen' : '5 cells≈$fiveLen', x1, y - 6);
+  }
+
+  /// 在指定中心 x、基准线 bottomY 上方绘制比例尺标签
+  void _paintScaleText(
+    Canvas canvas,
+    String text,
+    double centerX,
+    double bottomY,
+  ) {
+    final tp = TextPainter(
+      text: TextSpan(
+        text: text,
+        style: TextStyle(
+          fontSize: 10,
+          color: isDark ? Colors.white70 : Colors.black54,
+        ),
+      ),
+      textDirection: TextDirection.ltr,
+    )..layout();
+    tp.paint(canvas, Offset(centerX - tp.width / 2, bottomY - tp.height));
+  }
+
   @override
   bool shouldRepaint(covariant _GaragePainter oldDelegate) =>
       oldDelegate.bodyData != bodyData ||
@@ -1503,5 +1656,6 @@ class _GaragePainter extends CustomPainter {
       oldDelegate.showNumbers != showNumbers ||
       oldDelegate.locale != locale ||
       oldDelegate.centerOfGravity != centerOfGravity ||
-      oldDelegate.isDark != isDark;
+      oldDelegate.isDark != isDark ||
+      oldDelegate.zoom != zoom;
 }
