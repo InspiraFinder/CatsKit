@@ -16,7 +16,7 @@ import 'parts_data.dart';
 import 'parts_shape_data.dart';
 import 'time_calc_screen.dart';
 
-const String appVersion = '1.2.0';
+const String appVersion = '1.2.1';
 
 /// 获取部件在当前语言下的显示名称
 String pn(PartData part, String? locale) {
@@ -1130,14 +1130,15 @@ class _BuildToolScreenState extends State<BuildToolScreen> {
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            for (int r = 0; r < 2; r++)
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: [
-                  for (int c = 0; c < 5; c++)
-                    buildSlotPickerButton(ctx, r * 5 + c + 1, slots[r * 5 + c]),
-                ],
-              ),
+            Wrap(
+              alignment: WrapAlignment.center,
+              spacing: 6,
+              runSpacing: 6,
+              children: [
+                for (int i = 0; i < GarageStore.slotCount; i++)
+                  buildSlotPickerButton(ctx, i + 1, slots[i]),
+              ],
+            ),
           ],
         ),
       ),
@@ -1158,7 +1159,7 @@ class _BuildToolScreenState extends State<BuildToolScreen> {
   Widget buildSlotPickerButton(BuildContext ctx, int slot, GarageVehicle? v) {
     final filled = v != null && !v.isEmpty;
     return Padding(
-      padding: const EdgeInsets.all(4),
+      padding: const EdgeInsets.all(2),
       child: Material(
         color: filled ? Colors.teal[50] : Colors.grey[100],
         borderRadius: BorderRadius.circular(8),
@@ -1190,21 +1191,21 @@ class _BuildToolScreenState extends State<BuildToolScreen> {
             Navigator.pop(ctx, slot);
           },
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
                   _t('车位$slot', 'Slot $slot'),
                   style: const TextStyle(
-                    fontSize: 13,
+                    fontSize: 11,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
-                const SizedBox(height: 2),
+                const SizedBox(height: 1),
                 Icon(
                   filled ? Icons.directions_car : Icons.add_circle_outline,
-                  size: 18,
+                  size: 14,
                   color: filled ? Colors.teal : Colors.grey,
                 ),
               ],

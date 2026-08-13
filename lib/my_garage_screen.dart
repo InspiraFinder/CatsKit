@@ -150,13 +150,16 @@ class _MyGarageScreenState extends State<MyGarageScreen> {
             style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 8),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              for (int i = 0; i < GarageStore.slotCount; i++)
-                _buildSlotButton(i),
-            ],
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: [
+                for (int i = 0; i < GarageStore.slotCount; i++) ...[
+                  if (i > 0) const SizedBox(width: 8),
+                  _buildSlotButton(i),
+                ],
+              ],
+            ),
           ),
         ],
       ),
@@ -221,24 +224,30 @@ class _MyGarageScreenState extends State<MyGarageScreen> {
 
   Widget _buildEmpty() {
     return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          const Icon(Icons.garage_outlined, size: 72, color: Colors.grey),
-          const SizedBox(height: 12),
-          Text(
-            _t('该车位为空', 'This slot is empty'),
-            style: TextStyle(fontSize: 16, color: Colors.grey[600]),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            _t(
-              '请先在「组车工具」中组好车并保存到车位',
-              'Build a car in the Build Tool and save it to a slot',
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.garage_outlined, size: 72, color: Colors.grey),
+            const SizedBox(height: 12),
+            Text(
+              _t('该车位为空', 'This slot is empty'),
+              style: TextStyle(fontSize: 16, color: Colors.grey[600]),
             ),
-            style: TextStyle(fontSize: 13, color: Colors.grey[500]),
-          ),
-        ],
+            const SizedBox(height: 4),
+            Text(
+              _t(
+                '请先在「组车工具」中组好车并保存到车位，\n或粘贴车辆码导入到该车位',
+                'Build a car in the Build Tool and save it to a slot,\nor paste a vehicle code to import into this slot',
+              ),
+              style: TextStyle(fontSize: 13, color: Colors.grey[500]),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 16),
+            _buildCodeImportField(),
+          ],
+        ),
       ),
     );
   }
@@ -751,34 +760,39 @@ class _MyGarageScreenState extends State<MyGarageScreen> {
           ),
         ),
         const SizedBox(height: 8),
-        Row(
-          children: [
-            Expanded(
-              child: TextField(
-                controller: _codeController,
-                decoration: InputDecoration(
-                  hintText: _t('粘贴车辆码…', 'Paste vehicle code…'),
-                  isDense: true,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                ),
-                style: const TextStyle(fontSize: 12),
-              ),
-            ),
-            const SizedBox(width: 8),
-            ElevatedButton.icon(
-              onPressed: _importFromCode,
-              icon: const Icon(Icons.download, size: 18),
-              label: Text(_t('导入', 'Import')),
-            ),
-          ],
-        ),
+        _buildCodeImportField(),
         const SizedBox(height: 6),
         OutlinedButton.icon(
           onPressed: () => _copyVehicleCode(v),
           icon: const Icon(Icons.copy, size: 16),
           label: Text(_t('复制车辆码', 'Copy code')),
+        ),
+      ],
+    );
+  }
+
+  /// 粘贴车辆码并导入的输入框 + 按钮（空车位与非空车位共用）
+  Widget _buildCodeImportField() {
+    return Row(
+      children: [
+        Expanded(
+          child: TextField(
+            controller: _codeController,
+            decoration: InputDecoration(
+              hintText: _t('粘贴车辆码…', 'Paste vehicle code…'),
+              isDense: true,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+            style: const TextStyle(fontSize: 12),
+          ),
+        ),
+        const SizedBox(width: 8),
+        ElevatedButton.icon(
+          onPressed: _importFromCode,
+          icon: const Icon(Icons.download, size: 18),
+          label: Text(_t('导入', 'Import')),
         ),
       ],
     );
