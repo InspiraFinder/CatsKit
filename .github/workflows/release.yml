@@ -200,7 +200,7 @@ jobs:
             ### 🔧 系统要求
             - Android 5.0 及以上
             - Windows 10 / 11（64 位）
-            - iOS 13.0 及以上
+            - iOS 15.5 及以上
           files: artifacts/*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
