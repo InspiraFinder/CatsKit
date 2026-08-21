@@ -4,6 +4,7 @@ on:
   push:
     tags:
       - 'v*'
+  workflow_dispatch:
 
 jobs:
   build-android:
@@ -96,10 +97,54 @@ jobs:
           path: CatsKit-windows-*.zip
           if-no-files-found: error
 
-  # ================= 统一发布 Release（等待 Android + Windows 构建完成） =================
+  # ================= iOS 未签名 IPA 构建 =================
+  build-ios:
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.44.1'
+          channel: 'stable'
+
+      # macOS 自带 CocoaPods；若缺失则安装，保证 pod install 可用
+      - name: Ensure CocoaPods
+        run: |
+          pod --version >/dev/null 2>&1 || sudo gem install cocoapods --no-document
+
+      - name: Get dependencies
+        run: flutter pub get
+
+      - name: Build iOS (unsigned)
+        run: flutter build ios --release --no-codesign
+
+      - name: Get version info
+        id: version
+        run: |
+          echo "TAG=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+
+      - name: Package unsigned IPA
+        run: |
+          # 未签名 IPA 结构：Payload/Runner.app 打包为 zip
+          mkdir -p Payload
+          cp -R build/ios/iphoneos/Runner.app Payload/
+          zip -r "CatsKit-ios-${{ steps.version.outputs.TAG }}.ipa" Payload
+
+      - name: Upload IPA artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-ipa
+          path: CatsKit-ios-*.ipa
+          if-no-files-found: error
+
+  # ================= 统一发布 Release（等待 Android + Windows + iOS 构建完成） =================
   release:
     runs-on: ubuntu-latest
-    needs: [build-android, build-windows]
+    needs: [build-android, build-windows, build-ios]
 
     steps:
       - name: Download all artifacts
@@ -127,12 +172,12 @@ jobs:
               - 发布日期：${{ steps.version.outputs.DATE }}
               
               ### 新功能
-              - 增加放大缩小功能
-              - 增加比例尺
-              - 可以从车库组车
+              - 支持iOS
 
               ### 修复与调整
+              - 调整深色模式效果
               - 调整部分UI
+              - 碎片计算模块中部件当前等级可设为0级
               - 🐽
             
             ### 📱 Android 下载安装
@@ -147,10 +192,15 @@ jobs:
             - ⚠️ Windows 版的 OCR 识别依赖 Python，首次使用需：
               - 安装 Python 3.8+（安装时勾选 **Add to PATH**）
               - 在终端执行：`pip install rapidocr-onnxruntime opencv-python numpy`
-            
+
+            ### 📱 iOS（未签名 IPA）
+            - 下载 `CatsKit-ios-*.ipa`，配合爱思助手 / Sideloadly / AltStore 等工具自签安装
+            - ⚠️ 未签名 IPA 无法直接安装到未越狱设备，需使用 Apple ID 自签（有效期 7 天）或开发者证书签名
+
             ### 🔧 系统要求
             - Android 5.0 及以上
             - Windows 10 / 11（64 位）
+            - iOS 13.0 及以上
           files: artifacts/*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

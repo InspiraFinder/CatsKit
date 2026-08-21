@@ -61,7 +61,7 @@ class _FragmentCalcScreenState extends State<FragmentCalcScreen> {
   /// 计算所有目标等级的累计消耗与剩余碎片
   List<_CalcRow> _computeRows() {
     final costs = upgradeCosts[_rarity] ?? [];
-    final cur = _currentLevel.clamp(1, _maxLevel);
+    final cur = _currentLevel.clamp(0, _maxLevel);
     final frags = _currentFrags < 0 ? 0 : _currentFrags;
     final rows = <_CalcRow>[];
     int totalPieces = 0;
@@ -121,7 +121,7 @@ class _FragmentCalcScreenState extends State<FragmentCalcScreen> {
   Widget build(BuildContext context) {
     final rows = _computeRows();
     final reachable = _maxReachableLevel(rows);
-    final cur = _currentLevel.clamp(1, _maxLevel);
+    final cur = _currentLevel.clamp(0, _maxLevel);
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
@@ -161,7 +161,7 @@ class _FragmentCalcScreenState extends State<FragmentCalcScreen> {
             const SizedBox(height: 12),
             // ---- 当前等级 ----
             Text(
-              _tr('当前等级（1-$_maxLevel）', 'Current Level (1-$_maxLevel)'),
+              _tr('当前等级（0-$_maxLevel）', 'Current Level (0-$_maxLevel)'),
               style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 6),
@@ -171,6 +171,7 @@ class _FragmentCalcScreenState extends State<FragmentCalcScreen> {
               inputFormatters: [FilteringTextInputFormatter.digitsOnly],
               decoration: InputDecoration(
                 hintText: '1',
+                helperText: _tr('0 表示尚未获取该部件', '0 = not obtained yet'),
                 prefixIcon: const Icon(Icons.trending_up, size: 20),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(8),
@@ -332,8 +333,12 @@ class _FragmentCalcScreenState extends State<FragmentCalcScreen> {
         children: [
           Text(
             _tr(
-              '从 Lv$cur 开始，稀有度 ${_rarityLabel(_rarity)}',
-              'From Lv$cur, rarity ${_rarityLabel(_rarity)}',
+              cur == 0
+                  ? '尚未获取部件（Lv0），稀有度 ${_rarityLabel(_rarity)}'
+                  : '从 Lv$cur 开始，稀有度 ${_rarityLabel(_rarity)}',
+              cur == 0
+                  ? 'Not obtained (Lv0), rarity ${_rarityLabel(_rarity)}'
+                  : 'From Lv$cur, rarity ${_rarityLabel(_rarity)}',
             ),
             style: const TextStyle(fontWeight: FontWeight.bold),
           ),
