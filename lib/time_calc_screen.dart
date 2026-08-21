@@ -750,7 +750,12 @@ class _TimeCalcScreenState extends State<TimeCalcScreen> {
         children: [
           Text(
             _isZh ? '剩余时间' : 'Time Left',
-            style: TextStyle(fontSize: 13, color: Colors.grey[700]),
+            style: TextStyle(
+              fontSize: 13,
+              color: Theme.of(context).brightness == Brightness.dark
+                  ? Colors.white70
+                  : Colors.grey[700],
+            ),
           ),
           const SizedBox(height: 4),
           Row(
@@ -1228,7 +1233,12 @@ class _TimeCalcScreenState extends State<TimeCalcScreen> {
             width: 120,
             child: Text(
               label,
-              style: TextStyle(fontSize: 14, color: Colors.grey[700]),
+              style: TextStyle(
+                fontSize: 14,
+                color: Theme.of(context).brightness == Brightness.dark
+                    ? Colors.white70
+                    : Colors.grey[700],
+              ),
             ),
           ),
           Expanded(

@@ -16,7 +16,7 @@ import 'parts_data.dart';
 import 'parts_shape_data.dart';
 import 'time_calc_screen.dart';
 
-const String appVersion = '1.2.2';
+const String appVersion = '1.3.0';
 
 /// 获取部件在当前语言下的显示名称
 String pn(PartData part, String? locale) {
@@ -1696,6 +1696,10 @@ class _BuildToolScreenState extends State<BuildToolScreen> {
   Widget buildSlotContent(PartData part, Color color, VoidCallback onRemove) {
     final lv = _level(part);
     final xb = _extraBonus(part);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    // 深色模式下使用浅色文字，避免与深色背景无法区分
+    final subColor = isDark ? Colors.white70 : Colors.grey[700];
+    final dropdownColor = isDark ? Colors.white : Colors.black;
     // 计算赋值后的数据（含额外加成独立乘区）
     final hp = part.hp(lv) * (1 + xb / 100.0);
     final atk = part.atk(lv) * (1 + xb / 100.0);
@@ -1713,11 +1717,11 @@ class _BuildToolScreenState extends State<BuildToolScreen> {
           children: [
             Text(
               'HP${hp.floor()}',
-              style: TextStyle(fontSize: 8, color: Colors.grey[700]),
+              style: TextStyle(fontSize: 8, color: subColor),
             ),
             Text(
               'ATK${atk.floor()}',
-              style: TextStyle(fontSize: 8, color: Colors.grey[700]),
+              style: TextStyle(fontSize: 8, color: subColor),
             ),
           ],
         ),
@@ -1729,7 +1733,7 @@ class _BuildToolScreenState extends State<BuildToolScreen> {
               value: lv.clamp(1, part.maxLevel),
               isDense: true,
               isExpanded: true,
-              style: const TextStyle(fontSize: 10, color: Colors.black),
+              style: TextStyle(fontSize: 10, color: dropdownColor),
               items: List.generate(
                 part.maxLevel,
                 (i) =>
@@ -1748,7 +1752,7 @@ class _BuildToolScreenState extends State<BuildToolScreen> {
               value: xb,
               isDense: true,
               isExpanded: true,
-              style: const TextStyle(fontSize: 10, color: Colors.black),
+              style: TextStyle(fontSize: 10, color: dropdownColor),
               items: [
                 for (int pct = 0; pct <= 150; pct += 10)
                   DropdownMenuItem(value: pct, child: Text('+$pct%')),
@@ -2279,12 +2283,18 @@ class _BuildToolScreenState extends State<BuildToolScreen> {
                     if (part.hp1 > 0)
                       Text(
                         'HP ${part.hp1}',
-                        style: TextStyle(fontSize: 10, color: Colors.grey[700]),
+                        style: TextStyle(
+                          fontSize: 10,
+                          color: isDark ? Colors.white70 : Colors.grey[700],
+                        ),
                       ),
                     if (part.atk1 > 0)
                       Text(
                         'ATK ${part.atk1}',
-                        style: TextStyle(fontSize: 10, color: Colors.grey[700]),
+                        style: TextStyle(
+                          fontSize: 10,
+                          color: isDark ? Colors.white70 : Colors.grey[700],
+                        ),
                       ),
                     if (part.bonus != null)
                       Text(
@@ -2904,7 +2914,9 @@ class _PartDataScreen extends StatelessWidget {
                           incPerKCash,
                           style: TextStyle(
                             fontSize: 12,
-                            color: incCash > 0 ? Colors.black : Colors.grey,
+                            color: incCash > 0
+                                ? (isDark ? Colors.white : Colors.black)
+                                : Colors.grey,
                           ),
                         ),
                       ),
@@ -2913,7 +2925,9 @@ class _PartDataScreen extends StatelessWidget {
                           incPerToken,
                           style: TextStyle(
                             fontSize: 12,
-                            color: incToken > 0 ? Colors.black : Colors.grey,
+                            color: incToken > 0
+                                ? (isDark ? Colors.white : Colors.black)
+                                : Colors.grey,
                           ),
                         ),
                       ),

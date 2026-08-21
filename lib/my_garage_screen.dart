@@ -675,7 +675,8 @@ class _MyGarageScreenState extends State<MyGarageScreen> {
 
     Color? bg = color.withValues(alpha: 0.08);
     Color border = color.withValues(alpha: 0.5);
-    Color fg = Colors.black87;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    Color fg = isDark ? Colors.white : Colors.black87;
     IconData leading = Icons.circle_outlined;
 
     if (_swapMode && sel != null) {
@@ -1098,7 +1099,12 @@ class _MyGarageScreenState extends State<MyGarageScreen> {
                     children: [
                       TextSpan(
                         text: _fmt(p.mHp(lv)),
-                        style: TextStyle(fontSize: 12, color: Colors.grey[800]),
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Theme.of(context).brightness == Brightness.dark
+                              ? Colors.white70
+                              : Colors.grey[800],
+                        ),
                       ),
                     ],
                   ),
@@ -1163,7 +1169,12 @@ class _MyGarageScreenState extends State<MyGarageScreen> {
           children: [
             TextSpan(
               text: chain.join(' → '),
-              style: TextStyle(fontSize: 12, color: Colors.grey[800]),
+              style: TextStyle(
+                fontSize: 12,
+                color: Theme.of(context).brightness == Brightness.dark
+                    ? Colors.white70
+                    : Colors.grey[800],
+              ),
             ),
           ],
         ),
