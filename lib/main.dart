@@ -15,8 +15,9 @@ import 'part_shape_view.dart';
 import 'parts_data.dart';
 import 'parts_shape_data.dart';
 import 'time_calc_screen.dart';
+import 'activity_calendar_screen.dart';
 
-const String appVersion = '1.3.0';
+const String appVersion = '1.4.0';
 
 /// 获取部件在当前语言下的显示名称
 String pn(PartData part, String? locale) {
@@ -771,6 +772,16 @@ class _MainMenuScreenState extends State<MainMenuScreen> {
                 color: Colors.teal,
                 onTap: () => _navigateAndAwaitLocale(
                   FragmentCalcScreen(locale: _locale),
+                ),
+              ),
+              const SizedBox(height: 16),
+              _buildMenuItem(
+                context,
+                icon: Icons.calendar_month,
+                label: _t('活动日历', 'Activity Calendar'),
+                color: Colors.cyan,
+                onTap: () => _navigateAndAwaitLocale(
+                  ActivityCalendarScreen(locale: _locale, server: _server),
                 ),
               ),
               const SizedBox(height: 16),
@@ -2226,8 +2237,8 @@ class _BuildToolScreenState extends State<BuildToolScreen> {
           child: _showImages
               ? Stack(
                   children: [
-                    // 部件图片
-                    Center(
+                    // 部件图片（铺满卡片，边框较大时自动放大保持比例）
+                    Positioned.fill(
                       child: Padding(
                         padding: const EdgeInsets.all(1),
                         child: Image.asset(

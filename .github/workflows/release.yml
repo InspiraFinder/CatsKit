@@ -194,8 +194,9 @@ jobs:
               - 在终端执行：`pip install rapidocr-onnxruntime opencv-python numpy`
 
             ### 📱 iOS（未签名 IPA）
-            - 下载 `CatsKit-ios-*.ipa`，配合爱思助手 / Sideloadly / AltStore 等工具自签安装
-            - ⚠️ 未签名 IPA 无法直接安装到未越狱设备，需使用 Apple ID 自签（有效期 7 天）或开发者证书签名
+            - 下载 `CatsKit-ios-*.ipa`，使用 TrollStore / SideStore / 轻松签 等工具安装
+            - ⚠️ 未签名 IPA 无法直接安装到未越狱设备，需自签（Apple ID 7 天有效）或使用 TrollStore（永久）
+            - 详细安装方法见项目 README「未签名应用安装指南」
 
             ### 🔧 系统要求
             - Android 5.0 及以上
