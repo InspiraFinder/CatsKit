@@ -461,18 +461,20 @@ class _UpgradePlanScreenState extends State<UpgradePlanScreen> {
           tooltip: _t('返回主菜单', 'Back'),
         ),
       ),
-      body: Column(
-        children: [
-          _buildSlotSelector(),
-          const Divider(height: 1),
-          _buildStrategySelector(),
-          const Divider(height: 1),
-          Expanded(
-            child: vehicle == null || vehicle.isEmpty
-                ? _buildNoVehicle()
-                : _buildResult(),
-          ),
-        ],
+      body: SingleChildScrollView(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildSlotSelector(),
+            const Divider(height: 1),
+            _buildStrategySelector(),
+            const Divider(height: 1),
+            if (vehicle == null || vehicle.isEmpty)
+              _buildNoVehicle()
+            else
+              _buildResult(),
+          ],
+        ),
       ),
     );
   }
@@ -628,7 +630,7 @@ class _UpgradePlanScreenState extends State<UpgradePlanScreen> {
   // ==================== 结果 ====================
   Widget _buildResult() {
     final steps = _steps;
-    return SingleChildScrollView(
+    return Padding(
       padding: const EdgeInsets.all(12),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

@@ -2179,7 +2179,7 @@ class PartDatabase {
     PartData(
       id: 'slug_snot',
       name: "Slug Snot",
-      nameZh: '鼻涕虫黏液',
+      nameZh: '异形蛋',
       nameJa: 'ナメクジの粘液',
       category: PartCategory.gadget,
       rarity: Rarity.r6,
@@ -2719,7 +2719,7 @@ class PartDatabase {
       'mad_panda', // 疯狂熊猫
       'kitty_orb', // 小猫能量球
       'mystic_slime', // 神秘史莱姆
-      'slug_snot', // 鼻涕虫黏液
+      'slug_snot', // 异形蛋
       // 以下为旧版国际服专属 R5 部件（国服无）
       '5_alarm',
       'bone_shaker',
