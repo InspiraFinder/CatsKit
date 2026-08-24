@@ -16,8 +16,9 @@ import 'parts_data.dart';
 import 'parts_shape_data.dart';
 import 'time_calc_screen.dart';
 import 'activity_calendar_screen.dart';
+import 'upgrade_plan_screen.dart';
 
-const String appVersion = '1.4.1';
+const String appVersion = '1.5.0';
 
 /// 获取部件在当前语言下的显示名称
 String pn(PartData part, String? locale) {
@@ -797,6 +798,16 @@ class _MainMenuScreenState extends State<MainMenuScreen> {
               const SizedBox(height: 16),
               _buildMenuItem(
                 context,
+                icon: Icons.upgrade,
+                label: _t('升级计划', 'Upgrade Plan'),
+                color: Colors.deepOrange,
+                onTap: () => _navigateAndAwaitLocale(
+                  UpgradePlanScreen(locale: _locale, server: _server),
+                ),
+              ),
+              const SizedBox(height: 16),
+              _buildMenuItem(
+                context,
                 icon: Icons.settings,
                 label: _t('通用设置', 'Settings'),
                 color: Colors.green,
@@ -909,6 +920,8 @@ class _BuildToolScreenState extends State<BuildToolScreen> {
   bool _showImages = false;
   bool _isFilterMode = true;
   int _gridColumns = 3;
+  bool _horizontalLayout = false; // 宽屏下左右布局（组车区左、部件右）
+  int _leftRatio = 50; // 左右布局左栏宽度百分比
   final PartCategory _selectedCategory = PartCategory.body;
   final Set<PartCategory> _selectedCategories = {};
   final Set<Rarity> _selectedRarities = {};
@@ -955,6 +968,8 @@ class _BuildToolScreenState extends State<BuildToolScreen> {
     setState(() {
       _showImages = prefs.getBool('buildShowImages') ?? false;
       _gridColumns = prefs.getInt('buildGridColumns') ?? 3;
+      _horizontalLayout = prefs.getBool('buildHorizontalLayout') ?? false;
+      _leftRatio = prefs.getInt('buildHorizontalSplit') ?? 50;
     });
   }
 
@@ -1277,11 +1292,56 @@ class _BuildToolScreenState extends State<BuildToolScreen> {
   @override
   Widget build(BuildContext context) {
     _recalc();
+    final size = MediaQuery.sizeOf(context);
+    final isWide = size.width > size.height;
+    final useHorizontal = _horizontalLayout && isWide;
     return Scaffold(
       appBar: AppBar(
         title: Text(_t('组车工具', 'Build Tool')),
         centerTitle: true,
         actions: [
+          // 左右布局切换（仅横屏/宽屏可点）
+          IconButton(
+            icon: Icon(
+              Icons.swap_horiz,
+              color: useHorizontal ? Colors.teal : null,
+            ),
+            onPressed: isWide
+                ? () {
+                    final newVal = !_horizontalLayout;
+                    setState(() => _horizontalLayout = newVal);
+                    _savePref('buildHorizontalLayout', newVal);
+                  }
+                : null,
+            tooltip: _t(
+              _horizontalLayout ? '切回上下布局' : '切换为左右布局',
+              _horizontalLayout ? 'Back to vertical' : 'Side-by-side layout',
+            ),
+          ),
+          // 左右布局左栏比例（可调）
+          PopupMenuButton<int>(
+            icon: const Icon(Icons.tune),
+            tooltip: _t('左栏比例', 'Left ratio'),
+            onSelected: (v) {
+              setState(() => _leftRatio = v);
+              _savePref('buildHorizontalSplit', v);
+            },
+            itemBuilder: (_) => [30, 35, 40, 45, 50, 55, 60, 65, 70]
+                .map(
+                  (n) => PopupMenuItem(
+                    value: n,
+                    child: Text(
+                      n == _leftRatio ? '左栏 $n% ✓' : '左栏 $n%',
+                      style: TextStyle(
+                        fontWeight: n == _leftRatio
+                            ? FontWeight.bold
+                            : FontWeight.normal,
+                      ),
+                    ),
+                  ),
+                )
+                .toList(),
+          ),
           IconButton(
             icon: Icon(
               _showImages ? Icons.image : Icons.text_fields,
@@ -1324,16 +1384,40 @@ class _BuildToolScreenState extends State<BuildToolScreen> {
           tooltip: _t('返回主菜单', 'Back'),
         ),
       ),
-      body: SingleChildScrollView(
-        child: Column(
-          children: [
-            buildAssemblyArea(),
-            buildButtonRow(),
-            const Divider(height: 1),
-            buildPartsSelector(),
-          ],
-        ),
-      ),
+      body: useHorizontal
+          ? Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Flexible(
+                  flex: _leftRatio,
+                  child: SingleChildScrollView(
+                    child: Column(
+                      children: [
+                        buildAssemblyArea(),
+                        buildButtonRow(),
+                      ],
+                    ),
+                  ),
+                ),
+                const VerticalDivider(width: 1),
+                Flexible(
+                  flex: 100 - _leftRatio,
+                  child: SingleChildScrollView(
+                    child: buildPartsSelector(),
+                  ),
+                ),
+              ],
+            )
+          : SingleChildScrollView(
+              child: Column(
+                children: [
+                  buildAssemblyArea(),
+                  buildButtonRow(),
+                  const Divider(height: 1),
+                  buildPartsSelector(),
+                ],
+              ),
+            ),
     );
   }
 

@@ -990,6 +990,16 @@ class _MyGarageScreenState extends State<MyGarageScreen> {
           ],
         ),
         const SizedBox(height: 8),
+        _buildWholeVehicleCard(
+          v,
+          allParts,
+          bodyBonusPct,
+          weaponBonusPct,
+          wheelBonusPct,
+          gadgetBonusPct,
+          sponsorBonusPct,
+        ),
+        const SizedBox(height: 6),
         for (final p in allParts)
           _buildPartStatCard(
             v,
@@ -1003,6 +1013,137 @@ class _MyGarageScreenState extends State<MyGarageScreen> {
             extraWeapon,
           ),
       ],
+    );
+  }
+
+  /// 整车数值汇总（额外加成放在最后算：裸 → 分类 → 赞助 → 额外 → 最终）
+  Widget _buildWholeVehicleCard(
+    GarageVehicle v,
+    List<PartData> allParts,
+    int bodyB,
+    int weaponB,
+    int wheelB,
+    int gadgetB,
+    int sponsorB,
+  ) {
+    double bareHp = 0, afterCatHp = 0, afterSponsorHp = 0, finalHp = 0;
+    double bareAtk = 0, afterCatAtk = 0, afterSponsorAtk = 0, finalAtk = 0;
+    bool hasHp = false, hasAtk = false, hasExtra = false;
+    for (final p in allParts) {
+      final lv = (v.levels[p.id] ?? 1).clamp(1, p.maxLevel).toInt();
+      int catB;
+      switch (p.category) {
+        case PartCategory.body:
+          catB = bodyB;
+          break;
+        case PartCategory.weapon:
+          catB = weaponB;
+          break;
+        case PartCategory.wheel:
+          catB = wheelB;
+          break;
+        case PartCategory.gadget:
+          catB = gadgetB;
+          break;
+      }
+      final extra = (v.bonuses[p.id] ?? 0).clamp(0, 150);
+      if (extra > 0) hasExtra = true;
+      final cm = 1 + catB / 100.0;
+      final sm = 1 + sponsorB / 100.0;
+      final em = 1 + extra / 100.0;
+      final hpV = p.hp(lv);
+      final atkV = p.atk(lv);
+      if (hpV > 0) hasHp = true;
+      if (atkV > 0) hasAtk = true;
+      bareHp += hpV;
+      bareAtk += atkV;
+      afterCatHp += hpV * cm;
+      afterCatAtk += atkV * cm;
+      afterSponsorHp += hpV * cm * sm;
+      afterSponsorAtk += atkV * cm * sm;
+      finalHp += hpV * cm * em * sm;
+      finalAtk += atkV * cm * em * sm;
+    }
+    final hasCat = bodyB + weaponB + wheelB + gadgetB > 0;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final subColor = isDark ? Colors.white70 : Colors.grey[800];
+
+    Widget line(
+      String label,
+      double bare,
+      double afterCat,
+      double afterSponsor,
+      double finalV,
+    ) {
+      final chain = <String>['${_t('裸', 'Base')} ${_fmt(bare)}'];
+      if (hasCat) {
+        chain.add('${_t('分类+', 'Cat+')} ${_fmt(afterCat)}');
+      }
+      if (sponsorB > 0) {
+        chain.add(
+          '${_t('赞助+', 'Sponsor+')}$sponsorB%: ${_fmt(afterSponsor)}',
+        );
+      }
+      if (hasExtra) {
+        chain.add('${_t('额外+', 'Extra+')} ${_fmt(finalV)}');
+      }
+      chain.add('${_t('最终', 'Final')} ${_fmt(finalV)}');
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 2),
+        child: Text.rich(
+          TextSpan(
+            text: '$label: ',
+            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+            children: [
+              TextSpan(
+                text: chain.join(' → '),
+                style: TextStyle(fontSize: 12, color: subColor),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 8),
+      color: isDark ? Colors.indigo.shade900 : Colors.indigo[50],
+      child: Padding(
+        padding: const EdgeInsets.all(10),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Icon(
+                  Icons.directions_car,
+                  size: 18,
+                  color: Colors.indigo,
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  _t('整车数据', 'Whole Vehicle'),
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            if (hasHp)
+              line(_t('HP', 'HP'), bareHp, afterCatHp, afterSponsorHp, finalHp),
+            if (hasAtk)
+              line(
+                _t('ATK', 'ATK'),
+                bareAtk,
+                afterCatAtk,
+                afterSponsorAtk,
+                finalAtk,
+              ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -1140,7 +1281,7 @@ class _MyGarageScreenState extends State<MyGarageScreen> {
     );
   }
 
-  /// 数值链条：裸值 → 分类加成 → 额外加成 → 赞助加成 → 最终
+  /// 数值链条：裸值 → 分类加成 → 赞助加成 → 额外加成 → 最终（额外加成放最后）
   Widget _statLine(
     String label,
     double bare,
@@ -1149,15 +1290,15 @@ class _MyGarageScreenState extends State<MyGarageScreen> {
     int sponsorB,
   ) {
     final afterCat = bare * (1 + catB / 100);
-    final afterExtra = afterCat * (1 + extra / 100);
-    final finalV = afterExtra * (1 + sponsorB / 100);
+    final afterSponsor = afterCat * (1 + sponsorB / 100);
+    final finalV = afterSponsor * (1 + extra / 100);
     final chain = <String>['${_t('裸', 'Base')} ${_fmt(bare)}'];
     if (catB > 0) chain.add('${_t('分类+', 'Cat+')}$catB%: ${_fmt(afterCat)}');
-    if (extra > 0) {
-      chain.add('${_t('额外+', 'Extra+')}$extra%: ${_fmt(afterExtra)}');
-    }
     if (sponsorB > 0) {
-      chain.add('${_t('赞助+', 'Sponsor+')}$sponsorB%: ${_fmt(finalV)}');
+      chain.add('${_t('赞助+', 'Sponsor+')}$sponsorB%: ${_fmt(afterSponsor)}');
+    }
+    if (extra > 0) {
+      chain.add('${_t('额外+', 'Extra+')}$extra%: ${_fmt(finalV)}');
     }
     chain.add('${_t('最终', 'Final')} ${_fmt(finalV)}');
     return Padding(
