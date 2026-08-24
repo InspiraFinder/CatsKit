@@ -105,7 +105,7 @@ const Map<String, ActivityInfo> kActivities = {
 /// 锚点：2026-08-20（周四）19:00 所在活动周期为 weekIndex 0，
 /// 该周期 4 天时段：国服 = GP，国际服 = 废铁（下周齿轮）。
 /// 短周期锚点：2026-08-24（周一）19:00 所在短周期为 shortIndex 0，
-/// 该短周期：国服 = 酒馆，国际服 = 王牌。
+/// 该短周期：国服 = 王牌，国际服 = 24h锦标赛（上一个小活动：国际服 = 太空）。
 class ActivityCalendar {
   /// 锚点：2026-08-20（周四）19:00
   static final DateTime _anchor = DateTime(2026, 8, 20, 19, 0);
@@ -134,23 +134,23 @@ class ActivityCalendar {
   ];
 
   /// 国服短周期（小活动）槽位序列（从 shortIndex 0 开始）
-  /// 酒馆 → 王牌（占1槽，3天普通小活动）→ 24h锦标赛 → 酒馆 → ...
-  /// shortIndex 0 = 酒馆（锚点短周期）
+  /// 王牌 → 酒馆 → 24h锦标赛 → 王牌 → ...（王牌占1槽，3天普通小活动）
+  /// shortIndex 0 = 王牌（锚点短周期，今天开启）
   static const List<String> _cnShortSequence = [
-    'tavern',
     'joker',
+    'tavern',
     'champ',
   ];
 
   /// 国际服短周期（小活动）槽位序列（从 shortIndex 0 开始）
-  /// 王牌（占2槽，10天）→ 酒馆 → 太空 → 24h锦标赛 → 王牌 → ...
-  /// shortIndex 0 = 王牌（锚点短周期）
+  /// 24h锦标赛 → 王牌（占2槽，10天）→ 酒馆 → 太空 → 24h锦标赛 → ...
+  /// shortIndex 0 = 24h锦标赛（锚点短周期，今天开启），shortIndex -1 = 太空
   static const List<String> _intlShortSequence = [
+    'champ',
     'joker',
     'joker',
     'tavern',
     'space',
-    'champ',
   ];
 
   /// 国服 4 天时段轮换顺序（公开，用于展示）
