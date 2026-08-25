@@ -17,8 +17,9 @@ import 'parts_shape_data.dart';
 import 'time_calc_screen.dart';
 import 'activity_calendar_screen.dart';
 import 'upgrade_plan_screen.dart';
+import 'gang_stats_screen.dart';
 
-const String appVersion = '1.5.2';
+const String appVersion = '1.6.0';
 
 /// 获取部件在当前语言下的显示名称
 String pn(PartData part, String? locale) {
@@ -806,6 +807,16 @@ class _MainMenuScreenState extends State<MainMenuScreen> {
                 color: Colors.deepOrange,
                 onTap: () => _navigateAndAwaitLocale(
                   UpgradePlanScreen(locale: _locale, server: _server),
+                ),
+              ),
+              const SizedBox(height: 16),
+              _buildMenuItem(
+                context,
+                icon: Icons.groups,
+                label: _t('帮派统计', 'Gang Stats'),
+                color: Colors.brown,
+                onTap: () => _navigateAndAwaitLocale(
+                  GangStatsScreen(locale: _locale, server: _server),
                 ),
               ),
               const SizedBox(height: 16),
