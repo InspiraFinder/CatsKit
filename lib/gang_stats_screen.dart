@@ -210,11 +210,16 @@ class _GangStatsScreenState extends State<GangStatsScreen> {
 
     final codec = await ui.instantiateImageCodec(bytes);
     final frame = await codec.getNextFrame();
-    // 前处理：放大 2 倍再识别，避免底部 ATK 与电量等相邻小数字被 OCR 合并
-    final scaled = await OcrEngine.upscaleImage(tempFile, 2);
+    // 前处理放大：仅桌面 Python OCR 需要放大 2 倍避免小数字被合并。
+    // Android ML Kit 识别超大图会内部缩放（限制约 3800px 宽），
+    // 导致返回坐标被压缩（数据只有真实位置的一半左右）；
+    // 且放大也无法避免 HP/ATK/电量合并（新算法可拆分），故 Android 直接识别原图。
+    final image = Platform.isAndroid
+        ? tempFile
+        : await OcrEngine.upscaleImage(tempFile, 2);
     if (!mounted) return;
     setState(() {
-      _images[index] = scaled;
+      _images[index] = image;
       _imgW[index] = frame.image.width;
       _imgH[index] = frame.image.height;
       _textItems[index] = [];
@@ -271,15 +276,17 @@ class _GangStatsScreenState extends State<GangStatsScreen> {
     setState(() => _processing[index] = true);
     try {
       final items = await OcrEngine.recognize(image);
-      // 识别的是放大 2 倍的图，坐标映射回原图（除以 2）
+      // 桌面端识别的是放大 2 倍的图，坐标需映射回原图（除以 2）；
+      // Android 端识别原图，坐标即原图坐标，无需缩放。
+      final scaleFactor = Platform.isAndroid ? 1 : 2;
       final mapped = <Map<String, dynamic>>[
         for (final it in items)
           {
             'text': it['text'],
-            'x': ((it['x'] as num).toInt() / 2).round(),
-            'y': ((it['y'] as num).toInt() / 2).round(),
-            'w': ((it['w'] as num).toInt() / 2).round(),
-            'h': ((it['h'] as num).toInt() / 2).round(),
+            'x': ((it['x'] as num).toInt() / scaleFactor).round(),
+            'y': ((it['y'] as num).toInt() / scaleFactor).round(),
+            'w': ((it['w'] as num).toInt() / scaleFactor).round(),
+            'h': ((it['h'] as num).toInt() / scaleFactor).round(),
           },
       ];
       final (hp: hp, atk: atk) = classifyHpAtk(
