@@ -18,7 +18,7 @@ import 'time_calc_screen.dart';
 import 'activity_calendar_screen.dart';
 import 'upgrade_plan_screen.dart';
 
-const String appVersion = '1.5.1';
+const String appVersion = '1.5.2';
 
 /// 获取部件在当前语言下的显示名称
 String pn(PartData part, String? locale) {
@@ -104,6 +104,9 @@ class _MyAppState extends State<MyApp> {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'CatsKit',
+      // 统一处理底部安全区：避免系统导航栏/手势条遮挡页面底部内容
+      builder: (context, child) =>
+          SafeArea(top: false, left: false, right: false, child: child!),
       theme: ThemeData(primarySwatch: Colors.blue, useMaterial3: true),
       darkTheme: ThemeData(
         brightness: Brightness.dark,
@@ -1392,19 +1395,14 @@ class _BuildToolScreenState extends State<BuildToolScreen> {
                   flex: _leftRatio,
                   child: SingleChildScrollView(
                     child: Column(
-                      children: [
-                        buildAssemblyArea(),
-                        buildButtonRow(),
-                      ],
+                      children: [buildAssemblyArea(), buildButtonRow()],
                     ),
                   ),
                 ),
                 const VerticalDivider(width: 1),
                 Flexible(
                   flex: 100 - _leftRatio,
-                  child: SingleChildScrollView(
-                    child: buildPartsSelector(),
-                  ),
+                  child: SingleChildScrollView(child: buildPartsSelector()),
                 ),
               ],
             )
