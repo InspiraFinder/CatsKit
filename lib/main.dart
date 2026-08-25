@@ -18,7 +18,7 @@ import 'time_calc_screen.dart';
 import 'activity_calendar_screen.dart';
 import 'upgrade_plan_screen.dart';
 
-const String appVersion = '1.5.1';
+const String appVersion = '1.5.2';
 
 /// 获取部件在当前语言下的显示名称
 String pn(PartData part, String? locale) {
