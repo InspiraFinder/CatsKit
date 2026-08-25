@@ -19,7 +19,7 @@ import 'activity_calendar_screen.dart';
 import 'upgrade_plan_screen.dart';
 import 'gang_stats_screen.dart';
 
-const String appVersion = '1.6.2';
+const String appVersion = '1.6.3';
 
 /// 获取部件在当前语言下的显示名称
 String pn(PartData part, String? locale) {
