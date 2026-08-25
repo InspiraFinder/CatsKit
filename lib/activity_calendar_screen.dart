@@ -63,8 +63,8 @@ const Map<String, ActivityInfo> kActivities = {
   // ===== 小活动（短周期） =====
   'champ': ActivityInfo(
     id: 'champ',
-    nameZh: '24h锦标赛',
-    nameEn: '24h Championship',
+    nameZh: '24h锦标赛+黑市',
+    nameEn: '24h Championship + Black Market',
     iconAsset: 'assets/cats_icons/championship.png',
     isMini: true,
   ),
@@ -95,8 +95,8 @@ const Map<String, ActivityInfo> kActivities = {
 /// - 国际服：GP → 废铁 → 全明星 → GP → 废铁 → 齿轮（循环）
 ///
 /// 短周期（3天）的小活动按槽位轮换：
-/// - 国服：酒馆 → 王牌（3天普通小活动）→ 24h锦标赛（循环）
-/// - 国际服：王牌（10天，占2槽）→ 酒馆 → 太空 → 24h锦标赛（循环）
+/// - 国服：酒馆 → 王牌（3天普通小活动）→ 24h锦标赛+黑市（循环）
+/// - 国际服：王牌（10天，占2槽）→ 酒馆 → 太空 → 24h锦标赛+黑市（循环）
 /// 注意：国际服的王牌为持续 10 天的活动，占 两个小活动周期 + 中间 1 个大活动周期
 /// （3 + 4 + 3 = 10 天）；国服的王牌为普通 3 天小活动（仅占 1 槽）。
 /// 王牌定位为小活动（图标左上角），中间那个大活动周期的大活动照常进行，
@@ -105,7 +105,7 @@ const Map<String, ActivityInfo> kActivities = {
 /// 锚点：2026-08-20（周四）19:00 所在活动周期为 weekIndex 0，
 /// 该周期 4 天时段：国服 = GP，国际服 = 废铁（下周齿轮）。
 /// 短周期锚点：2026-08-24（周一）19:00 所在短周期为 shortIndex 0，
-/// 该短周期：国服 = 王牌，国际服 = 24h锦标赛（上一个小活动：国际服 = 太空）。
+/// 该短周期：国服 = 王牌，国际服 = 24h锦标赛+黑市（上一个小活动：国际服 = 太空）。
 class ActivityCalendar {
   /// 锚点：2026-08-20（周四）19:00
   static final DateTime _anchor = DateTime(2026, 8, 20, 19, 0);
@@ -134,7 +134,7 @@ class ActivityCalendar {
   ];
 
   /// 国服短周期（小活动）槽位序列（从 shortIndex 0 开始）
-  /// 王牌 → 酒馆 → 24h锦标赛 → 王牌 → ...（王牌占1槽，3天普通小活动）
+  /// 王牌 → 酒馆 → 24h锦标赛+黑市 → 王牌 → ...（王牌占1槽，3天普通小活动）
   /// shortIndex 0 = 王牌（锚点短周期，今天开启）
   static const List<String> _cnShortSequence = [
     'joker',
@@ -143,8 +143,8 @@ class ActivityCalendar {
   ];
 
   /// 国际服短周期（小活动）槽位序列（从 shortIndex 0 开始）
-  /// 24h锦标赛 → 王牌（占2槽，10天）→ 酒馆 → 太空 → 24h锦标赛 → ...
-  /// shortIndex 0 = 24h锦标赛（锚点短周期，今天开启），shortIndex -1 = 太空
+  /// 24h锦标赛+黑市 → 王牌（占2槽，10天）→ 酒馆 → 太空 → 24h锦标赛+黑市 → ...
+  /// shortIndex 0 = 24h锦标赛+黑市（锚点短周期，今天开启），shortIndex -1 = 太空
   static const List<String> _intlShortSequence = [
     'champ',
     'joker',
