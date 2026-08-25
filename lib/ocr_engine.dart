@@ -25,49 +25,117 @@ class OcrEngine {
   static Future<List<Map<String, dynamic>>> _runAndroidOcr(File image) async {
     if (!await image.exists()) throw Exception('图片文件不存在');
 
-    // 预处理：生成多张变体图片
-    final variants = await _generateVariants(image);
-    final allResults = <List<Map<String, dynamic>>>[];
+    // ML Kit 对超大图片（超过约 1280px）会内部缩放后再识别，
+    // 返回的坐标是相对"缩放后图片"的，直接当作原图坐标会失真
+    // （实测 3200×1440 大图 HP 行真实 y≈1278，却被压到 y≈760）。
+    // 因此主动把图片等比缩放到安全尺寸（长边 <= 1280），记录缩放比，
+    // 识别后把坐标按已知比例映射回原图，保证导出坐标 = 原图像素。
+    final bytes = await image.readAsBytes();
+    final codec = await ui.instantiateImageCodec(bytes);
+    final frame = await codec.getNextFrame();
+    final ow = frame.image.width;
+    final oh = frame.image.height;
+    codec.dispose();
+    double scale = 1.0;
+    File ocrSource = image;
+    if (ow > 1280 || oh > 1280) {
+      scale = 1280.0 / (ow > oh ? ow : oh);
+      ocrSource = await _resizeImage(image, scale);
+    }
 
-    for (final variant in variants) {
-      try {
-        final inputImage = InputImage.fromFilePath(variant.path);
-        final recognizer = TextRecognizer(
-          script: TextRecognitionScript.chinese,
-        );
+    try {
+      // 预处理：生成多张变体图片
+      final variants = await _generateVariants(ocrSource);
+      final allResults = <List<Map<String, dynamic>>>[];
+
+      for (final variant in variants) {
         try {
-          final RecognizedText recognizedText = await recognizer.processImage(
-            inputImage,
+          final inputImage = InputImage.fromFilePath(variant.path);
+          final recognizer = TextRecognizer(
+            script: TextRecognitionScript.chinese,
           );
-          final items = <Map<String, dynamic>>[];
-          for (final block in recognizedText.blocks) {
-            for (final line in block.lines) {
-              items.add({
-                'text': line.text,
-                'x': line.boundingBox.left.toInt(),
-                'y': line.boundingBox.top.toInt(),
-                'w': line.boundingBox.width.toInt(),
-                'h': line.boundingBox.height.toInt(),
-              });
+          try {
+            final RecognizedText recognizedText = await recognizer.processImage(
+              inputImage,
+            );
+            final items = <Map<String, dynamic>>[];
+            for (final block in recognizedText.blocks) {
+              for (final line in block.lines) {
+                items.add({
+                  'text': line.text,
+                  'x': line.boundingBox.left.toInt(),
+                  'y': line.boundingBox.top.toInt(),
+                  'w': line.boundingBox.width.toInt(),
+                  'h': line.boundingBox.height.toInt(),
+                });
+              }
             }
+            allResults.add(items);
+          } finally {
+            await recognizer.close();
           }
-          allResults.add(items);
-        } finally {
-          await recognizer.close();
+        } catch (_) {
+          // 单张变体识别失败不影响整体
         }
-      } catch (_) {
-        // 单张变体识别失败不影响整体
+        // 清理变体临时文件（保留原图）
+        if (variant.path != image.path) {
+          try {
+            await variant.delete();
+          } catch (_) {}
+        }
       }
-      // 清理变体临时文件（保留原图）
-      if (variant.path != image.path) {
+
+      // 合并各变体结果：以原图结果为主，用其他变体补充
+      final merged = _mergeResults(allResults);
+      // 坐标映射回原图（除以缩放比）；未缩放时 scale==1.0 保持不变
+      if (scale != 1.0) {
+        for (final it in merged) {
+          it['x'] = ((it['x'] as num) / scale).round();
+          it['y'] = ((it['y'] as num) / scale).round();
+          it['w'] = ((it['w'] as num) / scale).round();
+          it['h'] = ((it['h'] as num) / scale).round();
+        }
+      }
+      return merged;
+    } finally {
+      // 清理缩放临时图（保留原图）
+      if (ocrSource.path != image.path) {
         try {
-          await variant.delete();
+          await ocrSource.delete();
         } catch (_) {}
       }
     }
+  }
 
-    // 合并各变体结果：以原图结果为主，用其他变体补充
-    return _mergeResults(allResults);
+  /// 等比缩放图片到指定比例（Android 识别前缩放到安全尺寸用）
+  static Future<File> _resizeImage(File image, double scale) async {
+    final bytes = await image.readAsBytes();
+    final codec = await ui.instantiateImageCodec(bytes);
+    final frame = await codec.getNextFrame();
+    final original = frame.image;
+    final w = original.width;
+    final h = original.height;
+    final nw = (w * scale).round();
+    final nh = (h * scale).round();
+    final recorder = ui.PictureRecorder();
+    final canvas = ui.Canvas(recorder);
+    final paint = ui.Paint()..filterQuality = ui.FilterQuality.high;
+    canvas.drawImageRect(
+      original,
+      ui.Rect.fromLTWH(0, 0, w.toDouble(), h.toDouble()),
+      ui.Rect.fromLTWH(0, 0, nw.toDouble(), nh.toDouble()),
+      paint,
+    );
+    final picture = recorder.endRecording();
+    final scaled = await picture.toImage(nw, nh);
+    final pngData = await scaled.toByteData(format: ui.ImageByteFormat.png);
+    final f = File(
+      '${Directory.systemTemp.path}${Platform.pathSeparator}ocr_resized_${DateTime.now().millisecondsSinceEpoch}.png',
+    );
+    if (pngData != null) {
+      await f.writeAsBytes(pngData.buffer.asUint8List(), flush: true);
+    }
+    return f;
   }
 
   /// 预处理图片，生成变体（第 0 张为原图）

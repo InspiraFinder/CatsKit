@@ -357,7 +357,8 @@ class _GangStatsScreenState extends State<GangStatsScreen> {
                       Padding(
                         padding: const EdgeInsets.fromLTRB(16, 10, 16, 4),
                         child: Text(
-                          _t('车辆 ${i + 1}', 'Vehicle ${i + 1}'),
+                          '${_t('车辆 ${i + 1}', 'Vehicle ${i + 1}')}'
+                          '（${_imgW[i]}×${_imgH[i]}）',
                           style: TextStyle(
                             fontSize: 13,
                             fontWeight: FontWeight.bold,
@@ -373,7 +374,8 @@ class _GangStatsScreenState extends State<GangStatsScreen> {
                             style: const TextStyle(fontSize: 13),
                           ),
                           subtitle: Text(
-                            'x:${_textItems[i][k]['x']} y:${_textItems[i][k]['y']}',
+                            'x=${_textItems[i][k]['x']} y=${_textItems[i][k]['y']} '
+                            'w=${_textItems[i][k]['w']} h=${_textItems[i][k]['h']}',
                             style: const TextStyle(fontSize: 10),
                           ),
                           trailing: IconButton(
@@ -404,7 +406,10 @@ class _GangStatsScreenState extends State<GangStatsScreen> {
     final buf = StringBuffer();
     for (int i = 0; i < _vehicleCount; i++) {
       if (_textItems[i].isEmpty) continue;
-      buf.writeln(_t('【车辆 ${i + 1}】', '[Vehicle ${i + 1}]'));
+      buf.writeln(
+        '${_t('【车辆 ${i + 1}】', '[Vehicle ${i + 1}]')}'
+        '（${_imgW[i]}×${_imgH[i]}）',
+      );
       for (final it in _textItems[i]) {
         final text = it['text'] as String? ?? '';
         final x = it['x'] as int? ?? 0;
