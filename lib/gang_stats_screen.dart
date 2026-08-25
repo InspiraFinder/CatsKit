@@ -399,7 +399,12 @@ class _GangStatsScreenState extends State<GangStatsScreen> {
       if (_textItems[i].isEmpty) continue;
       buf.writeln(_t('【车辆 ${i + 1}】', '[Vehicle ${i + 1}]'));
       for (final it in _textItems[i]) {
-        buf.writeln(it['text'] as String? ?? '');
+        final text = it['text'] as String? ?? '';
+        final x = it['x'] as int? ?? 0;
+        final y = it['y'] as int? ?? 0;
+        final w = it['w'] as int? ?? 0;
+        final h = it['h'] as int? ?? 0;
+        buf.writeln('$text (x=$x y=$y w=$w h=$h)');
       }
     }
     if (buf.isEmpty) return;
