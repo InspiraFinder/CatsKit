@@ -1,14 +1,13 @@
 import 'dart:async';
-import 'dart:convert';
 import 'dart:io';
-import 'dart:typed_data';
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
 import 'package:image_picker/image_picker.dart';
 
+import 'ocr_box_painter.dart';
+import 'ocr_engine.dart';
 import 'ocr_postprocess.dart';
 
 /// 战斗时间计算界面
@@ -139,278 +138,6 @@ class _TimeCalcScreenState extends State<TimeCalcScreen> {
     }
   }
 
-  /// Android：使用 Google ML Kit OCR（含图片预处理）
-  Future<List<Map<String, dynamic>>> _runAndroidOcr(File image) async {
-    if (!await image.exists()) throw Exception('图片文件不存在');
-
-    // 预处理：生成 5 张变体图片
-    final variants = await _generateVariants(image);
-    final allResults = <List<Map<String, dynamic>>>[];
-
-    for (final variant in variants) {
-      try {
-        final inputImage = InputImage.fromFilePath(variant.path);
-        final recognizer = TextRecognizer(
-          script: TextRecognitionScript.chinese,
-        );
-        try {
-          final RecognizedText recognizedText = await recognizer.processImage(
-            inputImage,
-          );
-          final items = <Map<String, dynamic>>[];
-          for (final block in recognizedText.blocks) {
-            for (final line in block.lines) {
-              items.add({
-                'text': line.text,
-                'x': line.boundingBox.left.toInt(),
-                'y': line.boundingBox.top.toInt(),
-                'w': line.boundingBox.width.toInt(),
-                'h': line.boundingBox.height.toInt(),
-              });
-            }
-          }
-          allResults.add(items);
-        } finally {
-          await recognizer.close();
-        }
-      } catch (_) {
-        // 单张变体识别失败不影响整体
-      }
-      // 清理变体临时文件（保留原图）
-      if (variant.path != image.path) {
-        try {
-          await variant.delete();
-        } catch (_) {}
-      }
-    }
-
-    // 合并各变体结果：以原图结果为主，用其他变体补充
-    return _mergeResults(allResults, image);
-  }
-
-  /// 预处理图片，生成 5 张变体
-  Future<List<File>> _generateVariants(File source) async {
-    final bytes = await source.readAsBytes();
-    final codec = await ui.instantiateImageCodec(bytes);
-    final frame = await codec.getNextFrame();
-    final original = frame.image;
-    final w = original.width;
-    final h = original.height;
-    codec.dispose();
-
-    final tempDir = Directory.systemTemp;
-    final List<File> files = [source]; // 第 0 张为原图
-
-    // 缩放至标准分辨率
-    int targetW, targetH;
-    if (w * 9 > h * 16) {
-      targetH = 720;
-      targetW = (w * targetH / h).round();
-    } else {
-      targetW = 1280;
-      targetH = (h * targetW / w).round();
-    }
-
-    // 获取原始 RGBA 字节
-    final byteData = await original.toByteData(
-      format: ui.ImageByteFormat.rawRgba,
-    );
-    if (byteData == null) return files;
-
-    final srcPixels = byteData.buffer.asUint8List();
-    final stride = w * 4;
-
-    // ---- 生成 4 张变体 ----
-    // 1. 左移 2 像素（最左2列移到右边）
-    // 2. 右移 2 像素（最右2列移到左边）
-    // 3. 蓝色通道（只保留 B 通道）
-    // 4. 红色通道（只保留 R 通道）
-
-    Future<File> saveImage(ui.Image img, String suffix) async {
-      final pngData = await img.toByteData(format: ui.ImageByteFormat.png);
-      final f = File(
-        '${tempDir.path}${Platform.pathSeparator}ocr_var_$suffix.png',
-      );
-      if (pngData != null)
-        await f.writeAsBytes(pngData.buffer.asUint8List(), flush: true);
-      return f;
-    }
-
-    Future<void> processVariant(
-      String name,
-      void Function(Uint8List pixels, int w2, int h2) process,
-    ) async {
-      final w2 = w, h2 = h;
-      final pixels = Uint8List.fromList(srcPixels);
-      process(pixels, w2, h2);
-      final img = await _pixelsToImage(pixels, w2, h2);
-      files.add(await saveImage(img, name));
-    }
-
-    // 左移 2 像素
-    await processVariant('shift_l', (p, w2, h2) {
-      final s = w2 * 4;
-      for (var y = 0; y < h2; y++) {
-        final row = y * s;
-        final left2 = p.sublist(row, row + 8);
-        for (var x = 0; x < w2 - 2; x++) {
-          final src = row + (x + 2) * 4;
-          p[row + x * 4] = p[src];
-          p[row + x * 4 + 1] = p[src + 1];
-          p[row + x * 4 + 2] = p[src + 2];
-          p[row + x * 4 + 3] = p[src + 3];
-        }
-        for (var i = 0; i < 8; i++) p[row + (w2 - 2) * 4 + i] = left2[i];
-      }
-    });
-
-    // 右移 2 像素
-    await processVariant('shift_r', (p, w2, h2) {
-      final s = w2 * 4;
-      for (var y = 0; y < h2; y++) {
-        final row = y * s;
-        final right2 = p.sublist(row + (w2 - 2) * 4, row + w2 * 4);
-        for (var x = w2 - 1; x >= 2; x--) {
-          final src = row + (x - 2) * 4;
-          p[row + x * 4] = p[src];
-          p[row + x * 4 + 1] = p[src + 1];
-          p[row + x * 4 + 2] = p[src + 2];
-          p[row + x * 4 + 3] = p[src + 3];
-        }
-        for (var i = 0; i < 8; i++) p[row + i] = right2[i];
-      }
-    });
-
-    // 蓝色通道
-    await processVariant('blue', (p, w2, h2) {
-      for (var i = 0; i < p.length; i += 4) {
-        p[i] = 0; // R = 0
-        p[i + 1] = 0; // G = 0
-        // B 和 A 保持不变
-      }
-    });
-
-    // 红色通道
-    await processVariant('red', (p, w2, h2) {
-      for (var i = 0; i < p.length; i += 4) {
-        p[i + 1] = 0; // G = 0
-        p[i + 2] = 0; // B = 0
-        // R 和 A 保持不变
-      }
-    });
-
-    return files;
-  }
-
-  /// 将 RGBA 像素数据转为 ui.Image
-  Future<ui.Image> _pixelsToImage(Uint8List pixels, int w, int h) async {
-    final completer = Completer<ui.Image>();
-    ui.decodeImageFromPixels(
-      pixels,
-      w,
-      h,
-      ui.PixelFormat.rgba8888,
-      (img) => completer.complete(img),
-    );
-    return completer.future;
-  }
-
-  /// 合并多张变体的 OCR 结果
-  List<Map<String, dynamic>> _mergeResults(
-    List<List<Map<String, dynamic>>> allResults,
-    File originalImage,
-  ) {
-    if (allResults.isEmpty) return [];
-    // 以原图结果（第一组）为主
-    final primary = allResults.first;
-    if (primary.isEmpty && allResults.length > 1) return allResults[1];
-
-    // 用其他变体补充原图未识别到的文字
-    final seenTexts = primary.map((it) => it['text'] as String).toSet();
-    for (var i = 1; i < allResults.length; i++) {
-      for (final item in allResults[i]) {
-        final t = item['text'] as String;
-        if (!seenTexts.contains(t)) {
-          primary.add(item);
-          seenTexts.add(t);
-        }
-      }
-    }
-    return primary;
-  }
-
-  /// 从纯文本中识别 6 个字段（不依赖坐标）
-  Map<String, String> _classifyFromText(String text) {
-    final result = {
-      'my_score_per_min': '',
-      'my_score': '',
-      'score_line': '',
-      'time_left': '',
-      'enemy_score': '',
-      'enemy_score_per_min': '',
-    };
-
-    // 提取 "+数字" 格式（每分钟得分）
-    final plusNums = RegExp(r'\+\d+').allMatches(text).toList();
-    if (plusNums.isNotEmpty) {
-      result['my_score_per_min'] = plusNums[0].group(0) ?? '';
-      if (plusNums.length > 1) {
-        result['enemy_score_per_min'] = plusNums[1].group(0) ?? '';
-      }
-    }
-
-    // 提取时间格式
-    final timeMatch = RegExp(
-      r'\d+\s*[hm时]',
-      caseSensitive: false,
-    ).firstMatch(text);
-    if (timeMatch != null) {
-      result['time_left'] = timeMatch.group(0) ?? '';
-    }
-
-    // 提取所有数字（3-7位）
-    final numbers = RegExp(r'\b\d{3,7}\b').allMatches(text).toList();
-    final numValues = numbers.map((m) => m.group(0) ?? '').toList();
-
-    if (numValues.isNotEmpty) {
-      numValues.sort((a, b) => int.parse(b).compareTo(int.parse(a)));
-      result['score_line'] = numValues.first;
-      if (numValues.length >= 3) {
-        result['my_score'] = numValues[1];
-        result['enemy_score'] = numValues[2];
-      } else if (numValues.length == 2) {
-        result['my_score'] = numValues[1];
-      }
-    }
-
-    return result;
-  }
-
-  /// Windows/桌面：使用 Python RapidOCR
-  Future<Map<String, String>> _runPythonOcr(File image) async {
-    // 从 Flutter asset bundle 提取 Python 脚本到临时目录
-    final byteData = await rootBundle.load('assets/ocr/catskit_ocr.py');
-    final tempDir = Directory.systemTemp;
-    final scriptFile = File(
-      '${tempDir.path}${Platform.pathSeparator}catskit_ocr.py',
-    );
-    await scriptFile.writeAsBytes(byteData.buffer.asUint8List(), flush: true);
-
-    final encodedPath = base64Encode(utf8.encode(image.path));
-    final result = await Process.run('python', [scriptFile.path, encodedPath]);
-
-    if (result.exitCode != 0) {
-      final stderr = result.stderr.toString().trim();
-      throw Exception(stderr.isNotEmpty ? stderr : '进程退出码: ${result.exitCode}');
-    }
-
-    final json = jsonDecode(result.stdout.toString()) as Map<String, dynamic>;
-    if (json['error'] != null) throw Exception(json['error'] as String);
-    return (json['fields'] as Map<String, dynamic>? ?? {}).map(
-      (k, v) => MapEntry(k, v as String? ?? ''),
-    );
-  }
-
   Future<void> _calculate() async {
     if (_image == null) return;
 
@@ -427,20 +154,19 @@ class _TimeCalcScreenState extends State<TimeCalcScreen> {
         androidItems = _textItems;
       } else {
         try {
-          if (Platform.isAndroid) {
-            androidItems = await _runAndroidOcr(_image!);
-            // 拆分合并文本后再分类
-            final splitItems = splitCombinedItems(androidItems);
-            final classified = classifyByPosition(
-              splitItems,
-              _imageWidth,
-              _imageHeight,
-            );
-            fields = classified['fields'] as Map<String, String>;
-            _zoneBoundaries = classified['boundaries'] as List<double>?;
-          } else {
-            fields = await _runPythonOcr(_image!);
-          }
+          // 统一使用共享 OCR 引擎（Android ML Kit / 桌面 Python），
+          // 均返回全图文字项，走相同的后处理
+          final ocrItems = await OcrEngine.recognize(_image!);
+          // 拆分合并文本后再分类
+          final splitItems = splitCombinedItems(ocrItems);
+          final classified = classifyByPosition(
+            splitItems,
+            _imageWidth,
+            _imageHeight,
+          );
+          fields = classified['fields'] as Map<String, String>;
+          _zoneBoundaries = classified['boundaries'] as List<double>?;
+          androidItems = splitItems;
         } catch (e) {
           throw Exception('OCR识别失败: $e');
         }
@@ -1043,7 +769,7 @@ class _TimeCalcScreenState extends State<TimeCalcScreen> {
                           if (_showOverlay && _textItems.isNotEmpty)
                             Positioned.fill(
                               child: CustomPaint(
-                                painter: _OcrBoxPainter(
+                                painter: OcrBoxPainter(
                                   items: _textItems,
                                   imageWidth: _imageWidth,
                                   imageHeight: _imageHeight,
@@ -1346,87 +1072,6 @@ class _TimeCalcScreenState extends State<TimeCalcScreen> {
       ),
     );
   }
-}
-
-/// 在图片上绘制 OCR 文字识别框的画笔
-class _OcrBoxPainter extends CustomPainter {
-  final List<Map<String, dynamic>> items;
-  final int imageWidth;
-  final int imageHeight;
-  final double displayWidth;
-  final double displayHeight;
-
-  _OcrBoxPainter({
-    required this.items,
-    required this.imageWidth,
-    required this.imageHeight,
-    required this.displayWidth,
-    required this.displayHeight,
-  });
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    if (imageWidth <= 0 || imageHeight <= 0) return;
-
-    // 计算 BoxFit.contain 缩放比例和偏移
-    final scaleX = displayWidth / imageWidth;
-    final scaleY = displayHeight / imageHeight;
-    final scale = scaleX < scaleY ? scaleX : scaleY;
-    final offsetX = (displayWidth - imageWidth * scale) / 2;
-    final offsetY = (displayHeight - imageHeight * scale) / 2;
-
-    for (final item in items) {
-      final x = (item['x'] as num).toDouble();
-      final y = (item['y'] as num).toDouble();
-      final w = (item['w'] as num).toDouble();
-      final h = (item['h'] as num).toDouble();
-      final text = item['text'] as String? ?? '';
-
-      final rect = Rect.fromLTWH(
-        x * scale + offsetX,
-        y * scale + offsetY,
-        w * scale,
-        h * scale,
-      );
-
-      // 半透明填充
-      canvas.drawRect(
-        rect,
-        Paint()
-          ..color = Colors.blue.withAlpha(30)
-          ..style = PaintingStyle.fill,
-      );
-
-      // 边框
-      canvas.drawRect(
-        rect,
-        Paint()
-          ..color = Colors.blue
-          ..strokeWidth = 2
-          ..style = PaintingStyle.stroke,
-      );
-
-      // 文字标签
-      if (text.isNotEmpty) {
-        final tp = TextPainter(
-          text: TextSpan(
-            text: text,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 11,
-              fontWeight: FontWeight.bold,
-              backgroundColor: Color(0xAA1565C0),
-            ),
-          ),
-          textDirection: TextDirection.ltr,
-        )..layout(maxWidth: rect.width);
-        tp.paint(canvas, rect.topLeft);
-      }
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant _OcrBoxPainter oldDelegate) => true;
 }
 
 /// 绘制左白、中灰、右白三区范围的画笔
