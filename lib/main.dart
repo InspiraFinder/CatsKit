@@ -17,9 +17,11 @@ import 'parts_shape_data.dart';
 import 'time_calc_screen.dart';
 import 'activity_calendar_screen.dart';
 import 'upgrade_plan_screen.dart';
+import 'gang_data.dart';
 import 'gang_stats_screen.dart';
+import 'my_gang_screen.dart';
 
-const String appVersion = '1.6.3';
+const String appVersion = '1.7.0';
 
 /// 获取部件在当前语言下的显示名称
 String pn(PartData part, String? locale) {
@@ -812,6 +814,16 @@ class _MainMenuScreenState extends State<MainMenuScreen> {
               const SizedBox(height: 16),
               _buildMenuItem(
                 context,
+                icon: Icons.groups_2,
+                label: _t('我的帮派', 'My Gang'),
+                color: Colors.teal,
+                onTap: () => _navigateAndAwaitLocale(
+                  MyGangScreen(locale: _locale, server: _server),
+                ),
+              ),
+              const SizedBox(height: 16),
+              _buildMenuItem(
+                context,
                 icon: Icons.groups,
                 label: _t('帮派统计', 'Gang Stats'),
                 color: Colors.brown,
@@ -1314,48 +1326,48 @@ class _BuildToolScreenState extends State<BuildToolScreen> {
         title: Text(_t('组车工具', 'Build Tool')),
         centerTitle: true,
         actions: [
-          // 左右布局切换（仅横屏/宽屏可点）
-          IconButton(
-            icon: Icon(
-              Icons.swap_horiz,
-              color: useHorizontal ? Colors.teal : null,
+          // 左右布局切换 + 左栏比例（仅横屏/宽屏显示）
+          if (isWide) ...[
+            IconButton(
+              icon: Icon(
+                Icons.swap_horiz,
+                color: useHorizontal ? Colors.teal : null,
+              ),
+              onPressed: () {
+                final newVal = !_horizontalLayout;
+                setState(() => _horizontalLayout = newVal);
+                _savePref('buildHorizontalLayout', newVal);
+              },
+              tooltip: _t(
+                _horizontalLayout ? '切回上下布局' : '切换为左右布局',
+                _horizontalLayout ? 'Back to vertical' : 'Side-by-side layout',
+              ),
             ),
-            onPressed: isWide
-                ? () {
-                    final newVal = !_horizontalLayout;
-                    setState(() => _horizontalLayout = newVal);
-                    _savePref('buildHorizontalLayout', newVal);
-                  }
-                : null,
-            tooltip: _t(
-              _horizontalLayout ? '切回上下布局' : '切换为左右布局',
-              _horizontalLayout ? 'Back to vertical' : 'Side-by-side layout',
-            ),
-          ),
-          // 左右布局左栏比例（可调）
-          PopupMenuButton<int>(
-            icon: const Icon(Icons.tune),
-            tooltip: _t('左栏比例', 'Left ratio'),
-            onSelected: (v) {
-              setState(() => _leftRatio = v);
-              _savePref('buildHorizontalSplit', v);
-            },
-            itemBuilder: (_) => [30, 35, 40, 45, 50, 55, 60, 65, 70]
-                .map(
-                  (n) => PopupMenuItem(
-                    value: n,
-                    child: Text(
-                      n == _leftRatio ? '左栏 $n% ✓' : '左栏 $n%',
-                      style: TextStyle(
-                        fontWeight: n == _leftRatio
-                            ? FontWeight.bold
-                            : FontWeight.normal,
+            // 左右布局左栏比例（可调）
+            PopupMenuButton<int>(
+              icon: const Icon(Icons.tune),
+              tooltip: _t('左栏比例', 'Left ratio'),
+              onSelected: (v) {
+                setState(() => _leftRatio = v);
+                _savePref('buildHorizontalSplit', v);
+              },
+              itemBuilder: (_) => [30, 35, 40, 45, 50, 55, 60, 65, 70]
+                  .map(
+                    (n) => PopupMenuItem(
+                      value: n,
+                      child: Text(
+                        n == _leftRatio ? '左栏 $n% ✓' : '左栏 $n%',
+                        style: TextStyle(
+                          fontWeight: n == _leftRatio
+                              ? FontWeight.bold
+                              : FontWeight.normal,
+                        ),
                       ),
                     ),
-                  ),
-                )
-                .toList(),
-          ),
+                  )
+                  .toList(),
+            ),
+          ],
           IconButton(
             icon: Icon(
               _showImages ? Icons.image : Icons.text_fields,
@@ -4471,6 +4483,21 @@ class _ImportScreenState extends State<ImportScreen> {
       appBar: AppBar(title: const Text('导入文本'), centerTitle: true),
       body: Column(
         children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+            child: SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: _importFromMyGang,
+                icon: const Icon(Icons.groups),
+                label: const Text('从我的帮派导入名单'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.teal,
+                  foregroundColor: Colors.white,
+                ),
+              ),
+            ),
+          ),
           Expanded(
             child: SingleChildScrollView(
               padding: const EdgeInsets.all(16.0),
@@ -4550,6 +4577,62 @@ class _ImportScreenState extends State<ImportScreen> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  /// 从「我的帮派」导入成员名单（userId 依次填入输入框，覆盖前 N 个框）
+  Future<void> _importFromMyGang() async {
+    final slots = await GangStore.load();
+    if (!mounted) return;
+    final filled = <int>[
+      for (int i = 0; i < GangStore.slotCount; i++)
+        if (slots[i] != null && !slots[i]!.isEmpty) i,
+    ];
+    if (filled.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('我的帮派还没有数据，请先在「帮派统计」导入'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+      return;
+    }
+    final selected = await showDialog<int>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('从我的帮派导入名单'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            for (final i in filled)
+              ListTile(
+                dense: true,
+                leading: const Icon(Icons.groups, color: Colors.teal),
+                title: Text(
+                  slots[i]!.name.isEmpty ? '帮派 ${i + 1}' : slots[i]!.name,
+                ),
+                subtitle: Text('${slots[i]!.memberCount} 名成员'),
+                onTap: () => Navigator.pop(ctx, i),
+              ),
+          ],
+        ),
+      ),
+    );
+    if (selected == null || !mounted) return;
+    final userIds = [for (final m in slots[selected]!.members) m.userId];
+    setState(() {
+      for (int i = 0; i < controllers.length; i++) {
+        controllers[i].text = i < userIds.length ? userIds[i] : '';
+      }
+    });
+    final n = userIds.length > controllers.length
+        ? controllers.length
+        : userIds.length;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('已导入 $n 名成员名单'),
+        duration: const Duration(seconds: 1),
       ),
     );
   }

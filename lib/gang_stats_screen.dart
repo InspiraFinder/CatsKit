@@ -7,33 +7,10 @@ import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'gang_data.dart';
 import 'gang_stats_postprocess.dart';
 import 'ocr_box_painter.dart';
 import 'ocr_engine.dart';
-
-/// 一个帮派成员的车辆数据（一个账号 3 辆车）
-class GangMember {
-  final String userId;
-  final List<int?> hp; // 3 辆车
-  final List<int?> atk; // 3 辆车
-
-  GangMember({required this.userId, required this.hp, required this.atk});
-
-  int get totalHp => hp.fold(0, (s, v) => s + (v ?? 0));
-  int get totalAtk => atk.fold(0, (s, v) => s + (v ?? 0));
-
-  Map<String, dynamic> toJson() => {'userId': userId, 'hp': hp, 'atk': atk};
-
-  factory GangMember.fromJson(Map<String, dynamic> json) => GangMember(
-    userId: json['userId'] as String? ?? '',
-    hp: ((json['hp'] as List?) ?? const [])
-        .map((e) => (e as num?)?.toInt())
-        .toList(),
-    atk: ((json['atk'] as List?) ?? const [])
-        .map((e) => (e as num?)?.toInt())
-        .toList(),
-  );
-}
 
 /// 帮派统计界面：上传 3 张车辆属性图（纵向叠放），OCR 识别 HP/ATK，
 /// 输入用户 ID 后存档到下方表格。右上角可切换识别框、查看/复制全部识别数据。
@@ -72,8 +49,11 @@ class _GangStatsScreenState extends State<GangStatsScreen> {
     (_) => TextEditingController(),
   );
   final TextEditingController _userIdCtrl = TextEditingController();
+  final TextEditingController _gangNameCtrl = TextEditingController();
   List<GangMember> _members = [];
   bool _showOverlay = false;
+  bool _horizontalLayout = false; // 宽屏下左右布局（图片左、表格右）
+  int _leftRatio = 50; // 左右布局左栏宽度百分比
 
   bool get _isZh => widget.locale == 'zh';
   String _t(String zh, String en) => _isZh ? zh : en;
@@ -83,7 +63,26 @@ class _GangStatsScreenState extends State<GangStatsScreen> {
   @override
   void initState() {
     super.initState();
+    _loadLayoutPrefs();
     _loadMembers();
+  }
+
+  Future<void> _loadLayoutPrefs() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (!mounted) return;
+    setState(() {
+      _horizontalLayout = prefs.getBool('gangHorizontalLayout') ?? false;
+      _leftRatio = prefs.getInt('gangHorizontalSplit') ?? 50;
+    });
+  }
+
+  Future<void> _saveLayoutPref(String key, Object value) async {
+    final prefs = await SharedPreferences.getInstance();
+    if (value is bool) {
+      await prefs.setBool(key, value);
+    } else if (value is int) {
+      await prefs.setInt(key, value);
+    }
   }
 
   @override
@@ -95,6 +94,7 @@ class _GangStatsScreenState extends State<GangStatsScreen> {
       c.dispose();
     }
     _userIdCtrl.dispose();
+    _gangNameCtrl.dispose();
     super.dispose();
   }
 
@@ -484,6 +484,128 @@ class _GangStatsScreenState extends State<GangStatsScreen> {
     });
   }
 
+  /// 导入当前帮派数据表到「我的帮派」的一个槽位（参考组车工具保存到车库）
+  Future<void> _saveToMyGang() async {
+    if (_members.isEmpty) {
+      _snack(_t('暂无数据可导入', 'No data to import'));
+      return;
+    }
+    final slots = await GangStore.load();
+    if (!mounted) return;
+    _gangNameCtrl.clear();
+    final selected = await showDialog<int>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          title: Text(_t('导入到我的帮派', 'Save to My Gang')),
+          contentPadding: const EdgeInsets.fromLTRB(24, 8, 24, 16),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              TextField(
+                controller: _gangNameCtrl,
+                decoration: InputDecoration(
+                  labelText: _t('帮派名称（可选）', 'Gang name (optional)'),
+                  hintText: _t('留空则用「帮派N」', 'Empty = "Gang N"'),
+                  isDense: true,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+              Wrap(
+                alignment: WrapAlignment.center,
+                spacing: 6,
+                runSpacing: 6,
+                children: [
+                  for (int i = 0; i < GangStore.slotCount; i++)
+                    _buildGangSlotButton(ctx, i, slots[i]),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+    if (selected == null || !mounted) return;
+    final name = _gangNameCtrl.text.trim().isEmpty
+        ? _t('帮派$selected', 'Gang $selected')
+        : _gangNameCtrl.text.trim();
+    slots[selected - 1] = GangData(name: name, members: List.of(_members));
+    await GangStore.save(slots);
+    if (!mounted) return;
+    _snack(_t('已导入到帮派槽 $selected', 'Saved to gang slot $selected'));
+  }
+
+  /// 导入弹窗中的单个帮派槽位按钮
+  Widget _buildGangSlotButton(BuildContext ctx, int index, GangData? g) {
+    final filled = g != null && !g.isEmpty;
+    return Padding(
+      padding: const EdgeInsets.all(2),
+      child: Material(
+        color: filled ? Colors.teal[50] : Colors.grey[100],
+        borderRadius: BorderRadius.circular(8),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(8),
+          onTap: () async {
+            if (filled) {
+              final ok = await showDialog<bool>(
+                context: ctx,
+                builder: (c2) => AlertDialog(
+                  title: Text(
+                    _t('覆盖帮派槽${index + 1}？', 'Overwrite slot ${index + 1}?'),
+                  ),
+                  content: Text(
+                    _t(
+                      '该槽位已有帮派（${g.name}），确定覆盖？',
+                      'Slot has ${g.name}. Overwrite?',
+                    ),
+                  ),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(c2, false),
+                      child: Text(_t('取消', 'Cancel')),
+                    ),
+                    TextButton(
+                      onPressed: () => Navigator.pop(c2, true),
+                      child: Text(_t('覆盖', 'Overwrite')),
+                    ),
+                  ],
+                ),
+              );
+              if (ok != true) return;
+              if (!ctx.mounted) return;
+            }
+            Navigator.pop(ctx, index + 1);
+          },
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  filled ? Icons.groups : Icons.groups_outlined,
+                  size: 22,
+                  color: filled ? Colors.teal : Colors.grey,
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  '${index + 1}',
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   void _snack(String msg) {
     ScaffoldMessenger.of(
       context,
@@ -499,11 +621,55 @@ class _GangStatsScreenState extends State<GangStatsScreen> {
   // ==================== UI ====================
   @override
   Widget build(BuildContext context) {
+    final isWide = MediaQuery.sizeOf(context).width >
+        MediaQuery.sizeOf(context).height;
+    final useHorizontal = _horizontalLayout && isWide;
     return Scaffold(
       appBar: AppBar(
         title: Text(_t('帮派统计', 'Gang Stats')),
         centerTitle: true,
         actions: [
+          // 左右布局切换 + 左栏比例（仅横屏/宽屏显示）
+          if (isWide) ...[
+            IconButton(
+              icon: Icon(
+                Icons.swap_horiz,
+                color: _horizontalLayout ? Colors.teal : null,
+              ),
+              onPressed: () {
+                final newVal = !_horizontalLayout;
+                setState(() => _horizontalLayout = newVal);
+                _saveLayoutPref('gangHorizontalLayout', newVal);
+              },
+              tooltip: _t(
+                _horizontalLayout ? '切回上下布局' : '切换为左右布局',
+                _horizontalLayout ? 'Back to vertical' : 'Side-by-side layout',
+              ),
+            ),
+            PopupMenuButton<int>(
+              icon: const Icon(Icons.tune),
+              tooltip: _t('左栏比例', 'Left ratio'),
+              onSelected: (v) {
+                setState(() => _leftRatio = v);
+                _saveLayoutPref('gangHorizontalSplit', v);
+              },
+              itemBuilder: (_) => [30, 35, 40, 45, 50, 55, 60, 65, 70]
+                  .map(
+                    (n) => PopupMenuItem(
+                      value: n,
+                      child: Text(
+                        n == _leftRatio ? '左栏 $n% ✓' : '左栏 $n%',
+                        style: TextStyle(
+                          fontWeight: n == _leftRatio
+                              ? FontWeight.bold
+                              : FontWeight.normal,
+                        ),
+                      ),
+                    ),
+                  )
+                  .toList(),
+            ),
+          ],
           if (_hasAnyImage)
             IconButton(
               icon: Icon(
@@ -533,24 +699,64 @@ class _GangStatsScreenState extends State<GangStatsScreen> {
           tooltip: _t('返回主菜单', 'Back'),
         ),
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildIntro(),
-            const SizedBox(height: 8),
-            _buildImagesArea(),
-            const SizedBox(height: 10),
-            _buildEditArea(),
-            const SizedBox(height: 8),
-            _buildUserAndSave(),
-            const Divider(height: 24),
-            _buildMembersTable(),
-            const SizedBox(height: 16),
-          ],
-        ),
-      ),
+      body: useHorizontal
+          ? Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // 左栏：图片 + 编辑 + 用户ID/保存
+                Flexible(
+                  flex: _leftRatio,
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.all(12),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _buildIntro(),
+                        const SizedBox(height: 8),
+                        _buildImagesArea(),
+                        const SizedBox(height: 10),
+                        _buildEditArea(),
+                        const SizedBox(height: 8),
+                        _buildUserAndSave(),
+                      ],
+                    ),
+                  ),
+                ),
+                const VerticalDivider(width: 1),
+                // 右栏：成员表格
+                Flexible(
+                  flex: 100 - _leftRatio,
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.all(12),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _buildMembersTable(),
+                        const SizedBox(height: 16),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            )
+          : SingleChildScrollView(
+              padding: const EdgeInsets.all(12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildIntro(),
+                  const SizedBox(height: 8),
+                  _buildImagesArea(),
+                  const SizedBox(height: 10),
+                  _buildEditArea(),
+                  const SizedBox(height: 8),
+                  _buildUserAndSave(),
+                  const Divider(height: 24),
+                  _buildMembersTable(),
+                  const SizedBox(height: 16),
+                ],
+              ),
+            ),
     );
   }
 
@@ -818,9 +1024,28 @@ class _GangStatsScreenState extends State<GangStatsScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          _t('帮派成员车辆统计表', 'Gang Member Stats'),
-          style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                _t('帮派成员车辆统计表', 'Gang Member Stats'),
+                style: const TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+            if (_members.isNotEmpty)
+              TextButton.icon(
+                onPressed: _saveToMyGang,
+                icon: const Icon(Icons.save_alt, size: 18),
+                label: Text(_t('导入到我的帮派', 'Save to My Gang')),
+                style: TextButton.styleFrom(
+                  foregroundColor: Colors.brown,
+                  visualDensity: VisualDensity.compact,
+                ),
+              ),
+          ],
         ),
         const SizedBox(height: 6),
         if (_members.isEmpty)
