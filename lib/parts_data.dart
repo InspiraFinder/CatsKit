@@ -350,7 +350,7 @@ class PartDatabase {
       category: PartCategory.body,
       rarity: Rarity.r6,
       sponsor: Sponsor.mecha,
-      hp1: 48120,
+      hp1: 53000,
       power: 35,
       bonus: bWheel15,
       slots: s222,
