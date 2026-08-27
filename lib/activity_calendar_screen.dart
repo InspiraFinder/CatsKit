@@ -625,13 +625,13 @@ class _ActivityCalendarScreenState extends State<ActivityCalendarScreen> {
     );
   }
 
-  /// 可信度指示灯：国际服 = 红色（低）、国服 = 黄色（中）
+  /// 可信度指示灯：国际服 = 黄色（中）、国服 = 黄色（中）
   /// 说明：活动排期以官方为准，本日历仅为根据以往规律的推断
   Widget _buildCredibilityCard(bool isDark) {
-    final isCn = _server == 'cn';
-    final lightColor = isCn
-        ? (isDark ? Colors.amberAccent : Colors.amber.shade600)
-        : (isDark ? Colors.redAccent : Colors.red.shade600);
+    // 国际服与国服当前可信度均为「中」（黄色）
+    final lightColor = isDark
+        ? Colors.amberAccent
+        : Colors.amber.shade600;
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(12),
@@ -665,10 +665,7 @@ class _ActivityCalendarScreenState extends State<ActivityCalendarScreen> {
               ),
               const SizedBox(width: 8),
               Text(
-                _t(
-                  isCn ? '可信度：中' : '可信度：低',
-                  isCn ? 'Credibility: Medium' : 'Credibility: Low',
-                ),
+                _t('可信度：中', 'Credibility: Medium'),
                 style: const TextStyle(
                   fontSize: 15,
                   fontWeight: FontWeight.bold,

@@ -21,7 +21,7 @@ import 'gang_data.dart';
 import 'gang_stats_screen.dart';
 import 'my_gang_screen.dart';
 
-const String appVersion = '1.7.0';
+const String appVersion = '1.7.1';
 
 /// 获取部件在当前语言下的显示名称
 String pn(PartData part, String? locale) {
