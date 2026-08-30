@@ -24,6 +24,7 @@ final List<String> _indexToPartId = () {
 /// 车库中保存的一辆车
 /// 只存部件 id 与等级/额外加成，部件详情运行时从数据库解析。
 class GarageVehicle {
+  String? name; // 车位名称（可空，用于玩家自定义命名）
   String? bodyId;
   String? extraWeaponId; // 额外武器（特殊武器槽）
   List<String?> weaponSlots; // 武器槽位（元素=部件id或null，长度=车身武器槽数）
@@ -33,6 +34,7 @@ class GarageVehicle {
   final Map<String, int> bonuses; // partId -> 额外加成百分比
 
   GarageVehicle({
+    this.name,
     this.bodyId,
     this.extraWeaponId,
     List<String?>? weaponSlots,
@@ -55,6 +57,7 @@ class GarageVehicle {
   List<String> get gadgetIds => gadgetSlots.whereType<String>().toList();
 
   Map<String, dynamic> toJson() => {
+    'name': name,
     'body': bodyId,
     'extraWeapon': extraWeaponId,
     'weaponSlots': weaponSlots,
@@ -75,6 +78,7 @@ class GarageVehicle {
     }
 
     return GarageVehicle(
+      name: json['name'] as String?,
       bodyId: json['body'] as String?,
       extraWeaponId: json['extraWeapon'] as String?,
       weaponSlots: readSlots('weaponSlots', 'weapons'),

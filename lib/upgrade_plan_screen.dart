@@ -284,6 +284,7 @@ class _UpgradePlanScreenState extends State<UpgradePlanScreen> {
   int _selectedSlot = 0; // 0-based
   UpgradeStrategy _strategy = UpgradeStrategy.hpToken;
   bool _useBonuses = false; // 是否附带额外加成计算（默认不附带）
+  int _maxSteps = 20; // 计算的最大步数（表格行数，可增加）
   List<UpgradeStepResult>? _steps;
   late Map<String, PartData> _partById;
   List<_PlanColumn> _columns = List.of(_PlanColumn.values);
@@ -299,11 +300,13 @@ class _UpgradePlanScreenState extends State<UpgradePlanScreen> {
     };
     _loadColumns();
     _loadBonuses();
+    _loadMaxSteps();
     _load();
   }
 
   static const String _colPrefsKey = 'upgrade_plan_columns';
   static const String _bonusPrefsKey = 'upgrade_plan_use_bonuses';
+  static const String _stepsPrefsKey = 'upgrade_plan_max_steps';
 
   /// 读取持久化的列顺序
   Future<void> _loadColumns() async {
@@ -350,6 +353,24 @@ class _UpgradePlanScreenState extends State<UpgradePlanScreen> {
   Future<void> _saveBonuses() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_bonusPrefsKey, _useBonuses);
+  }
+
+  /// 读取持久化的默认计算行数
+  Future<void> _loadMaxSteps() async {
+    final prefs = await SharedPreferences.getInstance();
+    final v = prefs.getInt(_stepsPrefsKey);
+    if (v == null || v < 1) return;
+    if (!mounted) return;
+    setState(() {
+      _maxSteps = v;
+      _recompute();
+    });
+  }
+
+  /// 保存计算行数（作为下次默认值）
+  Future<void> _saveMaxSteps() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt(_stepsPrefsKey, _maxSteps);
   }
 
   Future<void> _load() async {
@@ -427,6 +448,7 @@ class _UpgradePlanScreenState extends State<UpgradePlanScreen> {
       initialLevels: v.levels,
       bonuses: _useBonuses ? v.bonuses : <String, int>{},
       strategy: _strategy,
+      maxSteps: _maxSteps,
     );
   }
 
@@ -693,8 +715,110 @@ class _UpgradePlanScreenState extends State<UpgradePlanScreen> {
             ],
           ),
         ),
+        const SizedBox(height: 8),
+        Wrap(
+          alignment: WrapAlignment.center,
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            OutlinedButton.icon(
+              onPressed: () => _increaseMaxSteps(10),
+              icon: const Icon(Icons.add, size: 18),
+              label: Text(
+                _t('+10 行（上限 $_maxSteps）', '+10 rows (max $_maxSteps)'),
+              ),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: Colors.indigo,
+              ),
+            ),
+            OutlinedButton.icon(
+              onPressed: _customizeMaxSteps,
+              icon: const Icon(Icons.edit, size: 18),
+              label: Text(_t('自定义行数', 'Custom rows')),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: Colors.indigo,
+              ),
+            ),
+            OutlinedButton.icon(
+              onPressed: _saveMaxSteps,
+              icon: const Icon(Icons.save_alt, size: 18),
+              label: Text(_t('保存为默认', 'Save as default')),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: Colors.teal,
+              ),
+            ),
+          ],
+        ),
       ],
     );
+  }
+
+  /// 增加计算行数（不自动保存，需点「保存为默认」持久化）
+  void _increaseMaxSteps(int delta) {
+    setState(() {
+      _maxSteps += delta;
+      _recompute();
+    });
+  }
+
+  /// 玩家自定义展示多少行（弹窗输入）
+  Future<void> _customizeMaxSteps() async {
+    final controller = TextEditingController(text: '$_maxSteps');
+    String? error;
+    final v = await showDialog<int>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDlg) => AlertDialog(
+          title: Text(_t('自定义计算行数', 'Custom rows')),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: controller,
+                autofocus: true,
+                keyboardType: TextInputType.number,
+                decoration: InputDecoration(
+                  labelText: _t('行数', 'Rows'),
+                  hintText: _t('输入要展示的最大行数', 'Max rows to show'),
+                  errorText: error,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: Text(_t('取消', 'Cancel')),
+            ),
+            TextButton(
+              onPressed: () {
+                final n = int.tryParse(controller.text.trim());
+                if (n == null || n < 1) {
+                  setDlg(
+                    () => error = _t(
+                      '请输入有效行数（≥1）',
+                      'Enter a valid row count (≥1)',
+                    ),
+                  );
+                  return;
+                }
+                Navigator.pop(ctx, n);
+              },
+              child: Text(_t('确定', 'OK')),
+            ),
+          ],
+        ),
+      ),
+    );
+    controller.dispose();
+    if (v == null || !mounted) return;
+    setState(() {
+      _maxSteps = v;
+      _recompute();
+    });
   }
 
   DataColumn _buildColumnHeader(_PlanColumn c) {
