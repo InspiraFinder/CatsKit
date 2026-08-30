@@ -265,6 +265,28 @@ class _MyGarageScreenState extends State<MyGarageScreen> {
     return ListView(
       padding: const EdgeInsets.all(12),
       children: [
+        if (v.name != null && v.name!.isNotEmpty) ...[
+          Row(
+            children: [
+              const Icon(
+                Icons.drive_file_rename_outline,
+                size: 18,
+                color: Colors.indigo,
+              ),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  v.name!,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+        ],
         if (_isIntl) _buildShapeToolbar(v) else _buildRebuildButton(v),
         const SizedBox(height: 12),
         if (_isIntl) ...[
@@ -488,17 +510,14 @@ class _MyGarageScreenState extends State<MyGarageScreen> {
         const SizedBox(width: 8),
         Expanded(
           child: ElevatedButton.icon(
-            onPressed: () => setState(() {
-              _swapMode = !_swapMode;
-              _selectedPart = null;
-            }),
-            icon: Icon(_swapMode ? Icons.check : Icons.swap_horiz, size: 18),
+            onPressed: () => _renameVehicle(v),
+            icon: const Icon(Icons.edit, size: 18),
             label: Text(
-              _swapMode ? _t('完成调整', 'Done') : _t('调整顺序', 'Reorder'),
+              _t('修改名称', 'Rename'),
               style: const TextStyle(fontSize: 14),
             ),
             style: ElevatedButton.styleFrom(
-              backgroundColor: _swapMode ? Colors.green : Colors.orange,
+              backgroundColor: Colors.indigo,
               foregroundColor: Colors.white,
               padding: const EdgeInsets.symmetric(vertical: 10),
             ),
@@ -506,6 +525,43 @@ class _MyGarageScreenState extends State<MyGarageScreen> {
         ),
       ],
     );
+  }
+
+  /// 修改当前车位的名称
+  Future<void> _renameVehicle(GarageVehicle v) async {
+    final controller = TextEditingController(text: v.name ?? '');
+    final newName = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(_t('修改车位名称', 'Rename slot')),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          maxLength: 20,
+          decoration: InputDecoration(
+            labelText: _t('车位名称', 'Slot name'),
+            hintText: _t('例如：主战车', 'e.g. Main build'),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text(_t('取消', 'Cancel')),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, controller.text.trim()),
+            child: Text(_t('保存', 'Save')),
+          ),
+        ],
+      ),
+    );
+    controller.dispose();
+    if (newName == null || !mounted) return;
+    setState(() {
+      v.name = newName.isEmpty ? null : newName;
+      _persist();
+    });
   }
 
   /// 形状缩放滑条（横向滑动缩放，附百分比显示）
@@ -538,23 +594,6 @@ class _MyGarageScreenState extends State<MyGarageScreen> {
   }
 
   // ==================== 同类型部件顺序调整 ====================
-  List<_ReorderEntry> _reorderItems(GarageVehicle v) {
-    final list = <_ReorderEntry>[];
-    void add(List<String?> slots, PartCategory cat) {
-      for (int i = 0; i < slots.length; i++) {
-        final id = slots[i];
-        if (id == null) continue;
-        final p = _partById[id];
-        if (p != null) list.add((category: cat, index: i, part: p));
-      }
-    }
-
-    add(v.weaponSlots, PartCategory.weapon);
-    add(v.wheelSlots, PartCategory.wheel);
-    add(v.gadgetSlots, PartCategory.gadget);
-    return list;
-  }
-
   /// 可交互插槽条目（武器/车轮/配件三类，不含特殊武器槽）
   List<_SlotEntry> _slotEntries(GarageVehicle v) {
     final list = <_SlotEntry>[];
@@ -571,10 +610,19 @@ class _MyGarageScreenState extends State<MyGarageScreen> {
   }
 
   Widget _buildReorderSection(GarageVehicle v) {
-    final items = _reorderItems(v);
-    if (items.isEmpty) return const SizedBox.shrink();
     final slots = _slotEntries(v);
+    if (slots.isEmpty) return const SizedBox.shrink();
     final sel = _selectedPart;
+    // 按分类分组
+    final groups = <PartCategory, List<_SlotEntry>>{};
+    for (final s in slots) {
+      groups.putIfAbsent(s.category, () => []).add(s);
+    }
+    const cats = [
+      PartCategory.weapon,
+      PartCategory.wheel,
+      PartCategory.gadget,
+    ];
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -600,35 +648,44 @@ class _MyGarageScreenState extends State<MyGarageScreen> {
             padding: const EdgeInsets.only(bottom: 6),
             child: Text(
               _t(
-                '点击一个部件，再点击空插槽移动；点击已占用的同类插槽可交换；不同类型插槽不可用',
-                'Tap a part, then tap an empty slot to move; tap an occupied same-type slot to swap; different types unavailable',
+                '点击一个部件再点击另一个部件可交换位置；点击空插槽可将选中部件移入',
+                'Tap a part then another to swap; tap an empty slot to move the selected part in',
               ),
               style: TextStyle(fontSize: 12, color: Colors.orange[800]),
             ),
           ),
-        Text(
-          _t('部件', 'Parts'),
-          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
-        ),
-        const SizedBox(height: 6),
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: [for (final item in items) _buildPartChip(item)],
-        ),
-        if (_swapMode) ...[
-          const SizedBox(height: 10),
-          Text(
-            _t('插槽', 'Slots'),
-            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 6),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [for (final slot in slots) _buildSlotChip(slot, sel)],
-          ),
-        ],
+        for (final cat in cats)
+          if (groups[cat]?.isNotEmpty ?? false) ...[
+            Padding(
+              padding: const EdgeInsets.only(top: 4),
+              child: Row(
+                children: [
+                  Icon(
+                    _categoryIcon(cat),
+                    size: 15,
+                    color: _categoryColor(cat),
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    _catLabel(cat),
+                    style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 6),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                for (final slot in groups[cat]!) _buildSlotChip(slot, sel),
+              ],
+            ),
+            const SizedBox(height: 8),
+          ],
       ],
     );
   }
@@ -646,57 +703,72 @@ class _MyGarageScreenState extends State<MyGarageScreen> {
     }
   }
 
-  /// 部件 chip：点击选中/取消
-  Widget _buildPartChip(_ReorderEntry item) {
-    final color = _categoryColor(item.category);
-    final selected =
-        _selectedPart?.category == item.category &&
-        _selectedPart?.index == item.index;
-    return ChoiceChip(
-      label: Text(
-        '${_pn(item.part, widget.locale)} [${_catShortLabel(item.category)}${item.index + 1}]',
-        style: const TextStyle(fontSize: 12),
-      ),
-      selected: selected,
-      selectedColor: color.withValues(alpha: 0.35),
-      avatar: Icon(_categoryIcon(item.category), size: 14, color: color),
-      onSelected: (_) => _onPartTap(item),
-    );
+  String _catLabel(PartCategory cat) {
+    switch (cat) {
+      case PartCategory.weapon:
+        return _t('武器', 'Weapons');
+      case PartCategory.wheel:
+        return _t('车轮', 'Wheels');
+      case PartCategory.gadget:
+        return _t('配件', 'Gadgets');
+      default:
+        return _t('其他', 'Other');
+    }
   }
 
-  /// 插槽 chip：调整模式下可点击；根据选中部件状态变色提示
+  /// 插槽 chip：部件或空槽统一展示；调整模式下可交互
   Widget _buildSlotChip(_SlotEntry slot, _ReorderEntry? sel) {
     final color = _categoryColor(slot.category);
-    final partName = slot.partId == null
-        ? _t('空', 'Empty')
-        : (_pn(_partById[slot.partId!]!, widget.locale));
-    final label =
-        '[${_catShortLabel(slot.category)}${slot.index + 1}] $partName';
-
-    Color? bg = color.withValues(alpha: 0.08);
-    Color border = color.withValues(alpha: 0.5);
     final isDark = Theme.of(context).brightness == Brightness.dark;
     Color fg = isDark ? Colors.white : Colors.black87;
-    IconData leading = Icons.circle_outlined;
+    final slotTag = '[${_catShortLabel(slot.category)}${slot.index + 1}]';
 
-    if (_swapMode && sel != null) {
-      if (slot.category == sel.category) {
-        if (slot.partId == null) {
-          // 可放置的空槽
-          bg = Colors.green[50];
+    IconData leading;
+    Color? bg;
+    Color border;
+    String label;
+    if (slot.partId == null) {
+      // 空插槽
+      label = '$slotTag ${_t('空', 'Empty')}';
+      leading = Icons.add_circle_outline;
+      bg = color.withValues(alpha: 0.08);
+      border = color.withValues(alpha: 0.4);
+      if (_swapMode && sel != null && sel.category == slot.category) {
+        // 选中部件的可放置目标
+        bg = Colors.green[50];
+        border = Colors.green;
+        leading = Icons.add_circle_outline;
+      }
+    } else {
+      final part = _partById[slot.partId!];
+      final partName = part == null ? slot.partId! : _pn(part, widget.locale);
+      label = '$slotTag $partName';
+      final selected =
+          sel != null &&
+          sel.category == slot.category &&
+          sel.index == slot.index;
+      if (_swapMode && sel != null) {
+        if (selected) {
+          // 当前选中的部件
+          bg = Colors.green[100];
           border = Colors.green;
-          leading = Icons.add_circle_outline;
-        } else {
-          // 已占用（点击交换）
+          leading = Icons.check_circle;
+        } else if (sel.category == slot.category) {
+          // 同类型已占用：点击交换
           bg = Colors.orange[50];
           border = Colors.orange;
           leading = Icons.swap_horiz;
+        } else {
+          // 不同类型：不可用
+          bg = Colors.grey[100];
+          border = Colors.grey[300]!;
+          fg = Colors.grey;
+          leading = Icons.block;
         }
       } else {
-        // 不同类型：不可用
-        bg = Colors.grey[100];
-        border = Colors.grey[300]!;
-        fg = Colors.grey;
+        leading = _categoryIcon(slot.category);
+        bg = color.withValues(alpha: 0.08);
+        border = color.withValues(alpha: 0.5);
       }
     }
 
@@ -724,21 +796,23 @@ class _MyGarageScreenState extends State<MyGarageScreen> {
     );
   }
 
-  void _onPartTap(_ReorderEntry item) {
-    if (!_swapMode) return;
-    setState(() {
-      final same =
-          _selectedPart?.category == item.category &&
-          _selectedPart?.index == item.index;
-      _selectedPart = same ? null : item;
-    });
-  }
-
   void _onSlotTap(_SlotEntry slot) {
     if (!_swapMode) return;
     final sel = _selectedPart;
     if (sel == null) {
-      _showHint(_t('请先点击选择一个部件', 'Tap a part first'));
+      // 未选中部件：仅已占用插槽可选中（作为部件）
+      if (slot.partId != null) {
+        final part = _partById[slot.partId!];
+        if (part != null) {
+          setState(() {
+            _selectedPart = (
+              category: slot.category,
+              index: slot.index,
+              part: part,
+            );
+          });
+        }
+      }
       return;
     }
     if (slot.category != sel.category) {
@@ -751,10 +825,10 @@ class _MyGarageScreenState extends State<MyGarageScreen> {
       if (slot.index == sel.index) {
         _selectedPart = null; // 点击原槽位：取消选中
       } else if (slot.partId == null) {
-        _movePartToSlot(sel.category, sel.index, slot.index);
+        _movePartToSlot(sel.category, sel.index, slot.index); // 移入空槽
         _selectedPart = null;
       } else {
-        _swapInVehicle(sel.category, sel.index, slot.index);
+        _swapInVehicle(sel.category, sel.index, slot.index); // 交换
         _selectedPart = null;
       }
     });
