@@ -172,6 +172,8 @@ class _MyGarageScreenState extends State<MyGarageScreen> {
     final v = _slots[i];
     final filled = v != null && !v.isEmpty;
     final selected = i == _selectedSlot;
+    final name = (v?.name ?? '').trim();
+    final hasName = filled && name.isNotEmpty;
     return InkWell(
       borderRadius: BorderRadius.circular(10),
       onTap: () => setState(() {
@@ -181,8 +183,8 @@ class _MyGarageScreenState extends State<MyGarageScreen> {
         _shapeZoom = 1.0;
       }),
       child: Container(
-        width: 62,
-        padding: const EdgeInsets.symmetric(vertical: 8),
+        constraints: const BoxConstraints(minWidth: 62, maxWidth: 110),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
         decoration: BoxDecoration(
           color: selected
               ? Colors.indigo
@@ -211,14 +213,27 @@ class _MyGarageScreenState extends State<MyGarageScreen> {
                   : Colors.grey,
             ),
             const SizedBox(height: 2),
-            Text(
-              '${i + 1}',
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.bold,
-                color: selected ? Colors.white : Colors.black87,
+            if (hasName)
+              Text(
+                name,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.bold,
+                  color: selected ? Colors.white : Colors.black87,
+                ),
+              )
+            else
+              Text(
+                '${i + 1}',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                  color: selected ? Colors.white : Colors.black87,
+                ),
               ),
-            ),
           ],
         ),
       ),
