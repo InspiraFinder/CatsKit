@@ -21,7 +21,7 @@ import 'gang_data.dart';
 import 'gang_stats_screen.dart';
 import 'my_gang_screen.dart';
 
-const String appVersion = '1.7.2';
+const String appVersion = '1.7.3';
 
 /// 获取部件在当前语言下的显示名称
 String pn(PartData part, String? locale) {
@@ -1295,7 +1295,11 @@ class _BuildToolScreenState extends State<BuildToolScreen> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
-                  _t('车位$slot', 'Slot $slot'),
+                  (filled && (v?.name ?? '').isNotEmpty)
+                      ? v!.name!
+                      : _t('车位$slot', 'Slot $slot'),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.bold,
