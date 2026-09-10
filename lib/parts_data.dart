@@ -254,6 +254,7 @@ const s232 = SlotData(2, 3, 2);
 const s233 = SlotData(2, 3, 3);
 const s321 = SlotData(3, 2, 1);
 const s331 = SlotData(3, 3, 1);
+const s332 = SlotData(3, 3, 2);
 const s322 = SlotData(3, 2, 2);
 const s421 = SlotData(4, 2, 1);
 
@@ -308,7 +309,7 @@ class PartDatabase {
       category: PartCategory.body,
       rarity: Rarity.r6,
       sponsor: Sponsor.gluttony,
-      hp1: 35825,
+      hp1: 32500,
       power: 35,
       bonus: bWheel25,
       slots: s233,
@@ -336,7 +337,7 @@ class PartDatabase {
       category: PartCategory.body,
       rarity: Rarity.r6,
       sponsor: Sponsor.naturalis,
-      hp1: 52560,
+      hp1: 55000,
       power: 35,
       bonus: bGadget10,
       slots: s123,
@@ -351,7 +352,7 @@ class PartDatabase {
       rarity: Rarity.r6,
       sponsor: Sponsor.mecha,
       hp1: 53000,
-      power: 35,
+      power: 40,
       bonus: bWheel15,
       slots: s222,
       sip: StatsIncrementPattern.r6,
@@ -378,7 +379,7 @@ class PartDatabase {
       category: PartCategory.body,
       rarity: Rarity.r6,
       sponsor: Sponsor.gluttony,
-      hp1: 46088,
+      hp1: 51000,
       power: 40,
       bonus: bGadget20,
       slots: s203,
@@ -392,10 +393,10 @@ class PartDatabase {
       category: PartCategory.body,
       rarity: Rarity.r6,
       sponsor: Sponsor.mecha,
-      hp1: 32568,
-      power: 35,
+      hp1: 33000,
+      power: 40,
       bonus: bWeapon10,
-      slots: s331,
+      slots: s332,
       sip: StatsIncrementPattern.r6,
     ),
     PartData(
@@ -420,7 +421,7 @@ class PartDatabase {
       category: PartCategory.body,
       rarity: Rarity.r6,
       sponsor: Sponsor.naturalis,
-      hp1: 40164,
+      hp1: 42000,
       power: 35,
       bonus: bWeapon10,
       slots: s222,
@@ -434,7 +435,7 @@ class PartDatabase {
       category: PartCategory.body,
       rarity: Rarity.r6,
       sponsor: Sponsor.naturalis,
-      hp1: 48392,
+      hp1: 50000,
       power: 35,
       bonus: bWeapon10,
       slots: s232,

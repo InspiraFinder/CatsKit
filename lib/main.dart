@@ -20,8 +20,9 @@ import 'upgrade_plan_screen.dart';
 import 'gang_data.dart';
 import 'gang_stats_screen.dart';
 import 'my_gang_screen.dart';
+import 'balance_history_screen.dart';
 
-const String appVersion = '1.7.3';
+const String appVersion = '1.8.0';
 
 /// 获取部件在当前语言下的显示名称
 String pn(PartData part, String? locale) {
@@ -41,6 +42,7 @@ Future<void> main() async {
   var savedLocale = prefs.getString('appLocale') ?? 'zh';
   final savedServer = prefs.getString('appServer') ?? 'cn';
   final savedDarkMode = prefs.getBool('appDarkMode') ?? false;
+  final savedBgColor = prefs.getInt('appBgColor'); // null = 跟随主题默认
   // 国服只能使用中文
   if (savedServer == 'cn') {
     savedLocale = 'zh';
@@ -50,6 +52,7 @@ Future<void> main() async {
       initialLocale: savedLocale,
       initialServer: savedServer,
       initialDarkMode: savedDarkMode,
+      initialBgColor: savedBgColor,
     ),
   );
 }
@@ -58,11 +61,15 @@ class MyApp extends StatefulWidget {
   final String initialLocale;
   final String initialServer;
   final bool initialDarkMode;
+
+  /// 自定义背景色（ARGB int），null = 跟随主题默认
+  final int? initialBgColor;
   const MyApp({
     super.key,
     this.initialLocale = 'zh',
     this.initialServer = 'cn',
     this.initialDarkMode = false,
+    this.initialBgColor,
   });
 
   @override
@@ -73,6 +80,7 @@ class _MyAppState extends State<MyApp> {
   late String _appLocale;
   late String _appServer; // 'cn' 国服, 'intl' 国际服
   late bool _appDarkMode;
+  late int? _appBgColor; // 自定义背景色（ARGB），null = 默认
 
   @override
   void initState() {
@@ -80,6 +88,7 @@ class _MyAppState extends State<MyApp> {
     _appLocale = widget.initialLocale;
     _appServer = widget.initialServer;
     _appDarkMode = widget.initialDarkMode;
+    _appBgColor = widget.initialBgColor;
   }
 
   void _onLocaleChanged(String newLocale) {
@@ -103,18 +112,36 @@ class _MyAppState extends State<MyApp> {
     );
   }
 
+  /// 自定义背景色变更（null = 恢复默认）
+  void _onBgColorChanged(int? newValue) {
+    setState(() => _appBgColor = newValue);
+    SharedPreferences.getInstance().then((prefs) {
+      if (newValue == null) {
+        prefs.remove('appBgColor');
+      } else {
+        prefs.setInt('appBgColor', newValue);
+      }
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
+    final bg = _appBgColor == null ? null : Color(_appBgColor!);
     return MaterialApp(
       title: 'CatsKit',
       // 统一处理底部安全区：避免系统导航栏/手势条遮挡页面底部内容
       builder: (context, child) =>
           SafeArea(top: false, left: false, right: false, child: child!),
-      theme: ThemeData(primarySwatch: Colors.blue, useMaterial3: true),
+      theme: ThemeData(
+        primarySwatch: Colors.blue,
+        useMaterial3: true,
+        scaffoldBackgroundColor: bg,
+      ),
       darkTheme: ThemeData(
         brightness: Brightness.dark,
         primarySwatch: Colors.blue,
         useMaterial3: true,
+        scaffoldBackgroundColor: bg,
       ),
       themeMode: _appDarkMode ? ThemeMode.dark : ThemeMode.light,
       home: MainMenuScreen(
@@ -124,6 +151,8 @@ class _MyAppState extends State<MyApp> {
         onServerChanged: _onServerChanged,
         darkMode: _appDarkMode,
         onDarkModeChanged: _onDarkModeChanged,
+        bgColor: _appBgColor,
+        onBgColorChanged: _onBgColorChanged,
       ),
     );
   }
@@ -134,12 +163,16 @@ class MainScreen extends StatefulWidget {
   final String server;
   final bool darkMode;
   final ValueChanged<bool>? onDarkModeChanged;
+  final int? bgColor;
+  final ValueChanged<int?>? onBgColorChanged;
   const MainScreen({
     super.key,
     this.locale = 'zh',
     this.server = 'cn',
     this.darkMode = false,
     this.onDarkModeChanged,
+    this.bgColor,
+    this.onBgColorChanged,
   });
 
   @override
@@ -613,6 +646,7 @@ class _MainScreenState extends State<MainScreen> {
           currentServer: _server,
           currentShowSnackBar: _showSnackBar,
           currentDarkMode: widget.darkMode,
+          currentBgColor: widget.bgColor,
           currentGithubUpdateUrl: githubUpdateUrl,
           currentMirrorUrl: _mirrorUrl,
         ),
@@ -629,6 +663,9 @@ class _MainScreenState extends State<MainScreen> {
       if (result['darkMode'] != null) {
         widget.onDarkModeChanged?.call(result['darkMode'] as bool);
       }
+      if (result.containsKey('bgColor')) {
+        widget.onBgColorChanged?.call(result['bgColor'] as int?);
+      }
       _showMessage('语言已切换', 'Language changed');
     }
   }
@@ -642,6 +679,8 @@ class MainMenuScreen extends StatefulWidget {
   final ValueChanged<String>? onServerChanged;
   final bool darkMode;
   final ValueChanged<bool>? onDarkModeChanged;
+  final int? bgColor;
+  final ValueChanged<int?>? onBgColorChanged;
   const MainMenuScreen({
     super.key,
     this.locale = 'zh',
@@ -650,6 +689,8 @@ class MainMenuScreen extends StatefulWidget {
     this.onServerChanged,
     this.darkMode = false,
     this.onDarkModeChanged,
+    this.bgColor,
+    this.onBgColorChanged,
   });
 
   @override
@@ -660,6 +701,7 @@ class _MainMenuScreenState extends State<MainMenuScreen> {
   late String _locale;
   late String _server;
   late bool _darkMode;
+  late int? _bgColor;
 
   String _t(String zh, String en) => _locale == 'zh' ? zh : en;
 
@@ -669,6 +711,7 @@ class _MainMenuScreenState extends State<MainMenuScreen> {
     _locale = widget.locale;
     _server = widget.server;
     _darkMode = widget.darkMode;
+    _bgColor = widget.bgColor;
   }
 
   @override
@@ -682,6 +725,9 @@ class _MainMenuScreenState extends State<MainMenuScreen> {
     }
     if (widget.darkMode != oldWidget.darkMode) {
       _darkMode = widget.darkMode;
+    }
+    if (widget.bgColor != oldWidget.bgColor) {
+      _bgColor = widget.bgColor;
     }
   }
 
@@ -711,6 +757,13 @@ class _MainMenuScreenState extends State<MainMenuScreen> {
         if (newDarkMode != _darkMode) {
           setState(() => _darkMode = newDarkMode);
           widget.onDarkModeChanged?.call(newDarkMode);
+        }
+      }
+      if (result.containsKey('bgColor')) {
+        final newBg = result['bgColor'] as int?;
+        if (newBg != _bgColor) {
+          setState(() => _bgColor = newBg);
+          widget.onBgColorChanged?.call(newBg);
         }
       }
     }
@@ -749,6 +802,8 @@ class _MainMenuScreenState extends State<MainMenuScreen> {
                     server: _server,
                     darkMode: _darkMode,
                     onDarkModeChanged: widget.onDarkModeChanged,
+                    bgColor: _bgColor,
+                    onBgColorChanged: widget.onBgColorChanged,
                   ),
                 ),
               ),
@@ -814,6 +869,16 @@ class _MainMenuScreenState extends State<MainMenuScreen> {
               const SizedBox(height: 16),
               _buildMenuItem(
                 context,
+                icon: Icons.balance,
+                label: _t('历史平衡', 'Balance History'),
+                color: Colors.purple,
+                onTap: () => _navigateAndAwaitLocale(
+                  BalanceHistoryScreen(locale: _locale, server: _server),
+                ),
+              ),
+              const SizedBox(height: 16),
+              _buildMenuItem(
+                context,
                 icon: Icons.groups_2,
                 label: _t('我的帮派', 'My Gang'),
                 color: Colors.teal,
@@ -843,6 +908,7 @@ class _MainMenuScreenState extends State<MainMenuScreen> {
                     currentServer: _server,
                     currentShowSnackBar: false,
                     currentDarkMode: _darkMode,
+                    currentBgColor: _bgColor,
                     currentGithubUpdateUrl:
                         'https://github.com/InspiraFinder/CatsKit/releases',
                     currentMirrorUrl: '',
@@ -1244,6 +1310,8 @@ class _BuildToolScreenState extends State<BuildToolScreen> {
     );
     if (selected == null || !mounted) return;
 
+    // 保留原车位名称（名称属于车位，重新保存车辆时不应丢失）
+    vehicle.name = slots[selected - 1]?.name;
     slots[selected - 1] = vehicle;
     await GarageStore.save(slots);
     if (!mounted) return;
@@ -3126,6 +3194,9 @@ class SettingsScreen extends StatefulWidget {
   final String currentServer;
   final bool currentShowSnackBar;
   final bool currentDarkMode;
+
+  /// 当前自定义背景色（ARGB），null = 默认
+  final int? currentBgColor;
   final String currentGithubUpdateUrl;
   final String currentMirrorUrl;
 
@@ -3135,6 +3206,7 @@ class SettingsScreen extends StatefulWidget {
     this.currentServer = 'cn',
     required this.currentShowSnackBar,
     this.currentDarkMode = false,
+    this.currentBgColor,
     required this.currentGithubUpdateUrl,
     required this.currentMirrorUrl,
   });
@@ -3148,6 +3220,34 @@ class _SettingsScreenState extends State<SettingsScreen> {
   late String server;
   late bool showSnackBar;
   late bool darkMode;
+  int? bgColor; // 自定义背景色（ARGB），null = 默认
+
+  /// 常用背景色预设（ARGB，不命名）
+  static const List<int> bgPresets = [
+    0xFFFAF6EF,
+    0xFFE8F5E9,
+    0xFFE3F2FD,
+    0xFFF3E5F5,
+    0xFFFFF8E1,
+    0xFF263238,
+    0xFF0D1B2A,
+    0xFF000000,
+  ];
+
+  /// 当前实际背景色（bgColor 为 null 时取主题背景色），用于 RGB 滑块初值
+  int _effectiveBgArgb() {
+    if (bgColor != null) return bgColor!;
+    return Theme.of(context).scaffoldBackgroundColor.toARGB32();
+  }
+
+  /// 按 RGB 分量更新背景色（未指定的分量保持当前值）
+  void _updateRgb({int? r, int? g, int? b}) {
+    final base = _effectiveBgArgb();
+    final nr = r ?? ((base >> 16) & 0xFF);
+    final ng = g ?? ((base >> 8) & 0xFF);
+    final nb = b ?? (base & 0xFF);
+    setState(() => bgColor = 0xFF000000 | (nr << 16) | (ng << 8) | nb);
+  }
   late TextEditingController updateUrlController;
   late TextEditingController mirrorController;
   late TextEditingController downloadPathController;
@@ -3190,6 +3290,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
     showSnackBar = widget.currentShowSnackBar;
     darkMode = widget.currentDarkMode;
+    bgColor = widget.currentBgColor;
     updateUrlController = TextEditingController(
       text: widget.currentGithubUpdateUrl,
     );
@@ -3896,6 +3997,150 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
+  /// 自定义背景颜色模块（默认折叠，含预设色块 + RGB 滑块）
+  Widget _buildBgColorSection() {
+    final base = _effectiveBgArgb();
+    final rv = (base >> 16) & 0xFF;
+    final gv = (base >> 8) & 0xFF;
+    final bv = base & 0xFF;
+    final hex = (base & 0xFFFFFF)
+        .toRadixString(16)
+        .padLeft(6, '0')
+        .toUpperCase();
+    return ExpansionTile(
+      initiallyExpanded: false,
+      tilePadding: const EdgeInsets.symmetric(horizontal: 16),
+      childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+      title: Row(
+        children: [
+          Text(
+            locale == 'zh' ? '自定义背景颜色' : 'Custom background',
+            style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(width: 8),
+          // 当前背景色指示（折叠时也能看到）
+          Container(
+            width: 16,
+            height: 16,
+            decoration: BoxDecoration(
+              color: Color(base),
+              borderRadius: BorderRadius.circular(3),
+              border: Border.all(color: Colors.grey[400]!),
+            ),
+          ),
+        ],
+      ),
+      subtitle: Text(
+        locale == 'zh'
+            ? '点选预设色块，或用 RGB 滑块微调'
+            : 'Tap a preset or fine-tune with RGB sliders',
+        style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+      ),
+      children: [
+        Align(
+          alignment: Alignment.centerLeft,
+          child: Wrap(
+            spacing: 12,
+            runSpacing: 12,
+            children: [
+              _buildBgColorChip(null),
+              for (final v in bgPresets) _buildBgColorChip(v),
+            ],
+          ),
+        ),
+        const SizedBox(height: 4),
+        _buildRgbRow('R', rv, Colors.red, (v) => _updateRgb(r: v)),
+        _buildRgbRow('G', gv, Colors.green, (v) => _updateRgb(g: v)),
+        _buildRgbRow('B', bv, Colors.blue, (v) => _updateRgb(b: v)),
+        Align(
+          alignment: Alignment.centerLeft,
+          child: Padding(
+            padding: const EdgeInsets.only(left: 14),
+            child: Text(
+              '#$hex',
+              style: TextStyle(fontSize: 11, color: Colors.grey[600]),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// RGB 单个分量滑块（0~255）
+  Widget _buildRgbRow(
+    String label,
+    int value,
+    Color labelColor,
+    ValueChanged<int> onChanged,
+  ) {
+    return Row(
+      children: [
+        SizedBox(
+          width: 14,
+          child: Text(
+            label,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.bold,
+              color: labelColor,
+            ),
+          ),
+        ),
+        Expanded(
+          child: Slider(
+            value: value.toDouble(),
+            min: 0,
+            max: 255,
+            divisions: 255,
+            onChanged: (v) => onChanged(v.round()),
+          ),
+        ),
+        SizedBox(
+          width: 30,
+          child: Text(
+            '$value',
+            textAlign: TextAlign.right,
+            style: const TextStyle(fontSize: 12),
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// 背景色色块（value = null 表示「默认」，跟随主题）
+  Widget _buildBgColorChip(int? value) {
+    final selected = bgColor == value;
+    final color = value == null ? null : Color(value);
+    final swatchDark =
+        color != null &&
+        ThemeData.estimateBrightnessForColor(color) == Brightness.dark;
+    return InkWell(
+      borderRadius: BorderRadius.circular(10),
+      onTap: () => setState(() => bgColor = value),
+      child: Container(
+        width: 44,
+        height: 44,
+        decoration: BoxDecoration(
+          color: color ?? Theme.of(context).scaffoldBackgroundColor,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(
+            color: selected ? Colors.blue : Colors.grey[400]!,
+            width: selected ? 3 : 1,
+          ),
+        ),
+        child: value == null
+            ? Icon(Icons.format_color_reset, size: 18, color: Colors.grey[600])
+            : (selected
+                  ? Icon(
+                      Icons.check,
+                      size: 20,
+                      color: swatchDark ? Colors.white : Colors.black87,
+                    )
+                  : null),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return PopScope<Map<String, dynamic>>(
@@ -3907,6 +4152,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             'server': server,
             'showSnackBar': showSnackBar,
             'darkMode': darkMode,
+            'bgColor': bgColor,
             'githubUpdateUrl': updateUrlController.text.trim(),
             'mirrorUrl': mirrorController.text.trim(),
           });
@@ -4019,6 +4265,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 });
               },
             ),
+            // 自定义背景颜色
+            _buildBgColorSection(),
             const Divider(),
             Padding(
               padding: const EdgeInsets.all(16.0),
@@ -4029,6 +4277,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     'server': server,
                     'showSnackBar': showSnackBar,
                     'darkMode': darkMode,
+                    'bgColor': bgColor,
                     'githubUpdateUrl': updateUrlController.text.trim(),
                     'mirrorUrl': mirrorController.text.trim(),
                   });
