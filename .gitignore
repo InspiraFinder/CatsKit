@@ -190,3 +190,9 @@ web/
 !**/ios/**/default.mode2v3
 !**/ios/**/default.pbxuser
 !**/ios/**/default.perspectivev3
+
+# ============================================
+# 本地平衡记录目录（不参与打包、不提交）
+# 后续平衡调整请直接更新 lib/balance_history_data.dart
+# ============================================
+balance_notes/

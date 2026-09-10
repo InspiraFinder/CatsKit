@@ -99,6 +99,7 @@ class _MyGarageScreenState extends State<MyGarageScreen> {
     }
 
     return GarageVehicle(
+      name: v.name, // 保留车位名称（否则加载时会被重置导致名称不持久）
       bodyId: v.bodyId,
       extraWeaponId: v.extraWeaponId,
       weaponSlots: align(v.weaponSlots, body.slots!.weapon),
@@ -983,7 +984,11 @@ class _MyGarageScreenState extends State<MyGarageScreen> {
       return;
     }
     setState(() {
-      _slots[_selectedSlot] = _normalize(vehicle);
+      // 保留原车位名称（名称属于车位，导入车辆码不应清除）
+      final oldName = _slots[_selectedSlot]?.name;
+      final imported = _normalize(vehicle);
+      imported.name = oldName;
+      _slots[_selectedSlot] = imported;
     });
     await _persist();
     if (!mounted) return;
