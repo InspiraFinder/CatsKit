@@ -126,6 +126,16 @@ class _MyGarageScreenState extends State<MyGarageScreen> {
           onPressed: () => Navigator.pop(context, {'locale': widget.locale}),
           tooltip: _t('返回主菜单', 'Back'),
         ),
+        actions: [
+          // 右上角删除车辆（清空车位）
+          if (vehicle != null)
+            IconButton(
+              icon: const Icon(Icons.delete_outline),
+              color: Colors.red,
+              tooltip: _t('删除车辆（清空车位）', 'Delete vehicle (clear slot)'),
+              onPressed: () => _deleteVehicle(vehicle),
+            ),
+        ],
       ),
       body: Column(
         children: [
@@ -174,7 +184,8 @@ class _MyGarageScreenState extends State<MyGarageScreen> {
     final filled = v != null && !v.isEmpty;
     final selected = i == _selectedSlot;
     final name = (v?.name ?? '').trim();
-    final hasName = filled && name.isNotEmpty;
+    // 有名称就显示（即使车辆已清空、车位仅剩名称）
+    final hasName = name.isNotEmpty;
     return InkWell(
       borderRadius: BorderRadius.circular(10),
       onTap: () => setState(() {
@@ -242,6 +253,7 @@ class _MyGarageScreenState extends State<MyGarageScreen> {
   }
 
   Widget _buildEmpty() {
+    final keptName = (_vehicle?.name ?? '').trim();
     return Center(
       child: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
@@ -254,6 +266,17 @@ class _MyGarageScreenState extends State<MyGarageScreen> {
               _t('该车位为空', 'This slot is empty'),
               style: TextStyle(fontSize: 16, color: Colors.grey[600]),
             ),
+            if (keptName.isNotEmpty) ...[
+              const SizedBox(height: 4),
+              Text(
+                _t('车位名称：$keptName', 'Slot name: $keptName'),
+                style: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.indigo,
+                ),
+              ),
+            ],
             const SizedBox(height: 4),
             Text(
               _t(
@@ -578,6 +601,105 @@ class _MyGarageScreenState extends State<MyGarageScreen> {
       v.name = newName.isEmpty ? null : newName;
       _persist();
     });
+  }
+
+  /// 删除当前车位的车辆（清空为空车位）
+  ///
+  /// 弹窗内可选择是否同时删除车位名称（默认删除）；
+  /// 若车位仅剩名称（车辆已清空），则用于删除该名称。
+  Future<void> _deleteVehicle(GarageVehicle v) async {
+    final name = (v.name ?? '').trim();
+    final hasName = name.isNotEmpty;
+    final hasVehicle = !v.isEmpty;
+    final slotNo = _selectedSlot + 1;
+    bool deleteName = true; // 默认一并删除名称
+
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          title: Text(
+            hasVehicle
+                ? _t('删除车辆', 'Delete vehicle')
+                : _t('删除车位名称', 'Delete slot name'),
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                !hasVehicle
+                    ? _t(
+                        '确定删除车位 $slotNo 的名称「$name」吗？',
+                        'Delete the name “$name” of slot $slotNo?',
+                      )
+                    : hasName
+                    ? _t(
+                        '确定删除「$name」（车位 $slotNo）的车辆吗？该车位将变为空车位。',
+                        'Delete the vehicle “$name” (slot $slotNo)? The slot will be cleared.',
+                      )
+                    : _t(
+                        '确定删除车位 $slotNo 的车辆吗？该车位将变为空车位。',
+                        'Delete the vehicle in slot $slotNo? The slot will be cleared.',
+                      ),
+              ),
+              if (hasVehicle && hasName) ...[
+                const SizedBox(height: 4),
+                CheckboxListTile(
+                  value: deleteName,
+                  onChanged: (val) =>
+                      setDialogState(() => deleteName = val ?? true),
+                  title: Text(
+                    _t('同时删除车位名称', 'Also delete slot name'),
+                    style: const TextStyle(fontSize: 14),
+                  ),
+                  subtitle: Text(
+                    deleteName
+                        ? _t(
+                            '名称「$name」将被一并删除',
+                            'The name “$name” will also be removed',
+                          )
+                        : _t('将保留名称「$name」', 'The name “$name” will be kept'),
+                    style: const TextStyle(fontSize: 12),
+                  ),
+                  contentPadding: EdgeInsets.zero,
+                  controlAffinity: ListTileControlAffinity.leading,
+                  dense: true,
+                ),
+              ],
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: Text(_t('取消', 'Cancel')),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              style: TextButton.styleFrom(foregroundColor: Colors.red),
+              child: Text(_t('删除', 'Delete')),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (ok != true || !mounted) return;
+    final keepName = hasVehicle && hasName && !deleteName;
+    setState(() {
+      // 保留名称时写入“仅含名称的空车位”，否则整格清空
+      _slots[_selectedSlot] = keepName ? GarageVehicle(name: name) : null;
+      _swapMode = false;
+      _selectedPart = null;
+      _shapeZoom = 1.0;
+    });
+    await _persist();
+    if (!mounted) return;
+    _codeController.clear();
+    _showHint(
+      keepName
+          ? _t('已清空车位 $slotNo（保留名称）', 'Slot $slotNo cleared (name kept)')
+          : _t('已清空车位 $slotNo', 'Slot $slotNo cleared'),
+    );
   }
 
   /// 形状缩放滑条（横向滑动缩放，附百分比显示）

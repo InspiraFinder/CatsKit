@@ -158,6 +158,8 @@ class _BalanceHistoryScreenState extends State<BalanceHistoryScreen> {
   Widget _buildChangeRow(BalanceChange c) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final grey = isDark ? Colors.grey[400] : Colors.grey[600];
+    // 变化幅度展示（电力用绝对差值，其余用百分比文本）
+    final delta = _deltaInfo(c);
 
     // 备注类条目
     if (c.field == 'note') {
@@ -179,7 +181,8 @@ class _BalanceHistoryScreenState extends State<BalanceHistoryScreen> {
     }
 
     return SizedBox(
-      width: 380,
+      // 固定总宽：保证各行左侧列对齐；数值列（插槽等）预留足够空间避免截断
+      width: 424,
       child: Padding(
         padding: const EdgeInsets.only(bottom: 10),
         child: Row(
@@ -187,7 +190,7 @@ class _BalanceHistoryScreenState extends State<BalanceHistoryScreen> {
           children: [
             // 部件名
             SizedBox(
-              width: 92,
+              width: 84,
               child: Text(
                 c.partName,
                 style: const TextStyle(
@@ -199,7 +202,7 @@ class _BalanceHistoryScreenState extends State<BalanceHistoryScreen> {
             ),
             // 字段
             SizedBox(
-              width: 52,
+              width: 42,
               child: Text(
                 _fieldLabel(c.field),
                 style: TextStyle(
@@ -211,14 +214,14 @@ class _BalanceHistoryScreenState extends State<BalanceHistoryScreen> {
             ),
             // 变化幅度（放在数值前，避免窄屏被省略）
             SizedBox(
-              width: 62,
+              width: 50,
               child: Text(
-                c.percent ?? '',
+                delta.text,
                 textAlign: TextAlign.right,
                 style: TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.bold,
-                  color: c.percentUp ? Colors.green : Colors.red,
+                  color: delta.up ? Colors.green : Colors.red,
                 ),
               ),
             ),
@@ -259,6 +262,21 @@ class _BalanceHistoryScreenState extends State<BalanceHistoryScreen> {
         ),
       ),
     );
+  }
+
+  /// 变化幅度展示信息：
+  /// - `power`（电力）：用新旧值的绝对差值，如 `+5` / `-3`（比百分比更直观）
+  /// - 其余字段：沿用数据中提供的展示文本（如 `+10.7%`、`配件 +1`）
+  ({String text, bool up}) _deltaInfo(BalanceChange c) {
+    if (c.field == 'power') {
+      final oldV = int.tryParse(c.oldValue.replaceAll(RegExp(r'\D'), ''));
+      final newV = int.tryParse(c.newValue.replaceAll(RegExp(r'\D'), ''));
+      if (oldV != null && newV != null) {
+        final diff = newV - oldV;
+        return (text: diff >= 0 ? '+$diff' : '$diff', up: diff >= 0);
+      }
+    }
+    return (text: c.percent ?? '', up: c.percentUp);
   }
 
   String _fieldLabel(String field) {

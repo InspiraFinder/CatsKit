@@ -22,7 +22,7 @@ import 'gang_stats_screen.dart';
 import 'my_gang_screen.dart';
 import 'balance_history_screen.dart';
 
-const String appVersion = '1.8.0';
+const String appVersion = '1.8.1';
 
 /// 获取部件在当前语言下的显示名称
 String pn(PartData part, String? locale) {
@@ -3413,6 +3413,34 @@ class _SettingsScreenState extends State<SettingsScreen> {
     return candidates;
   }
 
+  /// 复制更新包地址到剪贴板（便于粘贴到浏览器手动下载）
+  Future<void> copyUpdateUrl() async {
+    final url = updateUrlController.text.trim();
+    if (url.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            locale == 'zh'
+                ? '地址为空：请先点击「检测最新更新」，或手动填写更新包地址'
+                : 'URL is empty: tap "Check for updates" or enter a URL first',
+          ),
+        ),
+      );
+      return;
+    }
+    await Clipboard.setData(ClipboardData(text: url));
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          locale == 'zh'
+              ? '更新包地址已复制，可粘贴到浏览器下载'
+              : 'URL copied — paste it into your browser',
+        ),
+      ),
+    );
+  }
+
   Future<void> checkForUpdate() async {
     const apiUrl =
         'https://api.github.com/repos/InspiraFinder/CatsKit/releases/latest';
@@ -4303,6 +4331,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   hintText: locale == 'zh'
                       ? '请输入 GitHub release 直链'
                       : 'Enter GitHub release direct URL',
+                  // 尾部图标：复制地址，便于粘贴到浏览器手动下载
+                  suffixIcon: IconButton(
+                    onPressed: copyUpdateUrl,
+                    icon: const Icon(Icons.copy, size: 20),
+                    tooltip: locale == 'zh' ? '复制地址' : 'Copy URL',
+                  ),
                 ),
               ),
             ),

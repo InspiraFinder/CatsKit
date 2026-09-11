@@ -19,10 +19,16 @@ class BalanceChange {
   /// 新值（展示用文本）
   final String newValue;
 
-  /// 变化幅度展示文本（如 '+10.7%'、'配件 +1'），无则 null
+  /// 变化幅度展示文本（如 '+10.7%'、'配件 +1'），无则 null。
+  ///
+  /// 注意：`power`（电力）字段这里填写的百分比**不用于界面展示**，
+  /// 界面会按 [oldValue]/[newValue] 自动换算为绝对差值（如 `+5`），
+  /// 保留该字段仅作调整记录之用。
   final String? percent;
 
-  /// 幅度是否为增加（决定颜色：绿=增、红=减）
+  /// 幅度是否为增加（决定颜色：绿=增、红=减）。
+  ///
+  /// 同理，`power` 字段的颜色由新旧值自动判定。
   final bool percentUp;
 
   const BalanceChange({
