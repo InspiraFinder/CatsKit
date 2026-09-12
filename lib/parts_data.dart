@@ -3085,6 +3085,56 @@ class PartDatabase {
       sip: StatsIncrementPattern.r6,
     );
 
+    // ========== 国际服已调整、国服未调整的部件（固定为国服原值） ==========
+    // 注意：国服表由国际服表复制而来，未被覆盖的同名部件会「跟随」国际服的
+    // 平衡性调整。以下部件国服并未同步调整，必须在此固定原始数值，
+    // 否则国际服的改动会错误地作用到国服。
+    // 酷酷鸭：国服 hp52560（国际服 1.8.0 已调整为 55000）
+    map['cool_ducky'] = const PartData(
+      id: 'cool_ducky',
+      name: 'Cool Ducky',
+      nameZh: '酷酷鸭',
+      nameJa: 'クールダック',
+      category: PartCategory.body,
+      rarity: Rarity.r6,
+      sponsor: Sponsor.naturalis,
+      hp1: 52560,
+      power: 35,
+      bonus: bGadget10,
+      slots: s123,
+      sip: StatsIncrementPattern.r6,
+    );
+    // 幻影马戏团：国服 hp46088（国际服 1.8.0 已调整为 51000）
+    map['phantom_circus'] = const PartData(
+      id: 'phantom_circus',
+      name: 'Phantom Circus',
+      nameZh: '幻影马戏团',
+      nameJa: 'ファントムサーカス',
+      category: PartCategory.body,
+      rarity: Rarity.r6,
+      sponsor: Sponsor.gluttony,
+      hp1: 46088,
+      power: 40,
+      bonus: bGadget20,
+      slots: s203,
+      sip: StatsIncrementPattern.r6,
+    );
+    // 绿龙：国服 hp48392（国际服 1.8.0 已调整为 50000）
+    map['green_dragon'] = const PartData(
+      id: 'green_dragon',
+      name: 'Green Dragon',
+      nameZh: '绿龙',
+      nameJa: 'グリーンドラゴン',
+      category: PartCategory.body,
+      rarity: Rarity.r6,
+      sponsor: Sponsor.naturalis,
+      hp1: 48392,
+      power: 35,
+      bonus: bWeapon10,
+      slots: s232,
+      sip: StatsIncrementPattern.r6,
+    );
+
     // ========== 国服专属部件 ==========
     // 火凤：hp40164 电量35 自然赞助 配件+20% 可组装2武2轮3配
     map['fire_phoenix'] = const PartData(
