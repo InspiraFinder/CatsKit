@@ -7,6 +7,7 @@ class ActivityInfo {
   final String nameZh;
   final String nameEn;
   final String iconAsset;
+
   /// 是否属于小活动类别（图标固定放左上角；即使占用大活动周期也是如此）
   final bool isMini;
   const ActivityInfo({
@@ -104,6 +105,11 @@ const Map<String, ActivityInfo> kActivities = {
 ///
 /// 锚点：2026-08-20（周四）19:00 所在活动周期为 weekIndex 0，
 /// 该周期 4 天时段：国服 = GP，国际服 = 废铁（下周齿轮）。
+///
+/// **轮换改版（2026-09-17 19:00 起，即 weekIndex 4）**：
+/// - 国服：废铁与 GP 对调，即 废铁 → GP → 太空 → 全明星（循环）
+/// - 国际服：轮换顺序不变，整体往后挪 3 周（新日历第 N 周 = 旧日历第 N-3 周）
+/// - 9/16（含）以前的内容一律保持旧顺序。
 /// 短周期锚点：2026-08-24（周一）19:00 所在短周期为 shortIndex 0，
 /// 该短周期：国服 = 王牌，国际服 = 24h锦标赛+黑市（上一个小活动：国际服 = 太空）。
 class ActivityCalendar {
@@ -113,11 +119,24 @@ class ActivityCalendar {
   /// 短周期锚点：2026-08-24（周一）19:00
   static final DateTime _shortAnchor = DateTime(2026, 8, 24, 19, 0);
 
-  /// 国服 4 天时段活动序列（从锚点周开始）
+  /// 轮换改版起点：2026-09-17（周四）19:00 所在的 weekIndex
+  /// （锚点 2026-08-20 + 4 周 = 9/17）
+  static const int revampWeek = 4;
+
+  /// 国服 4 天时段旧序列（锚点周 → 2026-09-16）
   /// GP → 废铁 → 太空 → 全明星（循环，废铁与太空顺序已调换）
-  static const List<String> _cn4dSequence = [
+  static const List<String> _cn4dSequenceOld = [
     'gp',
     'scrap',
+    'space',
+    'allstar',
+  ];
+
+  /// 国服 4 天时段新序列（2026-09-17 19:00 起，废铁与 GP 对调）
+  /// 废铁 → GP → 太空 → 全明星（循环）
+  static const List<String> _cn4dSequenceNew = [
+    'scrap',
+    'gp',
     'space',
     'allstar',
   ];
@@ -136,11 +155,7 @@ class ActivityCalendar {
   /// 国服短周期（小活动）槽位序列（从 shortIndex 0 开始）
   /// 王牌 → 酒馆 → 24h锦标赛+黑市 → 王牌 → ...（王牌占1槽，3天普通小活动）
   /// shortIndex 0 = 王牌（锚点短周期，今天开启）
-  static const List<String> _cnShortSequence = [
-    'joker',
-    'tavern',
-    'champ',
-  ];
+  static const List<String> _cnShortSequence = ['joker', 'tavern', 'champ'];
 
   /// 国际服短周期（小活动）槽位序列（从 shortIndex 0 开始）
   /// 24h锦标赛+黑市 → 酒馆 → 王牌（占2槽，10天）→ 太空 → 24h锦标赛+黑市 → ...
@@ -153,14 +168,18 @@ class ActivityCalendar {
     'space',
   ];
 
-  /// 国服 4 天时段轮换顺序（公开，用于展示）
-  static List<String> get cnSequence => List.unmodifiable(_cn4dSequence);
+  /// 国服 4 天时段轮换顺序（公开，用于展示；改版后为新顺序）
+  static List<String> get cnSequence => List.unmodifiable(_cn4dSequenceNew);
+
+  /// 国服改版前的轮换顺序
+  static List<String> get cnSequenceOld => List.unmodifiable(_cn4dSequenceOld);
 
   /// 国际服 4 天时段轮换顺序（公开，用于展示）
   static List<String> get intlSequence => List.unmodifiable(_intl4dSequence);
 
   /// 国服短周期轮换顺序（公开，用于展示）
-  static List<String> get cnShortSequence => List.unmodifiable(_cnShortSequence);
+  static List<String> get cnShortSequence =>
+      List.unmodifiable(_cnShortSequence);
 
   /// 国际服短周期轮换顺序（公开，用于展示）
   static List<String> get intlShortSequence =>
@@ -202,13 +221,26 @@ class ActivityCalendar {
   }
 
   /// 获取指定服务器、指定 weekIndex 的 4 天时段活动 id
+  ///
+  /// 改版前（< [revampWeek]）一律走旧顺序；改版后：
+  /// - 国服按新序列（废铁/GP 对调）从改版周重新起头
+  /// - 国际服轮换顺序不变，整体后移 3 周（取旧日历 3 周前的活动）
   static String activityForWeek(String server, int weekIdx) {
-    if (server == 'cn') {
-      return _cn4dSequence[weekIdx % _cn4dSequence.length];
+    if (weekIdx < revampWeek) {
+      if (server == 'cn') {
+        return _cn4dSequenceOld[weekIdx % _cn4dSequenceOld.length];
+      }
+      final seq = _intl4dSequence;
+      return seq[(_intlStartIndex + weekIdx) % seq.length];
     }
-    // 国际服
+    if (server == 'cn') {
+      final seq = _cn4dSequenceNew;
+      return seq[(weekIdx - revampWeek) % seq.length];
+    }
+    // 国际服：日历平移 3 周（顺序不变）
     final seq = _intl4dSequence;
-    return seq[(_intlStartIndex + weekIdx) % seq.length];
+    final i = (_intlStartIndex + weekIdx - 3) % seq.length;
+    return seq[i < 0 ? i + seq.length : i];
   }
 
   /// 获取指定服务器当前 4 天时段活动 id
@@ -570,10 +602,7 @@ class _ActivityCalendarScreenState extends State<ActivityCalendarScreen> {
                       '当前服务器：${_server == 'cn' ? '国服' : '国际服'}',
                       'Server: ${_server == 'cn' ? 'CN' : 'Intl'}',
                     ),
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: Colors.grey[600],
-                    ),
+                    style: TextStyle(fontSize: 13, color: Colors.grey[600]),
                   ),
                 ],
               ),
@@ -629,9 +658,7 @@ class _ActivityCalendarScreenState extends State<ActivityCalendarScreen> {
   /// 说明：活动排期以官方为准，本日历仅为根据以往规律的推断
   Widget _buildCredibilityCard(bool isDark) {
     // 国际服与国服当前可信度均为「中」（黄色）
-    final lightColor = isDark
-        ? Colors.amberAccent
-        : Colors.amber.shade600;
+    final lightColor = isDark ? Colors.amberAccent : Colors.amber.shade600;
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(12),
@@ -677,11 +704,11 @@ class _ActivityCalendarScreenState extends State<ActivityCalendarScreen> {
           Text(
             _t(
               '活动排期以官方为准，本日历仅为根据以往规律的推断，'
-              '但官方可以修改活动排期。可信度指示灯展示近期活动日历的可信度。',
+                  '但官方可以修改活动排期。可信度指示灯展示近期活动日历的可信度。',
               'Official schedule prevails; this calendar is only an inference '
-              'based on past patterns, and officials may change the schedule. '
-              'The indicator shows the credibility of the recent activity '
-              'calendar.',
+                  'based on past patterns, and officials may change the schedule. '
+                  'The indicator shows the credibility of the recent activity '
+                  'calendar.',
             ),
             style: TextStyle(
               fontSize: 12,
@@ -695,11 +722,7 @@ class _ActivityCalendarScreenState extends State<ActivityCalendarScreen> {
   }
 
   /// 月历网格（自适应：横屏时完整显示一个月，居中且两边留白）
-  Widget _buildCalendarGrid(
-    List<DateTime> cells,
-    DateTime today,
-    bool isDark,
-  ) {
+  Widget _buildCalendarGrid(List<DateTime> cells, DateTime today, bool isDark) {
     return LayoutBuilder(
       builder: (context, constraints) {
         // 可用宽度
@@ -811,13 +834,12 @@ class _ActivityCalendarScreenState extends State<ActivityCalendarScreen> {
     final isJokerMain = ActivityCalendar.isJokerMainPeriod(_server, date);
     // 该大活动周期的正常大活动（用 19:00 定位，避免周四 00:00 取到上一周期）
     final jokerMainA = isJokerMain
-        ? kActivities[
-            ActivityCalendar.activityForWeek(
-              _server,
-              ActivityCalendar.weekIndexForDate(
-                DateTime(date.year, date.month, date.day, 19),
-              ),
-            )]!
+        ? kActivities[ActivityCalendar.activityForWeek(
+            _server,
+            ActivityCalendar.weekIndexForDate(
+              DateTime(date.year, date.month, date.day, 19),
+            ),
+          )]!
         : null;
 
     // 统一背景：所有日期一致，仅用图标区分活动（今天用边框+数字突出）
@@ -1123,12 +1145,7 @@ class _ActivityCalendarScreenState extends State<ActivityCalendarScreen> {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Image.asset(
-          a.iconAsset,
-          width: 16,
-          height: 16,
-          fit: BoxFit.contain,
-        ),
+        Image.asset(a.iconAsset, width: 16, height: 16, fit: BoxFit.contain),
         const SizedBox(width: 5),
         Text(label, style: const TextStyle(fontSize: 12)),
       ],
@@ -1147,7 +1164,9 @@ class _ActivityCalendarScreenState extends State<ActivityCalendarScreen> {
       isCn ? ActivityCalendar.cnSequence : ActivityCalendar.intlSequence,
     );
     final shortSeq = names(
-      isCn ? ActivityCalendar.cnShortSequence : ActivityCalendar.intlShortSequence,
+      isCn
+          ? ActivityCalendar.cnShortSequence
+          : ActivityCalendar.intlShortSequence,
     );
     return Container(
       width: double.infinity,
@@ -1168,6 +1187,19 @@ class _ActivityCalendarScreenState extends State<ActivityCalendarScreen> {
           ),
           const SizedBox(height: 6),
           _rotationRow(serverLabel, longSeq),
+          const SizedBox(height: 4),
+          Text(
+            isCn
+                ? _t(
+                    '2026-09-17（周四）19:00 起：废铁 与 GP 对调（此前按旧顺序）',
+                    'From 2026-09-17 19:00: Scrap and GP swapped (earlier dates keep the old order)',
+                  )
+                : _t(
+                    '2026-09-17（周四）19:00 起：轮换顺序不变，整体后移 3 周（此前按旧顺序）',
+                    'From 2026-09-17 19:00: same rotation order, shifted 3 weeks later (earlier dates keep the old order)',
+                  ),
+            style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+          ),
           const SizedBox(height: 10),
           Text(
             _t('短周期轮换顺序', 'Short-cycle Rotation'),
@@ -1266,7 +1298,12 @@ class _TrianglePainter extends CustomPainter {
         ..strokeWidth = 1
         ..color = borderColor,
     );
-    canvas.drawPath(path, Paint()..style = PaintingStyle.fill..color = color);
+    canvas.drawPath(
+      path,
+      Paint()
+        ..style = PaintingStyle.fill
+        ..color = color,
+    );
   }
 
   @override
