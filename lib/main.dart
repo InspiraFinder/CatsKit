@@ -22,7 +22,7 @@ import 'gang_stats_screen.dart';
 import 'my_gang_screen.dart';
 import 'balance_history_screen.dart';
 
-const String appVersion = '1.8.2';
+const String appVersion = '1.8.3';
 
 /// 获取部件在当前语言下的显示名称
 String pn(PartData part, String? locale) {
