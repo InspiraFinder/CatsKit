@@ -21,8 +21,9 @@ import 'gang_data.dart';
 import 'gang_stats_screen.dart';
 import 'my_gang_screen.dart';
 import 'balance_history_screen.dart';
+import 'max_stats_screen.dart';
 
-const String appVersion = '1.8.3';
+const String appVersion = '1.9.0';
 
 /// 获取部件在当前语言下的显示名称
 String pn(PartData part, String? locale) {
@@ -874,6 +875,16 @@ class _MainMenuScreenState extends State<MainMenuScreen> {
                 color: Colors.purple,
                 onTap: () => _navigateAndAwaitLocale(
                   BalanceHistoryScreen(locale: _locale, server: _server),
+                ),
+              ),
+              const SizedBox(height: 16),
+              _buildMenuItem(
+                context,
+                icon: Icons.emoji_events,
+                label: _t('极限数值', 'Max Stats'),
+                color: Colors.amber,
+                onTap: () => _navigateAndAwaitLocale(
+                  MaxStatsScreen(locale: _locale, server: _server),
                 ),
               ),
               const SizedBox(height: 16),
