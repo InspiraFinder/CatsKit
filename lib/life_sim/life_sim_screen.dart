@@ -175,109 +175,194 @@ class _LifeSimScreenState extends State<LifeSimScreen> {
   // 今日
   // ===================================================================
 
-  Widget _buildToday(LifeSimSave s) {
+  Widget _buildMain(LifeSimSave s) {
+    return Column(
+      children: [
+        Expanded(child: _buildLogStream(s)),
+        _buildActionBar(s),
+      ],
+    );
+  }
+
+  /// 日志流（主界面）：纯文字显示，最早的在上面、最新的贴底，不做卡片背景
+  Widget _buildLogStream(LifeSimSave s) {
+    final logs = s.logs;
+    if (logs.isEmpty) {
+      return Center(
+        child: Text(
+          _t('还没有任何记录', 'No events yet'),
+          style: TextStyle(color: Colors.grey[600]),
+        ),
+      );
+    }
+    return ListView.builder(
+      reverse: true,
+      padding: const EdgeInsets.fromLTRB(14, 8, 14, 12),
+      itemCount: logs.length,
+      itemBuilder: (context, i) {
+        final l = logs[i];
+        final isDayStart = i == logs.length - 1 || logs[i + 1].day != l.day;
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (isDayStart)
+              Padding(
+                padding: const EdgeInsets.only(top: 14, bottom: 4),
+                child: Text(
+                  _t('── 第 ${l.day} 天 ──', '── Day ${l.day} ──'),
+                  style: TextStyle(
+                    fontSize: 11,
+                    letterSpacing: 1,
+                    color: Colors.grey[500],
+                  ),
+                ),
+              ),
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 3),
+              child: Text(
+                '${l.icon}  ${_locale == 'zh' ? l.zh : l.en}',
+                style: TextStyle(
+                  fontSize: 13.5,
+                  height: 1.45,
+                  color: _logColor(l.kind),
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  /// 日志按类型着色（仅文字颜色，不加背景）
+  Color? _logColor(String kind) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    switch (kind) {
+      case 'reward':
+        return isDark ? Colors.green[300] : Colors.green[800];
+      case 'city':
+        return isDark ? Colors.orange[300] : Colors.orange[800];
+      case 'gang':
+        return isDark ? Colors.teal[200] : Colors.teal[700];
+      case 'achv':
+        return isDark ? Colors.amber[300] : Colors.amber[800];
+      case 'system':
+        return isDark ? Colors.pink[200] : Colors.pink[700];
+      case 'day':
+        return Colors.grey;
+      default:
+        return null;
+    }
+  }
+
+  /// 底部行动条：当前活动 / 进度 / 决策按钮 / 城市之王 / 结束这一天
+  Widget _buildActionBar(LifeSimSave s) {
     final period = _engine.periodForDay(s.day);
     final tiers = LifeSimEngine.tiersFor(period.isMajor);
     final rank = LifeSimEngine.rankFor(s.progress, period.isMajor);
     final nextTier = tiers.where((t) => t.min > s.progress).toList();
     final next = nextTier.isEmpty ? null : nextTier.last;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
 
-    return ListView(
-      padding: const EdgeInsets.all(12),
-      children: [
-        _card(
-          title: LifeSimEngine.activityName(period.activityId, _locale),
-          subtitle: period.isMajor
-              ? _t('大活动 · 4 天周期', 'Major activity · 4-day cycle')
-              : _t('小活动 · 3 天周期', 'Mini activity · 3-day cycle'),
-          icon: '🎯',
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Text(
-                    _t('进度 ', 'Progress ') + _fmt(s.progress),
-                    style: const TextStyle(fontWeight: FontWeight.bold),
+    return Material(
+      elevation: 8,
+      color: isDark ? const Color(0xFF16181D) : Colors.white,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(12, 8, 12, 10),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Text(
+                  LifeSimEngine.activityName(period.activityId, _locale),
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
                   ),
-                  const Spacer(),
-                  _rankChip(rank),
-                ],
-              ),
-              const SizedBox(height: 6),
-              if (next != null)
+                ),
+                const SizedBox(width: 6),
                 Text(
                   _t(
-                    '距 ${next.rank} 档还需 ${_fmt(next.min - s.progress)}',
-                    '${_fmt(next.min - s.progress)} to rank ${next.rank}',
+                    '第 ${period.dayInPeriod(s.day)}/${period.lengthDays} 天',
+                    'Day ${period.dayInPeriod(s.day)}/${period.lengthDays}',
                   ),
-                  style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                  style: TextStyle(fontSize: 11, color: Colors.grey[600]),
                 ),
-              const SizedBox(height: 8),
-              Wrap(
-                spacing: 6,
-                children: [
-                  for (final t in tiers)
-                    Chip(
-                      label: Text(
-                        '${t.rank} ${t.min == 0 ? '0' : _fmt(t.min)}',
-                        style: const TextStyle(fontSize: 11),
-                      ),
-                      visualDensity: VisualDensity.compact,
-                      backgroundColor: s.progress >= t.min
-                          ? Colors.green.withValues(alpha: 0.2)
-                          : null,
+                const Spacer(),
+                _rankChip(rank),
+                if (s.unclaimedCount > 0)
+                  IconButton(
+                    visualDensity: VisualDensity.compact,
+                    tooltip: _t('领取奖励', 'Claim rewards'),
+                    icon: Badge(
+                      label: Text('${s.unclaimedCount}'),
+                      child: const Icon(Icons.card_giftcard, size: 20),
                     ),
-                ],
-              ),
-              if (s.activeActivityBonus > 0)
-                Padding(
-                  padding: const EdgeInsets.only(top: 6),
-                  child: Text(
-                    _t(
-                      '本周期进度加成 +${(s.activeActivityBonus * 100).round()}%',
-                      'This cycle bonus +${(s.activeActivityBonus * 100).round()}%',
-                    ),
-                    style: const TextStyle(fontSize: 12, color: Colors.teal),
+                    onPressed: _claimRewards,
                   ),
-                ),
-              if (s.nextActivityBonus > 0)
-                Padding(
-                  padding: const EdgeInsets.only(top: 6),
-                  child: Text(
-                    _t(
-                      '下周期进度加成 +${(s.nextActivityBonus * 100).round()}%',
-                      'Next cycle bonus +${(s.nextActivityBonus * 100).round()}%',
-                    ),
-                    style: const TextStyle(fontSize: 12, color: Colors.teal),
-                  ),
-                ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 12),
-        _sectionTitle(_t('做出决策', 'Make a choice')),
-        for (final c in _engine.choicesFor(period.activityId))
-          _choiceTile(s, c),
-        const SizedBox(height: 12),
-        _cityKingCard(s),
-        const SizedBox(height: 12),
-        SizedBox(
-          width: double.infinity,
-          child: FilledButton.icon(
-            onPressed: _endDay,
-            icon: const Icon(Icons.nightlight_round),
-            label: Text(
-              _t('结束这一天（+${LifeSimSave.kDailyEnergy} 精力）',
-                  'End the day (+${LifeSimSave.kDailyEnergy} energy)'),
+              ],
             ),
-            style: FilledButton.styleFrom(
-              padding: const EdgeInsets.symmetric(vertical: 16),
+            Text(
+              next == null
+                  ? _t(
+                      '进度 ${_fmt(s.progress)}（已达最高档）',
+                      'Progress ${_fmt(s.progress)} (top rank)',
+                    )
+                  : _t(
+                      '进度 ${_fmt(s.progress)} · 距 ${next.rank} 档 ${_fmt(next.min - s.progress)}',
+                      'Progress ${_fmt(s.progress)} · ${_fmt(next.min - s.progress)} to ${next.rank}',
+                    ),
+              style: TextStyle(fontSize: 12, color: Colors.grey[600]),
             ),
-          ),
+            const SizedBox(height: 6),
+            Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children: [
+                for (final c in _engine.choicesFor(period.activityId))
+                  ActionChip(
+                    avatar: const Icon(Icons.bolt, size: 14),
+                    label: Text(
+                      '${_locale == 'zh' ? c.nameZh : c.nameEn} ${c.energyCost}',
+                      style: const TextStyle(fontSize: 12),
+                    ),
+                    onPressed: s.energy >= c.energyCost
+                        ? () => _makeChoice(c)
+                        : null,
+                  ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                OutlinedButton.icon(
+                  onPressed: () => _showCityKingDialog(s),
+                  icon: const Icon(Icons.sports_kabaddi, size: 18),
+                  label: Text(
+                    _t('城市之王', 'City King'),
+                    style: const TextStyle(fontSize: 12),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: FilledButton.icon(
+                    onPressed: _endDay,
+                    icon: const Icon(Icons.nightlight_round, size: 18),
+                    label: Text(
+                      _t('结束这一天（+${LifeSimSave.kDailyEnergy} 精力）',
+                          'End the day (+${LifeSimSave.kDailyEnergy} energy)'),
+                      style: const TextStyle(fontSize: 12),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
         ),
-        const SizedBox(height: 24),
-      ],
+      ),
     );
   }
 
@@ -303,91 +388,83 @@ class _LifeSimScreenState extends State<LifeSimScreen> {
     );
   }
 
-  Widget _choiceTile(LifeSimSave s, ActivityChoice c) {
-    final affordable = s.energy >= c.energyCost;
-    final gain = (_engine.powerScore(s) * c.coef).round();
-    return Card(
-      margin: const EdgeInsets.only(bottom: 8),
-      child: ListTile(
-        enabled: affordable,
-        leading: CircleAvatar(
-          backgroundColor: affordable ? Colors.teal : Colors.grey,
-          child: Text(
-            '${c.energyCost}',
-            style: const TextStyle(color: Colors.white, fontSize: 12),
-          ),
-        ),
-        title: Text(_locale == 'zh' ? c.nameZh : c.nameEn),
-        subtitle: Text(
-          '${_locale == 'zh' ? c.descZh : c.descEn} · ${_t('约 +$gain 进度', '~+$gain progress')}',
-          style: const TextStyle(fontSize: 12),
-        ),
-        trailing: const Icon(Icons.play_arrow),
-        onTap: affordable ? () => _makeChoice(c) : null,
-      ),
-    );
-  }
-
-  Widget _cityKingCard(LifeSimSave s) {
+  /// 城市之王详情 / 发起挑战
+  void _showCityKingDialog(LifeSimSave s) {
     if (!s.inGang) {
-      return _card(
+      _dialog(
         title: _t('城市之王', 'City King'),
-        subtitle: _t('加入或组建帮派后开启', 'Unlocks after joining a gang'),
-        icon: '⚔️',
-        child: Text(
-          _t('每天随机挑战一个帮派，3 辆车逐一对位，胜场多者获胜。',
-              'Challenge a random gang daily: 3 cars face off one by one.'),
-          style: TextStyle(fontSize: 12, color: Colors.grey[600]),
-        ),
-      );
-    }
-    final opp = s.cityOpponentCars;
-    return _card(
-      title: _t('城市之王', 'City King'),
-      subtitle: s.cityChallenged
-          ? _t('今日已挑战', 'Already challenged today')
-          : _t('对手：${s.cityOpponentName ?? '——'}',
-              'Opponent: ${s.cityOpponentName ?? '——'}'),
-      icon: '⚔️',
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             _t(
-              '对手帮派战力 ${_fmt(s.cityOpponentPower)} · 活跃度 ${s.cityOpponentActivity}%',
-              'Opponent power ${_fmt(s.cityOpponentPower)} · activity ${s.cityOpponentActivity}%',
+              '加入或组建帮派后开启。每天可以挑战一个随机帮派，3 辆车逐一对位，胜场多者获胜。',
+              'Unlocks after joining a gang. Each day you may challenge a random gang: 3 cars face off one by one.',
             ),
-            style: const TextStyle(fontSize: 12),
           ),
-          const SizedBox(height: 4),
-          Text(
-            _t(
-              '对手三车：${opp.map(_fmt).join(' / ')}',
-              'Opponent cars: ${opp.map(_fmt).join(' / ')}',
-            ),
-            style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+        ],
+      );
+      return;
+    }
+    final opp = s.cityOpponentCars;
+    final canFight =
+        !s.cityChallenged && s.energy >= LifeSimEngine.kCityEnergyCost;
+    _dialog(
+      title: _t('城市之王', 'City King'),
+      children: [
+        Text(
+          _t('对手：${s.cityOpponentName ?? '——'}',
+              'Opponent: ${s.cityOpponentName ?? '——'}'),
+          style: const TextStyle(fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 6),
+        Text(
+          _t(
+            '对手帮派战力 ${_fmt(s.cityOpponentPower)} · 活跃度 ${s.cityOpponentActivity}%',
+            'Opponent power ${_fmt(s.cityOpponentPower)} · activity ${s.cityOpponentActivity}%',
           ),
-          const SizedBox(height: 10),
+          style: const TextStyle(fontSize: 13),
+        ),
+        Text(
+          _t('对手三车：${opp.map(_fmt).join(' / ')}',
+              'Opponent cars: ${opp.map(_fmt).join(' / ')}'),
+          style: const TextStyle(fontSize: 13),
+        ),
+        Text(
+          _t(
+            '我方三车：${_engine.vehiclePowers(s).map(_fmt).join(' / ')}',
+            'Your cars: ${_engine.vehiclePowers(s).map(_fmt).join(' / ')}',
+          ),
+          style: const TextStyle(fontSize: 13),
+        ),
+        const SizedBox(height: 6),
+        Text(
+          _t('战绩 ${s.cityWins} 胜 ${s.cityLosses} 负',
+              'Record ${s.cityWins}W ${s.cityLosses}L'),
+          style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+        ),
+        const SizedBox(height: 12),
+        if (canFight)
           SizedBox(
             width: double.infinity,
-            child: OutlinedButton.icon(
-              onPressed: s.cityChallenged || s.energy < LifeSimEngine.kCityEnergyCost
-                  ? null
-                  : _fightCityKing,
+            child: FilledButton.icon(
+              onPressed: () {
+                Navigator.pop(context);
+                _fightCityKing();
+              },
               icon: const Icon(Icons.sports_kabaddi),
               label: Text(
                 _t('发起挑战（${LifeSimEngine.kCityEnergyCost} 精力）',
                     'Challenge (${LifeSimEngine.kCityEnergyCost} energy)'),
               ),
             ),
-          ),
+          )
+        else
           Text(
-            _t('战绩 ${s.cityWins} 胜 ${s.cityLosses} 负',
-                'Record ${s.cityWins}W ${s.cityLosses}L'),
-            style: TextStyle(fontSize: 11, color: Colors.grey[600]),
+            s.cityChallenged
+                ? _t('今日已挑战，明天再来。', 'Already challenged today.')
+                : _t('精力不足，先结束这一天恢复精力。',
+                    'Not enough energy. End the day to recover.'),
           ),
-        ],
-      ),
+      ],
     );
   }
 
@@ -426,21 +503,28 @@ class _LifeSimScreenState extends State<LifeSimScreen> {
           children: [
             Row(
               children: [
-                Text(
-                  _t('第 ${index + 1} 辆车', 'Car ${index + 1}'),
-                  style: const TextStyle(fontWeight: FontWeight.bold),
+                Flexible(
+                  child: Text(
+                    _t('第 ${index + 1} 辆车', 'Car ${index + 1}'),
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ),
-                const Spacer(),
-                Text(
-                  val.ok
-                      ? _t(
-                          'HP ${_fmt(val.hp)} · ATK ${_fmt(val.atk)}',
-                          'HP ${_fmt(val.hp)} · ATK ${_fmt(val.atk)}',
-                        )
-                      : _t(val.error, val.error),
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: val.ok ? Colors.green : Colors.red,
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    val.ok
+                        ? _t(
+                            'HP ${_fmt(val.hp)} · ATK ${_fmt(val.atk)}',
+                            'HP ${_fmt(val.hp)} · ATK ${_fmt(val.atk)}',
+                          )
+                        : _t(val.error, val.error),
+                    textAlign: TextAlign.end,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: val.ok ? Colors.green : Colors.red,
+                    ),
                   ),
                 ),
               ],
@@ -489,25 +573,39 @@ class _LifeSimScreenState extends State<LifeSimScreen> {
             const SizedBox(height: 8),
             Row(
               children: [
-                Text(
-                  val.ok
-                      ? _t(
-                          '电力 ${val.powerSupply - val.powerConsumption}',
-                          'Power ${val.powerSupply - val.powerConsumption}',
-                        )
-                      : '',
-                  style: TextStyle(fontSize: 11, color: Colors.grey[600]),
+                Expanded(
+                  child: Text(
+                    val.ok
+                        ? _t(
+                            '电力 ${val.powerSupply - val.powerConsumption}',
+                            'Power ${val.powerSupply - val.powerConsumption}',
+                          )
+                        : '',
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(fontSize: 11, color: Colors.grey[600]),
+                  ),
                 ),
-                const Spacer(),
                 TextButton.icon(
                   onPressed: () => _run(() => _engine.autoBuild(s, index)),
                   icon: const Icon(Icons.auto_fix_high, size: 16),
-                  label: Text(_t('一键最强', 'Auto best')),
+                  label: Text(
+                    _t('一键最强', 'Auto'),
+                    style: const TextStyle(fontSize: 13),
+                  ),
+                  style: TextButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                  ),
                 ),
                 TextButton.icon(
                   onPressed: () => _run(() => s.vehicles[index].clear()),
                   icon: const Icon(Icons.clear, size: 16),
-                  label: Text(_t('清空', 'Clear')),
+                  label: Text(
+                    _t('清空', 'Clear'),
+                    style: const TextStyle(fontSize: 13),
+                  ),
+                  style: TextButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                  ),
                 ),
               ],
             ),
@@ -752,7 +850,7 @@ class _LifeSimScreenState extends State<LifeSimScreen> {
   }
 
   // ===================================================================
-  // 成就 / 日志
+  // 成就
   // ===================================================================
 
   Widget _buildAchievements(LifeSimSave s) {
@@ -791,30 +889,6 @@ class _LifeSimScreenState extends State<LifeSimScreen> {
             ),
           ),
       ],
-    );
-  }
-
-  Widget _buildLogs(LifeSimSave s) {
-    if (s.logs.isEmpty) {
-      return Center(child: Text(_t('还没有任何记录', 'No events yet')));
-    }
-    return ListView.builder(
-      itemCount: s.logs.length,
-      itemBuilder: (context, i) {
-        final l = s.logs[i];
-        return ListTile(
-          dense: true,
-          leading: Text(l.icon, style: const TextStyle(fontSize: 20)),
-          title: Text(
-            _locale == 'zh' ? l.zh : l.en,
-            style: const TextStyle(fontSize: 13),
-          ),
-          subtitle: Text(
-            _t('第 ${l.day} 天', 'Day ${l.day}'),
-            style: const TextStyle(fontSize: 11),
-          ),
-        );
-      },
     );
   }
 
@@ -1246,14 +1320,6 @@ class _LifeSimScreenState extends State<LifeSimScreen> {
     );
   }
 
-  Widget _sectionTitle(String text) => Padding(
-    padding: const EdgeInsets.only(bottom: 6, top: 4),
-    child: Text(
-      text,
-      style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
-    ),
-  );
-
   void _snack(String text) {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
@@ -1295,7 +1361,7 @@ class _LifeSimScreenState extends State<LifeSimScreen> {
     final s = _save;
     if (s == null) return _buildStart();
     return DefaultTabController(
-      length: 5,
+      length: 4,
       child: Scaffold(
         appBar: AppBar(
           title: Text(_t('猫生重开', 'Life Restart')),
@@ -1309,11 +1375,10 @@ class _LifeSimScreenState extends State<LifeSimScreen> {
           bottom: TabBar(
             isScrollable: true,
             tabs: [
-              Tab(text: _t('今日', 'Today')),
+              Tab(text: _t('主界面', 'Home')),
               Tab(text: _t('车库', 'Garage')),
               Tab(text: _t('帮派', 'Gang')),
               Tab(text: _t('成就', 'Achievements')),
-              Tab(text: _t('日志', 'Log')),
             ],
           ),
         ),
@@ -1323,11 +1388,10 @@ class _LifeSimScreenState extends State<LifeSimScreen> {
             Expanded(
               child: TabBarView(
                 children: [
-                  _buildToday(s),
+                  _buildMain(s),
                   _buildGarage(s),
                   _buildGang(s),
                   _buildAchievements(s),
-                  _buildLogs(s),
                 ],
               ),
             ),
@@ -1370,6 +1434,7 @@ class _LifeSimScreenState extends State<LifeSimScreen> {
                   final save = e.newSave();
                   setState(() => _save = save);
                   _persist();
+                  _showWelcome();
                 },
                 icon: const Icon(Icons.play_arrow),
                 label: Text(_t('开始新的猫生', 'Start a new life')),
@@ -1384,6 +1449,36 @@ class _LifeSimScreenState extends State<LifeSimScreen> {
           ),
         ),
       ),
+    );
+  }
+
+  /// 开局欢迎弹窗（与日志第一条一致）
+  void _showWelcome() {
+    _dialog(
+      title: _t('欢迎', 'Welcome'),
+      children: [
+        Text(
+          _locale == 'zh' ? kWelcomeZh : kWelcomeEn,
+          style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 10),
+        Text(
+          _t(
+            '你获得了 $kStarterPartTotal 个开局部件（车身 $kStarterBodyCount / '
+            '武器 $kStarterWeaponCount / 配件 $kStarterGadgetCount / 车轮 $kStarterWheelCount，'
+            '其中保底 1 个 R6），已自动为你配好第 1 辆车。',
+            'You received $kStarterPartTotal starter parts (body $kStarterBodyCount / '
+            'weapon $kStarterWeaponCount / gadget $kStarterGadgetCount / wheel $kStarterWheelCount, '
+            'guaranteed 1 R6) and your first car was auto-built.',
+          ),
+        ),
+        const SizedBox(height: 10),
+        Text(
+          _t('在活动期间消耗精力做决策，活动结束时按档位领奖。',
+              'Spend energy on choices while an activity runs, then claim rank rewards when it ends.'),
+          style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+        ),
+      ],
     );
   }
 

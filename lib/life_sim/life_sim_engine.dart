@@ -299,35 +299,122 @@ class LifeSimEngine {
   // 新存档
   // ===================================================================
 
-  /// 创建新存档：发放新手部件包并自动配好第 1 辆车
+  /// 创建新存档：
+  /// 1. 第 1 天弹出欢迎语（日志第一条）；
+  /// 2. 随机发放 15 个部件（车身 3 / 武器 3 / 配件 3 / 车轮 6），稀有度以 R2 为主，
+  ///    并**保底 1 个 R6**；
+  /// 3. 用这些部件自动配好第 1 辆车。
   LifeSimSave newSave() {
-    final pool = PartDatabase.partsForServer(server);
-    List<String> pick(PartCategory c, int n, [Rarity r = Rarity.r2]) {
-      final list = pool
-          .where((p) => p.category == c && p.rarity == r)
-          .toList()
-        ..sort((a, b) => a.id.compareTo(b.id));
-      if (list.length < n) {
-        list.addAll(
-          pool.where((p) => p.category == c && p.rarity == Rarity.r3),
-        );
-      }
-      return list.take(n).map((p) => p.id).toList();
-    }
+    final ids = _rollStarterParts();
+    final save = LifeSimSave(ownedParts: ids, progressPeriodStart: 1);
 
-    final save = LifeSimSave(
-      ownedParts: <String>[
-        ...pick(PartCategory.body, 2),
-        ...pick(PartCategory.weapon, 5),
-        ...pick(PartCategory.wheel, 4),
-        ...pick(PartCategory.gadget, 4),
-      ],
-      progressPeriodStart: 1,
+    final r6Count = ids
+        .where((id) => partIndex[id]?.rarity == Rarity.r6)
+        .length;
+    _log(save, '🐱', 'system', kWelcomeZh, kWelcomeEn);
+    _log(
+      save,
+      '🎒',
+      'reward',
+      '你获得了 $kStarterPartTotal 个开局部件'
+          '（车身 $kStarterBodyCount / 武器 $kStarterWeaponCount / '
+          '配件 $kStarterGadgetCount / 车轮 $kStarterWheelCount'
+          '${r6Count > 0 ? '，含 $r6Count 个 R6' : ''}）',
+      'You received $kStarterPartTotal starter parts '
+          '(body $kStarterBodyCount / weapon $kStarterWeaponCount / '
+          'gadget $kStarterGadgetCount / wheel $kStarterWheelCount'
+          '${r6Count > 0 ? ', including $r6Count R6' : ''})',
+    );
+    autoBuild(save, 0);
+    _log(
+      save,
+      '🚗',
+      'garage',
+      '已用现有部件自动配好第 1 辆车',
+      'Your first car was auto-built from your parts',
     );
     save.cityOpponentName = '——';
-    autoBuild(save, 0);
-    // 初始帮派对手（未加入帮派时不产生）
     return save;
+  }
+
+  /// 随机抽取 15 个开局部件（含 1 个 R6 保底）
+  List<String> _rollStarterParts() {
+    final slots = <PartCategory>[
+      ...List<PartCategory>.filled(kStarterBodyCount, PartCategory.body),
+      ...List<PartCategory>.filled(kStarterWeaponCount, PartCategory.weapon),
+      ...List<PartCategory>.filled(kStarterGadgetCount, PartCategory.gadget),
+      ...List<PartCategory>.filled(kStarterWheelCount, PartCategory.wheel),
+    ];
+    final used = <String>{};
+    final ids = <String>[];
+    for (final c in slots) {
+      final id = _rollPartOfCategory(c, used);
+      if (id.isNotEmpty) {
+        used.add(id);
+        ids.add(id);
+      }
+    }
+    // 保底 1 个 R6：没有抽到就把一个随机槽位替换为同分类的 R6
+    final hasR6 = ids.any((id) => partIndex[id]?.rarity == Rarity.r6);
+    if (!hasR6 && ids.isNotEmpty) {
+      final guaranteed = Rarity.values[kStarterGuaranteedRarityIndex];
+      final order = List<int>.generate(ids.length, (i) => i)..shuffle(_rng);
+      for (final i in order) {
+        final id = _rollPartOfCategory(
+          slots[i],
+          used,
+          rarity: guaranteed,
+        );
+        if (id.isNotEmpty) {
+          used.remove(ids[i]);
+          ids[i] = id;
+          break;
+        }
+      }
+    }
+    return ids;
+  }
+
+  /// 按开局的稀有度权重抽一个指定分类的部件
+  String _rollPartOfCategory(
+    PartCategory category,
+    Set<String> used, {
+    Rarity? rarity,
+  }) {
+    final pool = PartDatabase.partsForServer(server)
+        .where(
+          (p) => p.category == category && (rarity == null || p.rarity == rarity),
+        )
+        .toList();
+    if (pool.isEmpty) return '';
+    if (rarity != null) {
+      // 保底：优先给还没拥有的同稀有度部件
+      final fresh = pool.where((p) => !used.contains(p.id)).toList();
+      final from = fresh.isEmpty ? pool : fresh;
+      return from[_rng.nextInt(from.length)].id;
+    }
+    // 按权重抽稀有度，再在该稀有度内随机挑一个未使用的
+    final weights = kStarterRarityWeights;
+    for (var attempt = 0; attempt < 12; attempt++) {
+      final total = weights.fold(0, (a, b) => a + b);
+      var roll = _rng.nextInt(total);
+      var index = 0;
+      for (var i = 0; i < weights.length; i++) {
+        roll -= weights[i];
+        if (roll < 0) {
+          index = i;
+          break;
+        }
+      }
+      final target = Rarity.values[index.clamp(0, Rarity.values.length - 1)];
+      final candidates = pool.where((p) => p.rarity == target).toList();
+      if (candidates.isEmpty) continue;
+      candidates.shuffle(_rng);
+      for (final p in candidates) {
+        if (!used.contains(p.id)) return p.id;
+      }
+    }
+    return pool[_rng.nextInt(pool.length)].id;
   }
 
   // ===================================================================

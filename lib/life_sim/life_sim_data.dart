@@ -7,7 +7,37 @@ library;
 import 'life_sim_models.dart';
 
 // =====================================================================
-// 一、活动决策
+// 一、开局
+// =====================================================================
+
+/// 开局欢迎语（新游戏第 1 天弹窗 + 日志）
+const String kWelcomeZh = '欢迎进入 C.A.T.S. 的世界！';
+const String kWelcomeEn = 'Welcome to the world of C.A.T.S.!';
+
+/// 开局发放的部件数量
+const int kStarterBodyCount = 3;
+const int kStarterWeaponCount = 3;
+const int kStarterGadgetCount = 3;
+const int kStarterWheelCount = 6;
+
+/// 开局部件总数（= 3 + 3 + 3 + 6 = 15）
+const int kStarterPartTotal =
+    kStarterBodyCount +
+    kStarterWeaponCount +
+    kStarterGadgetCount +
+    kStarterWheelCount;
+
+/// 开局部件稀有度权重。
+///
+/// 下标 = `Rarity.index`（r1..r6）：以 R2 为主，少量 R1/R3，
+/// 更少 R4，极少 R5，极极少 R6。
+const List<int> kStarterRarityWeights = <int>[12, 50, 25, 9, 3, 1];
+
+/// 开局保底稀有度下标（5 = R6）：15 个部件里至少有一个 R6
+const int kStarterGuaranteedRarityIndex = 5;
+
+// =====================================================================
+// 二、活动决策
 // =====================================================================
 
 /// 一次活动决策（玩家在活动进行时做出的选择）
@@ -179,7 +209,7 @@ final Map<String, ActivityChoice> kSignatureChoices =
     };
 
 // =====================================================================
-// 二、档位阈值与奖励
+// 三、档位阈值与奖励
 // =====================================================================
 
 /// 档位线（从高到低排；`min` 为达到该档所需的进度分）
@@ -286,7 +316,7 @@ const Map<String, List<int>> kDropWeights = <String, List<int>>{
 };
 
 // =====================================================================
-// 三、帮派库
+// 四、帮派库
 // =====================================================================
 
 /// 固定帮派档案。
@@ -452,7 +482,7 @@ const List<String> kMemberNamePrefix = <String>[
 ];
 
 // =====================================================================
-// 四、成就
+// 五、成就
 // =====================================================================
 
 class Achievement {
