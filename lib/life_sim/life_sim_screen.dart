@@ -114,6 +114,11 @@ class _LifeSimScreenState extends State<LifeSimScreen> {
       (Icons.confirmation_number, _fmt(s.cash), Colors.purple),
       (Icons.monetization_on, _fmt(s.token), Colors.orange),
       (
+        Icons.account_balance_wallet,
+        _fmt(s.money),
+        s.money < 0 ? Colors.red : Colors.brown,
+      ),
+      (
         Icons.speed,
         _t('战力 ${_fmt(_engine.fleetPower(s))}', 'Power ${_fmt(_engine.fleetPower(s))}'),
         Colors.blue,
@@ -300,15 +305,37 @@ class _LifeSimScreenState extends State<LifeSimScreen> {
                 ),
                 const Spacer(),
                 if (isScrap)
-                  TextButton(
-                    onPressed: () => _showScrapNodesDialog(s),
-                    style: TextButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(horizontal: 8),
-                    ),
-                    child: Text(
-                      _t('奖励节点', 'Nodes'),
-                      style: const TextStyle(fontSize: 12),
-                    ),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (s.scrapMultiplier > 1)
+                        Padding(
+                          padding: const EdgeInsets.only(right: 6),
+                          child: Chip(
+                            visualDensity: VisualDensity.compact,
+                            backgroundColor: Colors.amber.withValues(
+                              alpha: 0.25,
+                            ),
+                            label: Text(
+                              _t(
+                                '进度 ×${s.scrapMultiplier}',
+                                'Progress ×${s.scrapMultiplier}',
+                              ),
+                              style: const TextStyle(fontSize: 11),
+                            ),
+                          ),
+                        ),
+                      TextButton(
+                        onPressed: () => _showScrapNodesDialog(s),
+                        style: TextButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(horizontal: 8),
+                        ),
+                        child: Text(
+                          _t('奖励节点', 'Nodes'),
+                          style: const TextStyle(fontSize: 12),
+                        ),
+                      ),
+                    ],
                   )
                 else
                   _rankChip(rank),
@@ -367,13 +394,34 @@ class _LifeSimScreenState extends State<LifeSimScreen> {
                   ActionChip(
                     avatar: const Icon(Icons.bolt, size: 14),
                     label: Text(
-                      '${_locale == 'zh' ? c.nameZh : c.nameEn} ${c.energyCost}',
+                      isScrap
+                          ? '${_locale == 'zh' ? c.nameZh : c.nameEn} '
+                                '+${c.fixedPoints} · ${c.energyCost}⚡'
+                          : '${_locale == 'zh' ? c.nameZh : c.nameEn} ${c.energyCost}',
                       style: const TextStyle(fontSize: 12),
                     ),
                     onPressed: s.energy >= c.energyCost
                         ? () => _makeChoice(c)
                         : null,
                   ),
+                if (isScrap) ...[
+                  ActionChip(
+                    avatar: const Icon(Icons.ondemand_video, size: 14),
+                    label: Text(
+                      _t('看广告 · $kAdEnergyCost⚡', 'Watch ad · $kAdEnergyCost⚡'),
+                      style: const TextStyle(fontSize: 12),
+                    ),
+                    onPressed: s.energy >= kAdEnergyCost ? _watchAd : null,
+                  ),
+                  ActionChip(
+                    avatar: const Icon(Icons.diamond, size: 14),
+                    label: Text(
+                      _t('氪金', 'Top-up'),
+                      style: const TextStyle(fontSize: 12),
+                    ),
+                    onPressed: () => _showTopUpDialog(s),
+                  ),
+                ],
               ],
             ),
             const SizedBox(height: 8),
@@ -441,9 +489,10 @@ class _LifeSimScreenState extends State<LifeSimScreen> {
       children: [
         Text(
           _t(
-            '总进度 $kScrapTotalProgress，节点按对数分布（先密后疏），'
-            '达成后奖励立即发放。每个周期结束后进度与节点会重置。',
-            'Total progress $kScrapTotalProgress. Nodes are log-spaced and grant rewards immediately. Progress and nodes reset each cycle.',
+            '总进度 $kScrapTotalProgress，节点按对数分布（先密后疏）、'
+            '一个节点只给一种奖励，达成后奖励立即发放。'
+            '每个周期结束后进度与节点会重置。',
+            'Total progress $kScrapTotalProgress. Nodes are log-spaced (dense early, sparse late), one reward per node, granted immediately. Progress and nodes reset each cycle.',
           ),
           style: TextStyle(fontSize: 12, color: Colors.grey[600]),
         ),
@@ -506,6 +555,100 @@ class _LifeSimScreenState extends State<LifeSimScreen> {
         return _t('紫票 ×${_fmt(r.amount)}', 'Cash ×${_fmt(r.amount)}');
     }
   }).join('、');
+
+  /// 看广告（废铁行动）
+  void _watchAd() {
+    final s = _save!;
+    final r = _engine.watchAd(s);
+    if (!r.ok) {
+      _snack(_locale == 'zh' ? r.errorZh : r.errorEn);
+      return;
+    }
+    _run(() {});
+    _dialog(
+      title: _t('广告奖励', 'Ad reward'),
+      children: [
+        Text(
+          _t(
+            '紫票 +${_fmt(r.cash)}　进度 +${r.progress}',
+            'Cash +${_fmt(r.cash)}  Progress +${r.progress}',
+          ),
+          style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+        ),
+        if (s.scrapMultiplier > 1)
+          Padding(
+            padding: const EdgeInsets.only(top: 6),
+            child: Text(
+              _t(
+                '氪金倍率 ×${s.scrapMultiplier}：基础进度 ${r.baseProgress} → ${r.progress}',
+                'Top-up ×${s.scrapMultiplier}: base progress ${r.baseProgress} → ${r.progress}',
+              ),
+              style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+            ),
+          ),
+        if (r.nodes.isNotEmpty) ...[
+          const SizedBox(height: 8),
+          Text(
+            _t(
+              '同时达成 ${r.nodes.length} 个奖励节点（明细见日志）',
+              'Also reached ${r.nodes.length} reward node(s) (see the log)',
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+
+  /// 氪金（废铁行动）：消耗「钱」换进度倍率
+  void _showTopUpDialog(LifeSimSave s) {
+    _dialog(
+      title: _t('氪金', 'Top-up'),
+      children: [
+        Text(
+          _t(
+            '消耗「钱」获得本次废铁行动的进度倍率（周期结束时失效）。'
+            '钱可以为负。当前余额：${_fmt(s.money)}',
+            'Spend money for a progress multiplier in this Scrap Run cycle (expires at cycle end). Money may go negative. Balance: ${_fmt(s.money)}',
+          ),
+          style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+        ),
+        const SizedBox(height: 8),
+        for (var i = 0; i < kTopUpTiers.length; i++)
+          Card(
+            margin: const EdgeInsets.only(bottom: 6),
+            child: ListTile(
+              dense: true,
+              title: Text(
+                _t(
+                  '花费 ${kTopUpTiers[i].cost} 钱 → 进度 ×${kTopUpTiers[i].multiplier}',
+                  'Spend ${kTopUpTiers[i].cost} money → progress ×${kTopUpTiers[i].multiplier}',
+                ),
+                style: const TextStyle(fontSize: 13),
+              ),
+              trailing: s.scrapMultiplier >= kTopUpTiers[i].multiplier
+                  ? const Icon(Icons.check, color: Colors.green)
+                  : const Icon(Icons.chevron_right),
+              enabled: s.scrapMultiplier < kTopUpTiers[i].multiplier,
+              onTap: () {
+                final r = _engine.topUp(s, i);
+                if (!r.ok) {
+                  _snack(_locale == 'zh' ? r.errorZh : r.errorEn);
+                  return;
+                }
+                Navigator.pop(context);
+                _run(() {});
+                _snack(
+                  _t(
+                    '本次废铁行动进度 ×${r.multiplier}',
+                    'Scrap Run progress ×${r.multiplier}',
+                  ),
+                );
+              },
+            ),
+          ),
+      ],
+    );
+  }
 
   /// 城市之王详情 / 发起挑战
   void _showCityKingDialog(LifeSimSave s) {
@@ -1204,11 +1347,12 @@ class _LifeSimScreenState extends State<LifeSimScreen> {
     }
     _run(() {});
     if (r.scrapNodes.isNotEmpty) {
-      // 废铁行动：本次达成了奖励节点
+      // 废铁行动：本次达成了奖励节点（可能一次跨过多个）
+      final shown = r.scrapNodes.take(5).toList();
       _dialog(
         title: _t('节点达成', 'Node reached'),
         children: [
-          for (final n in r.scrapNodes)
+          for (final n in shown)
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 3),
               child: Text(
@@ -1216,9 +1360,23 @@ class _LifeSimScreenState extends State<LifeSimScreen> {
                 style: const TextStyle(fontSize: 13),
               ),
             ),
+          if (r.scrapNodes.length > shown.length)
+            Padding(
+              padding: const EdgeInsets.only(top: 3),
+              child: Text(
+                _t(
+                  '…以及另外 ${r.scrapNodes.length - shown.length} 个节点',
+                  '…and ${r.scrapNodes.length - shown.length} more node(s)',
+                ),
+                style: const TextStyle(fontSize: 13),
+              ),
+            ),
           const SizedBox(height: 8),
           Text(
-            _t('奖励已立即发放（明细见日志）', 'Rewards granted (see the log)'),
+            _t(
+              '共达成 ${r.scrapNodes.length} 个节点，奖励已立即发放（明细见日志）',
+              '${r.scrapNodes.length} node(s) reached; rewards granted (see the log)',
+            ),
             style: TextStyle(fontSize: 12, color: Colors.grey[600]),
           ),
         ],

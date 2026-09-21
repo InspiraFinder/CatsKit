@@ -588,11 +588,17 @@ class LifeSimEngine {
   // 活动决策
   // ===================================================================
 
-  /// 当前周期可用的决策列表（通用 3 个 + 专属 1 个）
-  List<ActivityChoice> choicesFor(String activityId) => <ActivityChoice>[
-    ...kCommonChoices,
-    if (kSignatureChoices[activityId] != null) kSignatureChoices[activityId]!,
-  ];
+  /// 当前周期可用的决策列表
+  ///
+  /// 废铁行动是四档固定进度决策；其他活动是通用 3 个 + 专属 1 个。
+  List<ActivityChoice> choicesFor(String activityId) =>
+      isScrapActivity(activityId)
+      ? kScrapChoices
+      : <ActivityChoice>[
+          ...kCommonChoices,
+          if (kSignatureChoices[activityId] != null)
+            kSignatureChoices[activityId]!,
+        ];
 
   /// 做出一次活动决策
   ChoiceOutcome makeChoice(LifeSimSave save, ActivityChoice choice) {
@@ -622,10 +628,10 @@ class LifeSimEngine {
     final score = powerScore(save);
     final gangMul = save.inGang ? activityMultiplier(save.gangActivity) : 1.0;
     final jitter = 0.9 + _rng.nextDouble() * 0.2;
-    // 废铁行动是总进度 2000 的特殊活动：进度 = 系数 × 固定点数（与战力无关）
+    // 废铁行动：固定点数 × 本次活动的氪金倍率（与战力无关）
     final isScrap = isScrapActivity(period.activityId);
     final gain = isScrap
-        ? (coef * kScrapPointsPerCoef).round()
+        ? (choice.fixedPoints ?? 0) * save.scrapMultiplier
         : (score *
                   coef *
                   (1 + save.activeActivityBonus) *
@@ -694,6 +700,114 @@ class LifeSimEngine {
 
   /// 该活动是否为废铁行动
   static bool isScrapActivity(String activityId) => activityId == 'scrap';
+
+  /// 看广告：消耗 1 精力，随机抽「紫票」与「进度」各一档（受氪金倍率影响）
+  ({bool ok, String errorZh, String errorEn, int cash, int progress, int baseProgress, List<ScrapNode> nodes})
+  watchAd(LifeSimSave save) {
+    final period = periodForDay(save.day);
+    if (!isScrapActivity(period.activityId)) {
+      return (
+        ok: false,
+        errorZh: '只有废铁行动期间才能看广告',
+        errorEn: 'Ads are only available during Scrap Run',
+        cash: 0,
+        progress: 0,
+        baseProgress: 0,
+        nodes: const <ScrapNode>[],
+      );
+    }
+    if (save.energy < kAdEnergyCost) {
+      return (
+        ok: false,
+        errorZh: '精力不足',
+        errorEn: 'Not enough energy',
+        cash: 0,
+        progress: 0,
+        baseProgress: 0,
+        nodes: const <ScrapNode>[],
+      );
+    }
+    save.energy -= kAdEnergyCost;
+    final cash = kAdCashTiers[_rng.nextInt(kAdCashTiers.length)];
+    final base = kAdProgressTiers[_rng.nextInt(kAdProgressTiers.length)];
+    final progress = base * save.scrapMultiplier;
+
+    save.cash += cash;
+    save.lifetimeCash += cash;
+    save.progress += progress;
+
+    _log(
+      save,
+      '📺',
+      'activity',
+      '看广告：紫票 +$cash、进度 +$progress'
+          '（${save.progress}/$kScrapTotalProgress）',
+      'Watched an ad: Cash +$cash, progress +$progress'
+          ' (${save.progress}/$kScrapTotalProgress)',
+    );
+    final nodes = claimScrapNodes(save);
+    return (
+      ok: true,
+      errorZh: '',
+      errorEn: '',
+      cash: cash,
+      progress: progress,
+      baseProgress: base,
+      nodes: nodes,
+    );
+  }
+
+  /// 氪金：消耗「钱」换取本次废铁行动的进度倍率
+  ///
+  /// 钱可以扣至负值；倍率取「更高者」，周期结束时重置为 1。
+  ({bool ok, String errorZh, String errorEn, int multiplier})
+  topUp(LifeSimSave save, int tierIndex) {
+    if (tierIndex < 0 || tierIndex >= kTopUpTiers.length) {
+      return (
+        ok: false,
+        errorZh: '档位不存在',
+        errorEn: 'Unknown tier',
+        multiplier: save.scrapMultiplier,
+      );
+    }
+    final period = periodForDay(save.day);
+    if (!isScrapActivity(period.activityId)) {
+      return (
+        ok: false,
+        errorZh: '只有废铁行动期间才能氪金',
+        errorEn: 'Top-up is only available during Scrap Run',
+        multiplier: save.scrapMultiplier,
+      );
+    }
+    final tier = kTopUpTiers[tierIndex];
+    if (save.scrapMultiplier >= tier.multiplier) {
+      return (
+        ok: false,
+        errorZh: '已有效果不低于该档（当前 ×${save.scrapMultiplier}）',
+        errorEn:
+            'Current multiplier is already ×${save.scrapMultiplier}',
+        multiplier: save.scrapMultiplier,
+      );
+    }
+    // 钱可以扣至负值
+    save.money -= tier.cost;
+    save.scrapMultiplier = tier.multiplier;
+    _log(
+      save,
+      '💎',
+      'system',
+      '氪金：花费 ${tier.cost} 钱，本次废铁行动进度 ×${tier.multiplier}'
+          '（钱余额 ${save.money}）',
+      'Top-up: spent ${tier.cost} money, Scrap Run progress ×${tier.multiplier}'
+          ' (money balance ${save.money})',
+    );
+    return (
+      ok: true,
+      errorZh: '',
+      errorEn: '',
+      multiplier: tier.multiplier,
+    );
+  }
 
   static final Map<String, List<ScrapNode>> _scrapNodesCache =
       <String, List<ScrapNode>>{};
@@ -819,6 +933,7 @@ class LifeSimEngine {
             '${save.scrapClaimed}/${nodes.length} nodes claimed',
       );
       save.scrapClaimed = 0;
+      save.scrapMultiplier = 1;
       save.progress = 0;
       save.activeActivityBonus = min(1.0, save.nextActivityBonus);
       save.nextActivityBonus = 0;

@@ -230,6 +230,9 @@ class LifeSimSave {
   int cash;
   int token;
 
+  /// 「钱」：新货币，初始 0，**可以扣至负值**（氪金时消耗）
+  int money;
+
   /// 累计获得（用于成就判定）
   int lifetimeCash;
   int lifetimeToken;
@@ -263,6 +266,9 @@ class LifeSimSave {
 
   /// 废铁行动：本周期已领取到的奖励节点序号（进度条重置时归零）
   int scrapClaimed;
+
+  /// 废铁行动：本次活动的进度倍率（氪金获得，周期结束时重置为 1）
+  int scrapMultiplier;
 
   /// 本活动周期生效的进度加成
   double activeActivityBonus;
@@ -303,6 +309,7 @@ class LifeSimSave {
     this.maxEnergy = kInitialMaxEnergy,
     this.cash = kInitialCash,
     this.token = kInitialToken,
+    this.money = kInitialMoney,
     this.lifetimeCash = 0,
     this.lifetimeToken = 0,
     List<String>? ownedParts,
@@ -317,6 +324,7 @@ class LifeSimSave {
     this.progress = 0,
     this.progressPeriodStart = 1,
     this.scrapClaimed = 0,
+    this.scrapMultiplier = 1,
     this.activeActivityBonus = 0,
     this.nextActivityBonus = 0,
     List<RewardBundle>? pendingRewards,
@@ -353,9 +361,10 @@ class LifeSimSave {
   static const int kInitialMaxEnergy = 20;
   static const int kInitialEnergy = 20;
 
-  /// 初始紫票 / 代币
+  /// 初始紫票 / 代币 / 钱
   static const int kInitialCash = 10000;
   static const int kInitialToken = 0;
+  static const int kInitialMoney = 0;
 
   /// 每天恢复的精力
   static const int kDailyEnergy = 12;
@@ -405,6 +414,7 @@ class LifeSimSave {
     'maxEnergy': maxEnergy,
     'cash': cash,
     'token': token,
+    'money': money,
     'lc': lifetimeCash,
     'lt': lifetimeToken,
     'owned': ownedParts,
@@ -419,6 +429,7 @@ class LifeSimSave {
     'prog': progress,
     'progStart': progressPeriodStart,
     'scrap': scrapClaimed,
+    'scrapMul': scrapMultiplier,
     'actBonus': activeActivityBonus,
     'nextBonus': nextActivityBonus,
     'pending': [for (final r in pendingRewards) r.toJson()],
@@ -458,6 +469,7 @@ class LifeSimSave {
       maxEnergy: (json['maxEnergy'] as num?)?.toInt() ?? kInitialMaxEnergy,
       cash: (json['cash'] as num?)?.toInt() ?? 0,
       token: (json['token'] as num?)?.toInt() ?? 0,
+      money: (json['money'] as num?)?.toInt() ?? 0,
       lifetimeCash: (json['lc'] as num?)?.toInt() ?? 0,
       lifetimeToken: (json['lt'] as num?)?.toInt() ?? 0,
       ownedParts: _strList(json['owned']),
@@ -475,6 +487,7 @@ class LifeSimSave {
       progress: (json['prog'] as num?)?.toInt() ?? 0,
       progressPeriodStart: (json['progStart'] as num?)?.toInt() ?? 1,
       scrapClaimed: (json['scrap'] as num?)?.toInt() ?? 0,
+      scrapMultiplier: (json['scrapMul'] as num?)?.toInt() ?? 1,
       activeActivityBonus: (json['actBonus'] as num?)?.toDouble() ?? 0,
       nextActivityBonus: (json['nextBonus'] as num?)?.toDouble() ?? 0,
       pendingRewards: ((json['pending'] as List?) ?? const [])

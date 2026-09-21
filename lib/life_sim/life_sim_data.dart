@@ -73,6 +73,9 @@ class ActivityChoice {
   /// 系数在 0.8~2.0 之间随机（「王牌百搭」）
   final bool wildCard;
 
+  /// 固定进度点数（废铁行动专用；非 null 时忽略 [coef]，与战力无关）
+  final int? fixedPoints;
+
   const ActivityChoice({
     required this.id,
     required this.nameZh,
@@ -88,6 +91,7 @@ class ActivityChoice {
     this.gangActivityGain = 0,
     this.nextActivityBonus = 0,
     this.wildCard = false,
+    this.fixedPoints,
   });
 }
 
@@ -324,12 +328,71 @@ const Map<String, List<int>> kDropWeights = <String, List<int>>{
 /// 废铁行动的总进度
 const int kScrapTotalProgress = 2000;
 
-/// 废铁行动每次决策获得的进度点数 = 决策系数 × 该值
+/// 废铁行动的四档决策：进度 +50/100/150/200，精力 1/2/4/8
 ///
-/// **与车队战力无关**（其他活动是「战力分 × 系数」）。
-/// 取 72 时：稳扎稳打 40 点/1 精力，一个周期（4 天，约 56 精力）
-/// 全刷大约能拿到 2200 点，正好够填满 2000。
-const int kScrapPointsPerCoef = 72;
+/// 前两档每点精力更划算（+50/精力），后两档用来快速把剩余精力砸进进度条。
+const List<ActivityChoice> kScrapChoices = <ActivityChoice>[
+  ActivityChoice(
+    id: 'scrap1',
+    nameZh: '捡废铁',
+    nameEn: 'Scavenge',
+    descZh: '进度 +50',
+    descEn: 'Progress +50',
+    energyCost: 1,
+    coef: 0,
+    fixedPoints: 50,
+  ),
+  ActivityChoice(
+    id: 'scrap2',
+    nameZh: '小队搜刮',
+    nameEn: 'Squad Sweep',
+    descZh: '进度 +100',
+    descEn: 'Progress +100',
+    energyCost: 2,
+    coef: 0,
+    fixedPoints: 100,
+  ),
+  ActivityChoice(
+    id: 'scrap3',
+    nameZh: '大举搜刮',
+    nameEn: 'Mass Sweep',
+    descZh: '进度 +150',
+    descEn: 'Progress +150',
+    energyCost: 4,
+    coef: 0,
+    fixedPoints: 150,
+  ),
+  ActivityChoice(
+    id: 'scrap4',
+    nameZh: '全城清空',
+    nameEn: 'City Clear',
+    descZh: '进度 +200',
+    descEn: 'Progress +200',
+    energyCost: 8,
+    coef: 0,
+    fixedPoints: 200,
+  ),
+];
+
+/// 看广告：消耗 1 精力，随机抽「紫票」和「进度」各一档
+const int kAdEnergyCost = 1;
+const List<int> kAdCashTiers = <int>[200, 500, 1000];
+const List<int> kAdProgressTiers = <int>[3, 5, 10];
+
+/// 氪金：消耗「钱」换取「本次废铁行动」的进度倍率
+class TopUpTier {
+  /// 消耗的钱（钱可以扣至负值）
+  final int cost;
+
+  /// 本次废铁行动的进度倍率
+  final int multiplier;
+  const TopUpTier(this.cost, this.multiplier);
+}
+
+const List<TopUpTier> kTopUpTiers = <TopUpTier>[
+  TopUpTier(70, 2),
+  TopUpTier(150, 3),
+];
 
 /// 节点位置取整步长（节点位置都是 5 的倍数）
 const int kScrapNodeStep = 5;
@@ -375,24 +438,48 @@ class ScrapNode {
 const List<String> kScrapR6PartIds = <String>[];
 
 /// 代币奖励序列（共 180 个，先少后多）
-const List<int> kScrapTokenSeq = <int>[1, 2, 3, 4, 6, 8, 10, 14, 18, 24, 40, 50];
+const List<int> kScrapTokenSeq = <int>[
+  1,
+  2,
+  2,
+  3,
+  4,
+  5,
+  6,
+  7,
+  8,
+  9,
+  10,
+  12,
+  14,
+  16,
+  18,
+  20,
+  21,
+  22,
+];
 
 /// 紫票奖励序列（共 1,500,000，先少后多）
 const List<int> kScrapCashSeq = <int>[
   5000,
   10000,
+  15000,
   20000,
-  35000,
-  60000,
-  100000,
-  160000,
-  250000,
-  380000,
-  480000,
+  25000,
+  40000,
+  55000,
+  75000,
+  95000,
+  120000,
+  145000,
+  175000,
+  205000,
+  235000,
+  280000,
 ];
 
 /// 随机部件宝箱序列（共 30 个，先少后多）
-const List<int> kScrapChestSeq = <int>[1, 1, 2, 3, 4, 5, 6, 8];
+const List<int> kScrapChestSeq = <int>[1, 2, 2, 3, 3, 3, 4, 4, 4, 4];
 
 /// 每个 R6 部件的碎片分两个节点发放（先 5 后 6）
 const int kScrapR6FirstBatch = 5;
@@ -411,53 +498,85 @@ int scrapLogPosition(int i, int n) {
   return rounded.clamp(kScrapNodeStep, kScrapTotalProgress);
 }
 
+/// 奖励的粗略价值分（只用于决定在进度条上的先后：小的在前、大的在后）
+///
+/// 不影响实际发放数量，纯粹是排序权重；想调整奖励出现的先后顺序改这里即可。
+int scrapRewardValue(ScrapReward r) => switch (r.kind) {
+  ScrapRewardKind.token => r.amount * 10,
+  ScrapRewardKind.cash => r.amount ~/ 500,
+  ScrapRewardKind.randomPart => r.amount * 40,
+  ScrapRewardKind.r6Part => r.amount * 30,
+};
+
 /// 生成废铁行动的奖励节点表
 ///
 /// 规则：
+/// - **一个节点只给一种奖励**（不再合并）；
 /// - 15 种 R6 部件各 11 个碎片，分两个节点（先 5 后 6）；
-/// - 180 代币、1,500,000 紫票、30 个随机部件宝箱，各自分若干节点；
-/// - 每个奖励族内部「先少后多」，各族按**对数分布**铺在进度条上；
-/// - 同一位置的多个奖励合并为一个节点；位置取整为 5 的倍数，最后节点 = 2000。
+/// - 180 代币、1,500,000 紫票、30 个随机部件宝箱，各自拆成若干节点；
+/// - 每个奖励族内部「先少后多」；
+/// - 位置按**对数分布**（先密后疏），取整为 5 的倍数且互不重复，
+///   最后一个节点正好在 [kScrapTotalProgress]；
+/// - 节点的先后顺序按 [scrapRewardValue] 从小到大排（小奖在前、大奖在后）。
 List<ScrapNode> buildScrapNodes(List<String> r6PartIds) {
-  final buckets = <int, List<ScrapReward>>{};
+  final families = <List<ScrapReward>>[
+    <ScrapReward>[
+      for (final c in kScrapChestSeq)
+        ScrapReward(ScrapRewardKind.randomPart, c),
+    ],
+    <ScrapReward>[
+      for (final t in kScrapTokenSeq) ScrapReward(ScrapRewardKind.token, t),
+    ],
+    // R6 部件：15 种 × (5 + 6)，5 的那批整体排在前面
+    <ScrapReward>[
+      for (final id in r6PartIds)
+        ScrapReward(ScrapRewardKind.r6Part, kScrapR6FirstBatch, partId: id),
+      for (final id in r6PartIds)
+        ScrapReward(ScrapRewardKind.r6Part, kScrapR6SecondBatch, partId: id),
+    ],
+    <ScrapReward>[
+      for (final c in kScrapCashSeq) ScrapReward(ScrapRewardKind.cash, c),
+    ],
+  ];
 
-  void place(List<ScrapReward> rewards) {
-    final n = rewards.length;
-    for (var i = 0; i < n; i++) {
-      final pos = scrapLogPosition(i, n);
-      buckets.putIfAbsent(pos, () => <ScrapReward>[]).add(rewards[i]);
+  // 按价值从小到大铺开（同价值时按族与族内序号，保证各族内部先少后多）
+  final entries = <({ScrapReward reward, int value, int family, int index})>[];
+  for (var f = 0; f < families.length; f++) {
+    final list = families[f];
+    for (var i = 0; i < list.length; i++) {
+      entries.add((
+        reward: list[i],
+        value: scrapRewardValue(list[i]),
+        family: f,
+        index: i,
+      ));
     }
   }
+  entries.sort((a, b) {
+    final c = a.value.compareTo(b.value);
+    if (c != 0) return c;
+    final f = a.family.compareTo(b.family);
+    return f != 0 ? f : a.index.compareTo(b.index);
+  });
 
-  // R6 部件：15 种 × (5 + 6)，5 的那批整体排在前面
-  place(<ScrapReward>[
-    for (final id in r6PartIds)
-      ScrapReward(
-        ScrapRewardKind.r6Part,
-        kScrapR6FirstBatch,
-        partId: id,
-      ),
-    for (final id in r6PartIds)
-      ScrapReward(
-        ScrapRewardKind.r6Part,
-        kScrapR6SecondBatch,
-        partId: id,
-      ),
-  ]);
-  place(<ScrapReward>[
-    for (final t in kScrapTokenSeq) ScrapReward(ScrapRewardKind.token, t),
-  ]);
-  place(<ScrapReward>[
-    for (final c in kScrapCashSeq) ScrapReward(ScrapRewardKind.cash, c),
-  ]);
-  place(<ScrapReward>[
-    for (final c in kScrapChestSeq) ScrapReward(ScrapRewardKind.randomPart, c),
-  ]);
-
-  final positions = buckets.keys.toList()..sort();
-  return <ScrapNode>[
-    for (final p in positions) ScrapNode(p, buckets[p]!),
-  ];
+  final n = entries.length;
+  final nodes = <ScrapNode>[];
+  var prev = 0;
+  for (var i = 0; i < n; i++) {
+    // 对数分布 + 保证严格递增（位置互不重复）
+    final raw = scrapLogPosition(i, n);
+    final pos = raw <= prev ? prev + kScrapNodeStep : raw;
+    nodes.add(ScrapNode(pos, <ScrapReward>[entries[i].reward]));
+    prev = pos;
+  }
+  if (nodes.isNotEmpty) {
+    // 最后节点固定为总进度
+    nodes[nodes.length - 1] = ScrapNode(
+      kScrapTotalProgress,
+      nodes.last.rewards,
+    );
+  }
+  return nodes;
 }
 
 // =====================================================================
