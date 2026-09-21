@@ -1216,6 +1216,10 @@ class _LifeSimScreenState extends State<LifeSimScreen> {
     final opp = s.cityOpponentCars;
     final canFight =
         !s.cityChallenged && s.energy >= LifeSimEngine.kCityEnergyCost;
+    final scores = _engine.cityBaseScores(s);
+    final mul = _engine.cityScoreMul(s);
+    final myStrength = _engine.myCityStrength(s);
+    final oppStrength = _engine.oppCityStrength(s);
     _dialog(
       title: _t('城市之王', 'City King'),
       children: [
@@ -1265,14 +1269,47 @@ class _LifeSimScreenState extends State<LifeSimScreen> {
         ),
         Text(
           _t(
-            '本场基础结算分数 ${_fmt(_engine.cityBaseScore(s))}'
-                '（帮派战力 ${_fmt(_engine.gangPower(s))}、活跃度 ${s.gangActivity}%）'
-                ' · 当前倍率 ×${_engine.cityScoreMul(s)}',
-            'Base settlement score ${_fmt(_engine.cityBaseScore(s))} '
-                '(gang power ${_fmt(_engine.gangPower(s))}, activity ${s.gangActivity}%) '
-                '· current multiplier ×${_engine.cityScoreMul(s)}',
+            '本场结算分数：胜 +${_fmt(scores.win * mul)} / 败 +${_fmt(scores.loss * mul)}',
+            'Settlement: win +${_fmt(scores.win * mul)} / loss +${_fmt(scores.loss * mul)}',
           ),
-          style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+        ),
+        Text(
+          _t(
+            '（基础 胜 ${_fmt(scores.win)} / 败 ${_fmt(scores.loss)}，上限 $kCityMaxScore × 赛季倍率 $mul）',
+            '(base win ${_fmt(scores.win)} / loss ${_fmt(scores.loss)}, '
+                'cap $kCityMaxScore × season multiplier $mul)',
+          ),
+          style: TextStyle(fontSize: 11, color: Colors.grey[600]),
+        ),
+        Text(
+          _t(
+            '强度（车辆大小 × 活跃度加成）：我方 ${_fmt(myStrength)} vs 对手 ${_fmt(oppStrength)}'
+                '　—— 差距越小，胜负分越接近；差距越大分差越大',
+            'Strength (car size × activity): mine ${_fmt(myStrength)} vs '
+                'opponent ${_fmt(oppStrength)}',
+          ),
+          style: TextStyle(fontSize: 11, color: Colors.grey[600]),
+        ),
+        Align(
+          alignment: Alignment.centerLeft,
+          child: TextButton.icon(
+            onPressed: s.energy >= kGangActivityEnergyCost
+                ? () {
+                    Navigator.pop(context);
+                    _boostGangActivity();
+                  }
+                : null,
+            icon: const Icon(Icons.local_fire_department, size: 18),
+            label: Text(
+              _t(
+                '提升活跃度（$kGangActivityEnergyCost 精力，随机 +$kGangActivityGainMin~$kGangActivityGainMax 点）',
+                'Boost activity ($kGangActivityEnergyCost energy, '
+                    '+$kGangActivityGainMin~$kGangActivityGainMax)',
+              ),
+              style: const TextStyle(fontSize: 12),
+            ),
+          ),
         ),
         const SizedBox(height: 6),
         Text(
@@ -1712,10 +1749,44 @@ class _LifeSimScreenState extends State<LifeSimScreen> {
               ),
               Text(
                 _t(
-                  '活跃度让帮派战力 ×${LifeSimEngine.activityMultiplier(s.gangActivity).toStringAsFixed(2)}',
-                  'Activity multiplies gang power by ${LifeSimEngine.activityMultiplier(s.gangActivity).toStringAsFixed(2)}',
+                  '活跃度让帮派战力 ×${LifeSimEngine.activityMultiplier(s.gangActivity).toStringAsFixed(2)}'
+                      '；也影响城市之王的胜负分',
+                  'Activity multiplies gang power by '
+                      '${LifeSimEngine.activityMultiplier(s.gangActivity).toStringAsFixed(2)}',
                 ),
                 style: TextStyle(fontSize: 11, color: Colors.grey[600]),
+              ),
+              const SizedBox(height: 4),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: TextButton.icon(
+                  onPressed: s.gangActivity >= 100 ||
+                          s.energy < kGangActivityEnergyCost
+                      ? null
+                      : () {
+                          final r = _engine.boostGangActivity(s);
+                          if (!r.ok) {
+                            _snack(_locale == 'zh' ? r.errorZh : r.errorEn);
+                            return;
+                          }
+                          _run(() {});
+                          _snack(
+                            _t(
+                              '帮派活跃度 +${r.gained}（当前 ${s.gangActivity}%）',
+                              'Gang activity +${r.gained} (now ${s.gangActivity}%)',
+                            ),
+                          );
+                        },
+                  icon: const Icon(Icons.local_fire_department, size: 18),
+                  label: Text(
+                    _t(
+                      '提升活跃度（$kGangActivityEnergyCost 精力，随机 +$kGangActivityGainMin~$kGangActivityGainMax 点）',
+                      'Boost activity ($kGangActivityEnergyCost energy, '
+                          '+$kGangActivityGainMin~$kGangActivityGainMax)',
+                    ),
+                    style: const TextStyle(fontSize: 12),
+                  ),
+                ),
               ),
             ],
           ),
@@ -2190,6 +2261,24 @@ class _LifeSimScreenState extends State<LifeSimScreen> {
     );
   }
 
+  void _boostGangActivity() {
+    final s = _save!;
+    final r = _engine.boostGangActivity(s);
+    if (!r.ok) {
+      _snack(_locale == 'zh' ? r.errorZh : r.errorEn);
+      return;
+    }
+    _run(() {});
+    _snack(
+      _t(
+        '帮派活跃度 +${r.gained}（当前 ${s.gangActivity}%）',
+        'Gang activity +${r.gained} (now ${s.gangActivity}%)',
+      ),
+    );
+    // 活跃度影响城市之王分数，方便连续提升 → 重新打开
+    _showCityKingDialog(s);
+  }
+
   void _fightCityKing() {
     final s = _save!;
     final r = _engine.fightCityKing(s);
@@ -2250,11 +2339,21 @@ class _LifeSimScreenState extends State<LifeSimScreen> {
           ),
         const Divider(height: 16),
         Text(
+          _t('双方强度：我方 ${_fmt(r.myStrength)} vs 对手 ${_fmt(r.oppStrength)}',
+              'Strength: mine ${_fmt(r.myStrength)} vs ${_fmt(r.oppStrength)}'),
+          style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+        ),
+        Text(
+          _t('本场基础分：胜 ${_fmt(r.winScore)} / 败 ${_fmt(r.lossScore)}',
+              'Base score: win ${_fmt(r.winScore)} / loss ${_fmt(r.lossScore)}'),
+          style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+        ),
+        Text(
           _t(
             '赛季分数 +${_fmt(r.scoreGained)}'
-                '（基础 ${_fmt(r.baseScore)} × ${r.scoreMultiplier} 倍）',
+                '（${r.won ? '胜' : '败'}场基础 ${_fmt(r.baseScore)} × ${r.scoreMultiplier} 倍）',
             'Season score +${_fmt(r.scoreGained)} '
-                '(base ${_fmt(r.baseScore)} × ${r.scoreMultiplier})',
+                '(${r.won ? 'win' : 'loss'} base ${_fmt(r.baseScore)} × ${r.scoreMultiplier})',
           ),
           style: const TextStyle(fontWeight: FontWeight.bold),
         ),

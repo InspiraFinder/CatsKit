@@ -966,11 +966,17 @@ List<AllStarEntry> buildGpBoard({required int seed}) {
 /// 城市之王赛季长度（天）
 const int kCitySeasonDays = 40;
 
-/// 城市之王基础分数的「每多少帮派战力 = 1 分」
-const int kCityBaseScorePowerPerPoint = 100000;
+/// 城市之王一场的分数上限
+///
+/// 一场的**胜场分 + 败场分恒等于这个值**：均势时各一半，差距越大越偏向一方。
+const int kCityMaxScore = 145000;
 
-/// 帮派活跃度对基础分的加成（活跃度 100 → +100%）
-const double kCityActivityScoreBonus = 1.0;
+/// 提升帮派活跃度：消耗的精力
+const int kGangActivityEnergyCost = 2;
+
+/// 提升帮派活跃度：一次随机提升的下限 / 上限（活跃度上限 100）
+const int kGangActivityGainMin = 1;
+const int kGangActivityGainMax = 5;
 
 /// 一个胜场里程碑
 class CityWinMilestone {
@@ -1087,14 +1093,32 @@ int cityScoreMultiplier(int seasonWins) {
   return mul;
 }
 
-/// 城市之王一场的基础结算分数
+/// 帮派强度 = **帮派车辆大小**（车队总战力，含队友）× (1 + **帮派活跃度** / 100)
+int gangStrengthOf({required int gangPower, required int gangActivity}) {
+  final actMul = 1 + gangActivity.clamp(0, 100) / 100.0;
+  return (max(0, gangPower) * actMul).round();
+}
+
+/// 城市之王一场的胜 / 败结算分数（未乘赛季倍率）
 ///
-/// 随**帮派车辆大小**（车队总战力，含队友）与**帮派活跃度**决定：
-/// `帮派战力 / [kCityBaseScorePowerPerPoint] × (1 + 活跃度 × [kCityActivityScoreBonus] / 100)`
-int cityBaseScoreOf({required int gangPower, required int gangActivity}) {
-  final powerPart = max(0, gangPower) ~/ kCityBaseScorePowerPerPoint;
-  final actMul = 1 + gangActivity.clamp(0, 100) / 100.0 * kCityActivityScoreBonus;
-  return max(1, (powerPart * actMul).round());
+/// 双方强度：我方 = 我方帮派车辆大小 × 我方活跃度加成；
+/// 对方 = 对手帮派战力 × 对手活跃度加成。
+/// 强弱差 `d = (我方强度 - 对方强度) / (我方强度 + 对方强度)`（-1 ~ 1）：
+/// - 胜场分 = [kCityMaxScore] × (1 + d) / 2
+/// - 败场分 = [kCityMaxScore] × (1 - d) / 2
+///
+/// 两者相加恒为 [kCityMaxScore]；均势（d = 0）时胜负分相等（分差 0），
+/// 双方差距越大分差越大；单场分数最高 [kCityMaxScore]。
+({int win, int loss}) cityBattleScoresOf({
+  required int myStrength,
+  required int oppStrength,
+}) {
+  final sum = myStrength + oppStrength;
+  final d = sum <= 0 ? 0.0 : (myStrength - oppStrength) / sum;
+  final win = (kCityMaxScore * (1 + d) / 2)
+      .round()
+      .clamp(0, kCityMaxScore);
+  return (win: win, loss: kCityMaxScore - win);
 }
 
 /// 废铁行动的四档决策：进度 +50/100/150/200，精力 1/2/4/8

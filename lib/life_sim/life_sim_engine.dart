@@ -140,6 +140,12 @@ class CityKingResult {
   final int scoreMultiplier;
   final int scoreGained;
 
+  /// 双方强度（帮派车辆大小 × 活跃度加成）与本场胜 / 败基础分
+  final int myStrength;
+  final int oppStrength;
+  final int winScore;
+  final int lossScore;
+
   /// 打完这场后的本赛季累计胜场 / 赛季分数
   final int seasonWins;
   final int seasonScore;
@@ -165,6 +171,10 @@ class CityKingResult {
     this.baseScore = 0,
     this.scoreMultiplier = 1,
     this.scoreGained = 0,
+    this.myStrength = 0,
+    this.oppStrength = 0,
+    this.winScore = 0,
+    this.lossScore = 0,
     this.seasonWins = 0,
     this.seasonScore = 0,
     this.chestParts = const <String>[],
@@ -2117,13 +2127,75 @@ class LifeSimEngine {
   /// 今天是本赛季第几天（1 起）
   static int citySeasonDay(int day) => day - citySeasonStartDay(day) + 1;
 
-  /// 城市之王一场的基础结算分数
-  ///
-  /// 随「帮派车辆大小」（车队总战力，含队友）与「帮派活跃度」决定。
-  int cityBaseScore(LifeSimSave save) => cityBaseScoreOf(
+  /// 我方城市之王强度（帮派车辆大小 × 我方活跃度加成）
+  int myCityStrength(LifeSimSave save) => gangStrengthOf(
     gangPower: gangPower(save),
     gangActivity: save.gangActivity,
   );
+
+  /// 对手城市之王强度（对手帮派战力 × 对手活跃度加成）
+  int oppCityStrength(LifeSimSave save) => gangStrengthOf(
+    gangPower: save.cityOpponentPower,
+    gangActivity: save.cityOpponentActivity,
+  );
+
+  /// 本场胜 / 败的**基础**结算分数（未乘赛季倍率）
+  ///
+  /// 双方强度越接近，胜负分越接近（均势时相等）；
+  /// 差距越大分差越大，单场最高 [kCityMaxScore]。
+  ({int win, int loss}) cityBaseScores(LifeSimSave save) => cityBattleScoresOf(
+    myStrength: myCityStrength(save),
+    oppStrength: oppCityStrength(save),
+  );
+
+  /// 提升帮派活跃度：消耗 [kGangActivityEnergyCost] 精力，随机提升
+  /// [kGangActivityGainMin]~[kGangActivityGainMax] 点（上限 100）
+  ({bool ok, String errorZh, String errorEn, int gained}) boostGangActivity(
+    LifeSimSave save,
+  ) {
+    if (!save.inGang) {
+      return (
+        ok: false,
+        errorZh: '需要先加入或组建帮派',
+        errorEn: 'Join or found a gang first',
+        gained: 0,
+      );
+    }
+    if (save.gangActivity >= 100) {
+      return (
+        ok: false,
+        errorZh: '帮派活跃度已满（100%）',
+        errorEn: 'Gang activity is already at 100%',
+        gained: 0,
+      );
+    }
+    if (save.energy < kGangActivityEnergyCost) {
+      return (
+        ok: false,
+        errorZh: '精力不足',
+        errorEn: 'Not enough energy',
+        gained: 0,
+      );
+    }
+    save.energy -= kGangActivityEnergyCost;
+    final roll =
+        kGangActivityGainMin +
+        _rng.nextInt(kGangActivityGainMax - kGangActivityGainMin + 1);
+    final before = save.gangActivity;
+    save.gangActivity = min(100, save.gangActivity + roll);
+    final gained = save.gangActivity - before;
+    save.gangRankHint = estimateGangRank(save);
+    _log(
+      save,
+      '🔥',
+      'gang',
+      '组织帮派活动：消耗 $kGangActivityEnergyCost 精力，'
+          '活跃度 +$gained（当前 ${save.gangActivity}%）',
+      'Gang rally: spent $kGangActivityEnergyCost energy, activity +$gained '
+          '(now ${save.gangActivity}%)',
+    );
+    return (ok: true, errorZh: '', errorEn: '', gained: gained);
+  }
 
   /// 当前赛季胜场对应的结算分数倍率
   int cityScoreMul(LifeSimSave save) =>
@@ -2303,6 +2375,13 @@ class LifeSimEngine {
         '${drawCount > 0 ? ' ($drawCount drawn)' : ''}';
 
     final opponentName = save.cityOpponentName ?? '——';
+    // 用「打之前」的双方强度算胜负分（本场涨的活跃度不算进来）
+    final myStrength = myCityStrength(save);
+    final oppStrength = oppCityStrength(save);
+    final battleScores = cityBattleScoresOf(
+      myStrength: myStrength,
+      oppStrength: oppStrength,
+    );
     var cash = 0;
     var token = 0;
     var activityGained = 0;
@@ -2336,9 +2415,9 @@ class LifeSimEngine {
     save.cityChallenged = true;
     save.gangRankHint = estimateGangRank(save);
 
-    // ---- 赛季结算分数：基础分（帮派车辆大小 + 活跃度）× 胜场倍率 ----
+    // ---- 赛季结算分数：胜/败基础分（双方强度决定）× 胜场倍率 ----
     // 倍率按「本场结束后的胜场数」取（第 1 胜当场就吃 ×2）
-    final baseScore = cityBaseScore(save);
+    final baseScore = won ? battleScores.win : battleScores.loss;
     final scoreMul = cityScoreMultiplier(save.citySeasonWins);
     final scoreGained = baseScore * scoreMul;
     save.citySeasonScore += scoreGained;
@@ -2380,11 +2459,13 @@ class LifeSimEngine {
       '📊',
       'city',
       '城市之王赛季分数 +$scoreGained'
-          '（基础 $baseScore × $scoreMul 倍，本赛季 ${save.citySeasonWins} 胜、'
-          '累计 ${save.citySeasonScore} 分）',
+          '（${won ? '胜' : '败'}场基础 $baseScore × $scoreMul 倍；'
+          '我方强度 $myStrength vs 对手 $oppStrength；'
+          '本赛季 ${save.citySeasonWins} 胜、累计 ${save.citySeasonScore} 分）',
       'City King season score +$scoreGained '
-          '(base $baseScore × $scoreMul; season ${save.citySeasonWins} wins, '
-          'total ${save.citySeasonScore})',
+          '(${won ? 'win' : 'loss'} base $baseScore × $scoreMul; '
+          'my strength $myStrength vs $oppStrength; '
+          'season ${save.citySeasonWins} wins, total ${save.citySeasonScore})',
     );
     checkAchievements(save);
 
@@ -2402,6 +2483,10 @@ class LifeSimEngine {
       baseScore: baseScore,
       scoreMultiplier: scoreMul,
       scoreGained: scoreGained,
+      myStrength: myStrength,
+      oppStrength: oppStrength,
+      winScore: battleScores.win,
+      lossScore: battleScores.loss,
       seasonWins: save.citySeasonWins,
       seasonScore: save.citySeasonScore,
       chestParts: chest.parts,
