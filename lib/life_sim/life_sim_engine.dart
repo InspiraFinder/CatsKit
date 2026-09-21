@@ -57,6 +57,9 @@ class ChoiceOutcome {
   final int cash;
   final int token;
 
+  /// 废铁行动：本次达成并已发放的奖励节点
+  final List<ScrapNode> scrapNodes;
+
   const ChoiceOutcome({
     required this.ok,
     this.errorZh = '',
@@ -67,6 +70,7 @@ class ChoiceOutcome {
     this.effectiveCoef = 0,
     this.cash = 0,
     this.token = 0,
+    this.scrapNodes = const <ScrapNode>[],
   });
 }
 
@@ -618,13 +622,16 @@ class LifeSimEngine {
     final score = powerScore(save);
     final gangMul = save.inGang ? activityMultiplier(save.gangActivity) : 1.0;
     final jitter = 0.9 + _rng.nextDouble() * 0.2;
-    final gain =
-        (score *
-                coef *
-                (1 + save.activeActivityBonus) *
-                gangMul *
-                jitter)
-            .round();
+    // 废铁行动是总进度 2000 的特殊活动：进度 = 系数 × 固定点数（与战力无关）
+    final isScrap = isScrapActivity(period.activityId);
+    final gain = isScrap
+        ? (coef * kScrapPointsPerCoef).round()
+        : (score *
+                  coef *
+                  (1 + save.activeActivityBonus) *
+                  gangMul *
+                  jitter)
+              .round();
 
     save.progress += gain;
     save.totalChoices++;
@@ -658,10 +665,16 @@ class LifeSimEngine {
         save,
         '🎯',
         'activity',
-        '$actName：${choice.nameZh}，进度 +$gain',
-        '$actNameEn: ${choice.nameEn}, progress +$gain',
+        isScrap
+            ? '$actName：${choice.nameZh}，进度 +$gain'
+                  '（${save.progress}/$kScrapTotalProgress）'
+            : '$actName：${choice.nameZh}，进度 +$gain',
+        '$actNameEn: ${choice.nameEn}, progress +$gain'
+            '${isScrap ? ' (${save.progress}/$kScrapTotalProgress)' : ''}',
       );
     }
+    // 废铁行动：达到节点立即发奖
+    final nodes = isScrap ? claimScrapNodes(save) : const <ScrapNode>[];
 
     return ChoiceOutcome(
       ok: true,
@@ -671,12 +684,148 @@ class LifeSimEngine {
       effectiveCoef: coef,
       cash: choice.bonusCash,
       token: choice.bonusToken,
+      scrapNodes: nodes,
     );
   }
 
+  // ===================================================================
+  // 废铁行动（总进度条 + 奖励节点）
+  // ===================================================================
+
+  /// 该活动是否为废铁行动
+  static bool isScrapActivity(String activityId) => activityId == 'scrap';
+
+  static final Map<String, List<ScrapNode>> _scrapNodesCache =
+      <String, List<ScrapNode>>{};
+
+  /// 废铁行动奖励的 R6 部件（15 种）
+  List<String> get scrapR6PartIds {
+    final all = PartDatabase.partsForServer(server)
+        .where((p) => p.rarity == Rarity.r6)
+        .toList()
+      ..sort((a, b) => a.id.compareTo(b.id));
+    final explicit = kScrapR6PartIds
+        .where((id) => partIndex.containsKey(id))
+        .toList();
+    final result = <String>[...explicit];
+    for (final p in all) {
+      if (result.length >= 15) break;
+      if (!result.contains(p.id)) result.add(p.id);
+    }
+    return result.take(15).toList();
+  }
+
+  /// 当前服务器的废铁行动节点表
+  List<ScrapNode> get scrapNodes => _scrapNodesCache.putIfAbsent(
+    server,
+    () => buildScrapNodes(scrapR6PartIds),
+  );
+
+  /// 领取所有已达成的节点（按顺序），返回本次新达成的节点
+  List<ScrapNode> claimScrapNodes(LifeSimSave save) {
+    final nodes = scrapNodes;
+    final gained = <ScrapNode>[];
+    while (save.scrapClaimed < nodes.length &&
+        nodes[save.scrapClaimed].progress <= save.progress) {
+      final node = nodes[save.scrapClaimed];
+      _grantScrapNode(save, node);
+      gained.add(node);
+      save.scrapClaimed++;
+    }
+    return gained;
+  }
+
+  /// 发放一个节点的奖励并写日志
+  void _grantScrapNode(LifeSimSave save, ScrapNode node) {
+    final partIds = <String>[];
+    var token = 0;
+    var cash = 0;
+    final summaryZh = <String>[];
+    final summaryEn = <String>[];
+
+    for (final r in node.rewards) {
+      switch (r.kind) {
+        case ScrapRewardKind.r6Part:
+          final id = r.partId;
+          if (id == null) break;
+          partIds.addAll(List<String>.filled(r.amount, id));
+          summaryZh.add('${_partLabel(id, true)} ×${r.amount}');
+          summaryEn.add('${_partLabel(id, false)} ×${r.amount}');
+          break;
+        case ScrapRewardKind.randomPart:
+          final ids = <String>[
+            for (var i = 0; i < r.amount; i++) rollPart('scrap'),
+          ]..removeWhere((id) => id.isEmpty);
+          partIds.addAll(ids);
+          summaryZh.add('随机部件宝箱 ×${ids.length}');
+          summaryEn.add('random part chest ×${ids.length}');
+          break;
+        case ScrapRewardKind.token:
+          token += r.amount;
+          summaryZh.add('代币 ×${r.amount}');
+          summaryEn.add('Tokens ×${r.amount}');
+          break;
+        case ScrapRewardKind.cash:
+          cash += r.amount;
+          summaryZh.add('紫票 ×${r.amount}');
+          summaryEn.add('Cash ×${r.amount}');
+          break;
+      }
+    }
+
+    if (cash > 0) {
+      save.cash += cash;
+      save.lifetimeCash += cash;
+    }
+    if (token > 0) {
+      save.token += token;
+      save.lifetimeToken += token;
+    }
+    _log(
+      save,
+      '🏁',
+      'reward',
+      '废铁行动节点 ${node.progress}/$kScrapTotalProgress：'
+          '${summaryZh.join('、')}',
+      'Scrap Run node ${node.progress}/$kScrapTotalProgress: '
+          '${summaryEn.join(', ')}',
+    );
+    if (partIds.isNotEmpty) {
+      save.partsGained += partIds.length;
+      grantParts(save, partIds);
+    }
+    checkAchievements(save);
+  }
+
   /// 结算当前周期的活动（跨周期时由 [endDay] 调用）
-  RewardBundle _settle(LifeSimSave save, int endedDay) {
+  ///
+  /// 废铁行动是特殊活动：不结算档位，改为总进度条 + 奖励节点
+  /// （节点奖励在达成时即时发放），这里只收尾并重置进度。
+  RewardBundle? _settle(LifeSimSave save, int endedDay) {
     final period = periodOf(save.progressPeriodStart);
+    final nameZh = activityName(period.activityId, 'zh');
+    final nameEn = activityName(period.activityId, 'en');
+
+    if (isScrapActivity(period.activityId)) {
+      final nodes = scrapNodes;
+      _log(
+        save,
+        '📦',
+        'reward',
+        '$nameZh 结束：进度 ${save.progress}/$kScrapTotalProgress，'
+            '已领取 ${save.scrapClaimed}/${nodes.length} 个奖励节点'
+            '（节点奖励已即时发放）',
+        '$nameEn finished: progress ${save.progress}/$kScrapTotalProgress, '
+            '${save.scrapClaimed}/${nodes.length} nodes claimed',
+      );
+      save.scrapClaimed = 0;
+      save.progress = 0;
+      save.activeActivityBonus = min(1.0, save.nextActivityBonus);
+      save.nextActivityBonus = 0;
+      save.progressPeriodStart = periodStartDay(endedDay + 1);
+      return null;
+    }
+
     final rank = rankFor(save.progress, period.isMajor);
     final reward = _buildReward(
       period.activityId,
@@ -688,8 +837,6 @@ class LifeSimEngine {
     if (rank == 'S') save.rankSCount++;
     if (rank == 'A') save.rankACount++;
 
-    final nameZh = activityName(period.activityId, 'zh');
-    final nameEn = activityName(period.activityId, 'en');
     _log(
       save,
       '📦',
@@ -798,7 +945,7 @@ class LifeSimEngine {
       settledActivity = periodOf(save.progressPeriodStart).activityId;
       final bundle = _settle(save, today);
       settled = bundle;
-      settledRank = bundle.rank;
+      settledRank = bundle?.rank;
     }
 
     save.day = today + 1;

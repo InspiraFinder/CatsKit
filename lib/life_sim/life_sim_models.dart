@@ -261,6 +261,9 @@ class LifeSimSave {
   /// 本活动周期第一天的「起始天」（用于判断周期切换 → 结算）
   int progressPeriodStart;
 
+  /// 废铁行动：本周期已领取到的奖励节点序号（进度条重置时归零）
+  int scrapClaimed;
+
   /// 本活动周期生效的进度加成
   double activeActivityBonus;
 
@@ -313,6 +316,7 @@ class LifeSimSave {
     this.gangRankHint = 0,
     this.progress = 0,
     this.progressPeriodStart = 1,
+    this.scrapClaimed = 0,
     this.activeActivityBonus = 0,
     this.nextActivityBonus = 0,
     List<RewardBundle>? pendingRewards,
@@ -414,6 +418,7 @@ class LifeSimSave {
     'gangRank': gangRankHint,
     'prog': progress,
     'progStart': progressPeriodStart,
+    'scrap': scrapClaimed,
     'actBonus': activeActivityBonus,
     'nextBonus': nextActivityBonus,
     'pending': [for (final r in pendingRewards) r.toJson()],
@@ -469,6 +474,7 @@ class LifeSimSave {
       gangRankHint: (json['gangRank'] as num?)?.toInt() ?? 0,
       progress: (json['prog'] as num?)?.toInt() ?? 0,
       progressPeriodStart: (json['progStart'] as num?)?.toInt() ?? 1,
+      scrapClaimed: (json['scrap'] as num?)?.toInt() ?? 0,
       activeActivityBonus: (json['actBonus'] as num?)?.toDouble() ?? 0,
       nextActivityBonus: (json['nextBonus'] as num?)?.toDouble() ?? 0,
       pendingRewards: ((json['pending'] as List?) ?? const [])

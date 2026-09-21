@@ -261,10 +261,15 @@ class _LifeSimScreenState extends State<LifeSimScreen> {
   /// 底部行动条：当前活动 / 进度 / 决策按钮 / 城市之王 / 结束这一天
   Widget _buildActionBar(LifeSimSave s) {
     final period = _engine.periodForDay(s.day);
+    final isScrap = LifeSimEngine.isScrapActivity(period.activityId);
     final tiers = LifeSimEngine.tiersFor(period.isMajor);
     final rank = LifeSimEngine.rankFor(s.progress, period.isMajor);
     final nextTier = tiers.where((t) => t.min > s.progress).toList();
     final next = nextTier.isEmpty ? null : nextTier.last;
+    final nodes = isScrap ? _engine.scrapNodes : const <ScrapNode>[];
+    final nextNode = isScrap && s.scrapClaimed < nodes.length
+        ? nodes[s.scrapClaimed]
+        : null;
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Material(
@@ -294,7 +299,19 @@ class _LifeSimScreenState extends State<LifeSimScreen> {
                   style: TextStyle(fontSize: 11, color: Colors.grey[600]),
                 ),
                 const Spacer(),
-                _rankChip(rank),
+                if (isScrap)
+                  TextButton(
+                    onPressed: () => _showScrapNodesDialog(s),
+                    style: TextButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                    ),
+                    child: Text(
+                      _t('奖励节点', 'Nodes'),
+                      style: const TextStyle(fontSize: 12),
+                    ),
+                  )
+                else
+                  _rankChip(rank),
                 if (s.unclaimedCount > 0)
                   IconButton(
                     visualDensity: VisualDensity.compact,
@@ -307,18 +324,40 @@ class _LifeSimScreenState extends State<LifeSimScreen> {
                   ),
               ],
             ),
-            Text(
-              next == null
-                  ? _t(
-                      '进度 ${_fmt(s.progress)}（已达最高档）',
-                      'Progress ${_fmt(s.progress)} (top rank)',
-                    )
-                  : _t(
-                      '进度 ${_fmt(s.progress)} · 距 ${next.rank} 档 ${_fmt(next.min - s.progress)}',
-                      'Progress ${_fmt(s.progress)} · ${_fmt(next.min - s.progress)} to ${next.rank}',
-                    ),
-              style: TextStyle(fontSize: 12, color: Colors.grey[600]),
-            ),
+            if (isScrap) ...[
+              ClipRRect(
+                borderRadius: BorderRadius.circular(4),
+                child: LinearProgressIndicator(
+                  value: (s.progress / kScrapTotalProgress).clamp(0.0, 1.0),
+                  minHeight: 6,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                nextNode == null
+                    ? _t(
+                        '进度 ${s.progress}/$kScrapTotalProgress（全部节点已达成）',
+                        'Progress ${s.progress}/$kScrapTotalProgress (all nodes done)',
+                      )
+                    : _t(
+                        '进度 ${s.progress}/$kScrapTotalProgress · 下一节点 ${nextNode.progress}',
+                        'Progress ${s.progress}/$kScrapTotalProgress · next node ${nextNode.progress}',
+                      ),
+                style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+              ),
+            ] else
+              Text(
+                next == null
+                    ? _t(
+                        '进度 ${_fmt(s.progress)}（已达最高档）',
+                        'Progress ${_fmt(s.progress)} (top rank)',
+                      )
+                    : _t(
+                        '进度 ${_fmt(s.progress)} · 距 ${next.rank} 档 ${_fmt(next.min - s.progress)}',
+                        'Progress ${_fmt(s.progress)} · ${_fmt(next.min - s.progress)} to ${next.rank}',
+                      ),
+                style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+              ),
             const SizedBox(height: 6),
             Wrap(
               spacing: 6,
@@ -390,6 +429,83 @@ class _LifeSimScreenState extends State<LifeSimScreen> {
       ),
     );
   }
+
+  /// 废铁行动的奖励节点列表
+  void _showScrapNodesDialog(LifeSimSave s) {
+    final nodes = _engine.scrapNodes;
+    _dialog(
+      title: _t(
+        '废铁行动奖励节点（${s.scrapClaimed}/${nodes.length}）',
+        'Scrap Run nodes (${s.scrapClaimed}/${nodes.length})',
+      ),
+      children: [
+        Text(
+          _t(
+            '总进度 $kScrapTotalProgress，节点按对数分布（先密后疏），'
+            '达成后奖励立即发放。每个周期结束后进度与节点会重置。',
+            'Total progress $kScrapTotalProgress. Nodes are log-spaced and grant rewards immediately. Progress and nodes reset each cycle.',
+          ),
+          style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+        ),
+        const SizedBox(height: 8),
+        for (var i = 0; i < nodes.length; i++)
+          _scrapNodeRow(s, nodes[i], i < s.scrapClaimed, i == s.scrapClaimed),
+      ],
+    );
+  }
+
+  Widget _scrapNodeRow(
+    LifeSimSave s,
+    ScrapNode node,
+    bool claimed,
+    bool isNext,
+  ) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 3),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 46,
+            child: Text(
+              '${node.progress}',
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: isNext ? FontWeight.bold : FontWeight.normal,
+                color: claimed
+                    ? Colors.green
+                    : (isNext ? Colors.blue : Colors.grey[600]),
+              ),
+            ),
+          ),
+          Expanded(
+            child: Text(
+              _scrapRewardText(node),
+              style: TextStyle(
+                fontSize: 12,
+                color: claimed ? Colors.green : null,
+              ),
+            ),
+          ),
+          if (claimed) const Icon(Icons.check, size: 16, color: Colors.green),
+        ],
+      ),
+    );
+  }
+
+  String _scrapRewardText(ScrapNode node) => node.rewards.map((r) {
+    switch (r.kind) {
+      case ScrapRewardKind.r6Part:
+        final id = r.partId ?? '';
+        return '${_engine.partLabel(id, _locale == 'zh')} ×${r.amount}';
+      case ScrapRewardKind.randomPart:
+        return _t('随机部件宝箱 ×${r.amount}', 'Random part chest ×${r.amount}');
+      case ScrapRewardKind.token:
+        return _t('代币 ×${r.amount}', 'Tokens ×${r.amount}');
+      case ScrapRewardKind.cash:
+        return _t('紫票 ×${_fmt(r.amount)}', 'Cash ×${_fmt(r.amount)}');
+    }
+  }).join('、');
 
   /// 城市之王详情 / 发起挑战
   void _showCityKingDialog(LifeSimSave s) {
@@ -1087,6 +1203,28 @@ class _LifeSimScreenState extends State<LifeSimScreen> {
       return;
     }
     _run(() {});
+    if (r.scrapNodes.isNotEmpty) {
+      // 废铁行动：本次达成了奖励节点
+      _dialog(
+        title: _t('节点达成', 'Node reached'),
+        children: [
+          for (final n in r.scrapNodes)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 3),
+              child: Text(
+                '🏁 ${n.progress}/$kScrapTotalProgress　${_scrapRewardText(n)}',
+                style: const TextStyle(fontSize: 13),
+              ),
+            ),
+          const SizedBox(height: 8),
+          Text(
+            _t('奖励已立即发放（明细见日志）', 'Rewards granted (see the log)'),
+            style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+          ),
+        ],
+      );
+      return;
+    }
     if (r.backfired) {
       _snack(_t('翻车了！只拿到 ${r.progress} 进度', 'Backfired! Only ${r.progress} progress'));
     } else {
@@ -1123,6 +1261,16 @@ class _LifeSimScreenState extends State<LifeSimScreen> {
             ),
           ),
         ],
+      );
+    } else if (r.settledActivityId != null) {
+      // 废铁行动：只有节点奖励，进度条重置
+      _snack(
+        _t(
+          '${LifeSimEngine.activityName(r.settledActivityId!, _locale)} 结束，'
+          '进度条已重置（节点奖励已即时发放）',
+          '${LifeSimEngine.activityName(r.settledActivityId!, _locale)} finished; '
+          'the progress bar has been reset',
+        ),
       );
     } else {
       _snack(_t('进入第 ${r.newDay} 天', 'Day ${r.newDay} begins'));
@@ -1637,20 +1785,20 @@ class _LifeSimScreenState extends State<LifeSimScreen> {
     );
   }
 
-  /// 开局欢迎弹窗（宝箱；明细在日志里）
+  /// 开局弹窗：以欢迎为主，另外告知获得了启程宝箱
   void _showWelcome() {
     _dialog(
-      title: _t('启程宝箱', 'Starter Chest'),
+      title: _t('欢迎', 'Welcome'),
       children: [
         Text(
-          _t('你获得了启程宝箱', 'You received the Starter Chest'),
-          style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
+          _locale == 'zh' ? kWelcomeZh : kWelcomeEn,
+          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 10),
         Text(
           _t(
-            '已自动为你配好第 1 辆车；获得的部件明细见日志。',
-            'Your first car was auto-built; part details are in the log.',
+            '另外，你获得了一个「启程宝箱」，已自动为你配好第 1 辆车（部件明细见日志）。',
+            'You also received a Starter Chest, and your first car was auto-built (part details are in the log).',
           ),
         ),
         const SizedBox(height: 10),

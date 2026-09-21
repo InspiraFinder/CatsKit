@@ -4,6 +4,8 @@
 /// 部件掉落权重、帮派库、成就定义。改平衡只需要改本文件。
 library;
 
+import 'dart:math';
+
 import 'life_sim_models.dart';
 
 // =====================================================================
@@ -314,6 +316,149 @@ const Map<String, List<int>> kDropWeights = <String, List<int>>{
   'tavern': <int>[15, 32, 35, 15, 3, 0],
   'joker': <int>[10, 30, 35, 20, 5, 0],
 };
+
+// =====================================================================
+// 三之二、废铁行动（特殊活动：总进度条 + 奖励节点）
+// =====================================================================
+
+/// 废铁行动的总进度
+const int kScrapTotalProgress = 2000;
+
+/// 废铁行动每次决策获得的进度点数 = 决策系数 × 该值
+///
+/// **与车队战力无关**（其他活动是「战力分 × 系数」）。
+/// 取 72 时：稳扎稳打 40 点/1 精力，一个周期（4 天，约 56 精力）
+/// 全刷大约能拿到 2200 点，正好够填满 2000。
+const int kScrapPointsPerCoef = 72;
+
+/// 节点位置取整步长（节点位置都是 5 的倍数）
+const int kScrapNodeStep = 5;
+
+/// 废铁行动奖励类型
+enum ScrapRewardKind {
+  /// 指定的 R6 部件碎片
+  r6Part,
+
+  /// 随机部件宝箱（开出 1 个随机部件）
+  randomPart,
+
+  /// 代币
+  token,
+
+  /// 紫票
+  cash,
+}
+
+class ScrapReward {
+  final ScrapRewardKind kind;
+  final int amount;
+
+  /// [ScrapRewardKind.r6Part] 时指定的部件 id
+  final String? partId;
+
+  const ScrapReward(this.kind, this.amount, {this.partId});
+}
+
+/// 废铁行动的一个奖励节点
+class ScrapNode {
+  /// 达到该进度即可获得（5 的倍数，最后一个为 [kScrapTotalProgress]）
+  final int progress;
+  final List<ScrapReward> rewards;
+
+  const ScrapNode(this.progress, this.rewards);
+}
+
+/// 废铁行动奖励的 R6 部件 id 列表（共 15 种）。
+///
+/// 留空时自动取当前服务器 R6 部件（按 id 排序）的前 15 个；
+/// 想指定具体部件时，把 15 个 id 填进来即可（不足 15 个会自动补齐）。
+const List<String> kScrapR6PartIds = <String>[];
+
+/// 代币奖励序列（共 180 个，先少后多）
+const List<int> kScrapTokenSeq = <int>[1, 2, 3, 4, 6, 8, 10, 14, 18, 24, 40, 50];
+
+/// 紫票奖励序列（共 1,500,000，先少后多）
+const List<int> kScrapCashSeq = <int>[
+  5000,
+  10000,
+  20000,
+  35000,
+  60000,
+  100000,
+  160000,
+  250000,
+  380000,
+  480000,
+];
+
+/// 随机部件宝箱序列（共 30 个，先少后多）
+const List<int> kScrapChestSeq = <int>[1, 1, 2, 3, 4, 5, 6, 8];
+
+/// 每个 R6 部件的碎片分两个节点发放（先 5 后 6）
+const int kScrapR6FirstBatch = 5;
+const int kScrapR6SecondBatch = 6;
+
+/// 对数分布：第 [i]（0 起）个节点在进度条上的位置
+///
+/// `pos = 5 × (2000/5)^(i/(n-1))`，四舍五入到 [kScrapNodeStep] 的倍数；
+/// 先密后疏（前面的节点便宜、后面的贵），最后一个节点正好在
+/// [kScrapTotalProgress]。
+int scrapLogPosition(int i, int n) {
+  if (n <= 1) return kScrapTotalProgress;
+  final raw = kScrapNodeStep *
+      pow(kScrapTotalProgress / kScrapNodeStep, i / (n - 1));
+  final rounded = (raw / kScrapNodeStep).round() * kScrapNodeStep;
+  return rounded.clamp(kScrapNodeStep, kScrapTotalProgress);
+}
+
+/// 生成废铁行动的奖励节点表
+///
+/// 规则：
+/// - 15 种 R6 部件各 11 个碎片，分两个节点（先 5 后 6）；
+/// - 180 代币、1,500,000 紫票、30 个随机部件宝箱，各自分若干节点；
+/// - 每个奖励族内部「先少后多」，各族按**对数分布**铺在进度条上；
+/// - 同一位置的多个奖励合并为一个节点；位置取整为 5 的倍数，最后节点 = 2000。
+List<ScrapNode> buildScrapNodes(List<String> r6PartIds) {
+  final buckets = <int, List<ScrapReward>>{};
+
+  void place(List<ScrapReward> rewards) {
+    final n = rewards.length;
+    for (var i = 0; i < n; i++) {
+      final pos = scrapLogPosition(i, n);
+      buckets.putIfAbsent(pos, () => <ScrapReward>[]).add(rewards[i]);
+    }
+  }
+
+  // R6 部件：15 种 × (5 + 6)，5 的那批整体排在前面
+  place(<ScrapReward>[
+    for (final id in r6PartIds)
+      ScrapReward(
+        ScrapRewardKind.r6Part,
+        kScrapR6FirstBatch,
+        partId: id,
+      ),
+    for (final id in r6PartIds)
+      ScrapReward(
+        ScrapRewardKind.r6Part,
+        kScrapR6SecondBatch,
+        partId: id,
+      ),
+  ]);
+  place(<ScrapReward>[
+    for (final t in kScrapTokenSeq) ScrapReward(ScrapRewardKind.token, t),
+  ]);
+  place(<ScrapReward>[
+    for (final c in kScrapCashSeq) ScrapReward(ScrapRewardKind.cash, c),
+  ]);
+  place(<ScrapReward>[
+    for (final c in kScrapChestSeq) ScrapReward(ScrapRewardKind.randomPart, c),
+  ]);
+
+  final positions = buckets.keys.toList()..sort();
+  return <ScrapNode>[
+    for (final p in positions) ScrapNode(p, buckets[p]!),
+  ];
+}
 
 // =====================================================================
 // 四、帮派库
