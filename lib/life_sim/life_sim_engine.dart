@@ -135,6 +135,19 @@ class CityKingResult {
   /// 帮派活跃度提升
   final int activityGained;
 
+  /// 本赛季分场次结算分数：本次基础分、本次倍率、本次实际得分
+  final int baseScore;
+  final int scoreMultiplier;
+  final int scoreGained;
+
+  /// 打完这场后的本赛季累计胜场 / 赛季分数
+  final int seasonWins;
+  final int seasonScore;
+
+  /// 本次跨过的胜场里程碑发放的宝箱部件与代币
+  final List<String> chestParts;
+  final int chestToken;
+
   const CityKingResult({
     required this.ok,
     this.errorZh = '',
@@ -149,6 +162,13 @@ class CityKingResult {
     this.token = 0,
     this.parts = const <String>[],
     this.activityGained = 0,
+    this.baseScore = 0,
+    this.scoreMultiplier = 1,
+    this.scoreGained = 0,
+    this.seasonWins = 0,
+    this.seasonScore = 0,
+    this.chestParts = const <String>[],
+    this.chestToken = 0,
   });
 
   int get myWins => rounds.where((r) => r == true).length;
@@ -1802,6 +1822,32 @@ class LifeSimEngine {
     // GP：补汽油 + 记录当天起始旗帜
     _syncGpDay(save);
 
+    // 城市之王：跨赛季（40 天）时结算并清零胜场 / 赛季分数
+    if (citySeasonStartDay(today) != citySeasonStartDay(save.day)) {
+      _log(
+        save,
+        '🏁',
+        'city',
+        '城市之王赛季结束：$kCitySeasonDays 天里胜 ${save.citySeasonWins} 场'
+            '、赛季结算分数 ${save.citySeasonScore}'
+            '（生涯累计胜 ${save.cityWins} 场）',
+        'City King season ended: ${save.citySeasonWins} wins in '
+            '$kCitySeasonDays days, season score ${save.citySeasonScore} '
+            '(career wins ${save.cityWins})',
+      );
+      save.citySeasonWins = 0;
+      save.citySeasonScore = 0;
+      save.citySeasonClaimed = 0;
+      _log(
+        save,
+        '🏁',
+        'city',
+        '新的城市之王赛季开始（第 ${citySeasonDay(save.day)}/$kCitySeasonDays 天）',
+        'A new City King season begins '
+            '(day ${citySeasonDay(save.day)}/$kCitySeasonDays)',
+      );
+    }
+
     // 城市之王：每天刷新对手
     if (save.inGang) {
       rollCityOpponent(save);
@@ -2060,6 +2106,104 @@ class LifeSimEngine {
   // 城市之王（3v3 逐车对位）
   // ===================================================================
 
+  /// 城市之王赛季（[kCitySeasonDays] 天一赛季）的起始天
+  static int citySeasonStartDay(int day) =>
+      ((day - 1) ~/ kCitySeasonDays) * kCitySeasonDays + 1;
+
+  /// 城市之王赛季的结束天
+  static int citySeasonEndDay(int day) =>
+      citySeasonStartDay(day) + kCitySeasonDays - 1;
+
+  /// 今天是本赛季第几天（1 起）
+  static int citySeasonDay(int day) => day - citySeasonStartDay(day) + 1;
+
+  /// 城市之王一场的基础结算分数
+  ///
+  /// 随「帮派车辆大小」（车队总战力，含队友）与「帮派活跃度」决定。
+  int cityBaseScore(LifeSimSave save) => cityBaseScoreOf(
+    gangPower: gangPower(save),
+    gangActivity: save.gangActivity,
+  );
+
+  /// 当前赛季胜场对应的结算分数倍率
+  int cityScoreMul(LifeSimSave save) =>
+      cityScoreMultiplier(save.citySeasonWins);
+
+  /// 下一个未达成的胜场里程碑（全部达成返回 null）
+  CityWinMilestone? nextCityMilestone(LifeSimSave save) {
+    for (final m in kCityWinMilestones) {
+      if (save.citySeasonWins < m.wins) return m;
+    }
+    return null;
+  }
+
+  /// 抽一个指定稀有度下标的部件（城市之王宝箱）
+  String _rollPartOfRarity(int rarityIndex) {
+    final rarity = Rarity.values[rarityIndex.clamp(
+      0,
+      Rarity.values.length - 1,
+    )];
+    final pool = PartDatabase.partsForServer(
+      server,
+    ).where((p) => p.rarity == rarity).toList();
+    if (pool.isEmpty) return '';
+    return pool[_rng.nextInt(pool.length)].id;
+  }
+
+  /// 领取本赛季已达成但还没领的胜场里程碑（发宝箱 + 代币）
+  ///
+  /// 返回本次发出的宝箱部件 id（调用方负责 [grantParts]）与代币数量。
+  ({List<String> parts, int token}) claimCityMilestones(
+    LifeSimSave save, {
+    bool silent = false,
+  }) {
+    final gained = <String>[];
+    var tokenGained = 0;
+    while (save.citySeasonClaimed < kCityWinMilestones.length &&
+        save.citySeasonWins >=
+            kCityWinMilestones[save.citySeasonClaimed].wins) {
+      final m = kCityWinMilestones[save.citySeasonClaimed];
+      final opened = <String>[];
+      for (var i = 0; i < m.chestCount; i++) {
+        final id = _rollPartOfRarity(m.chestRarityIndex);
+        if (id.isNotEmpty) opened.add(id);
+      }
+      gained.addAll(opened);
+      save.token += m.token;
+      save.lifetimeToken += m.token;
+      tokenGained += m.token;
+      save.citySeasonClaimed++;
+      if (!silent) {
+        _log(
+          save,
+          '🎁',
+          'city',
+          '城市之王赛季奖励：${m.wins} 胜 → '
+              '${m.chestCount} 个 ${m.chestRarityName} 宝箱 + 代币 ${m.token}'
+              '；此后每场结算分数 ×${m.scoreMultiplier}',
+          'City King season reward: ${m.wins} wins → '
+              '${m.chestCount} × ${m.chestRarityName} chests + ${m.token} tokens; '
+              'settlement score ×${m.scoreMultiplier} from now on',
+        );
+      }
+    }
+    if (gained.isNotEmpty) {
+      save.partsGained += gained.length;
+      if (!silent) {
+        _log(
+          save,
+          '📦',
+          'city',
+          '共开启 ${gained.length} 个宝箱，获得 ${gained.length} 个部件'
+              '${tokenGained > 0 ? '、代币 +$tokenGained' : ''}',
+          'Opened ${gained.length} chest(s): ${gained.length} part(s)'
+              '${tokenGained > 0 ? ', tokens +$tokenGained' : ''}',
+        );
+      }
+    }
+    return (parts: gained, token: tokenGained);
+  }
+
   /// 刷新当天的城市之王对手
   void rollCityOpponent(LifeSimSave save) {
     final useLibrary = kGangLibrary.isNotEmpty && _rng.nextInt(100) < 60;
@@ -2165,6 +2309,7 @@ class LifeSimEngine {
     final parts = <String>[];
     if (won) {
       save.cityWins++;
+      save.citySeasonWins++;
       cash = 120 + save.cityOpponentPower ~/ 50000;
       token = 60;
       // 战利品部件（重复获得即累积为碎片）
@@ -2191,6 +2336,17 @@ class LifeSimEngine {
     save.cityChallenged = true;
     save.gangRankHint = estimateGangRank(save);
 
+    // ---- 赛季结算分数：基础分（帮派车辆大小 + 活跃度）× 胜场倍率 ----
+    // 倍率按「本场结束后的胜场数」取（第 1 胜当场就吃 ×2）
+    final baseScore = cityBaseScore(save);
+    final scoreMul = cityScoreMultiplier(save.citySeasonWins);
+    final scoreGained = baseScore * scoreMul;
+    save.citySeasonScore += scoreGained;
+
+    // ---- 胜场里程碑：发宝箱 + 代币，并抬高后续每场的倍率 ----
+    final chest = claimCityMilestones(save);
+    final chestToken = chest.token;
+
     _log(
       save,
       won ? '🏆' : (draw ? '🤝' : '💢'),
@@ -2216,6 +2372,20 @@ class LifeSimEngine {
       );
       grantParts(save, parts);
     }
+    if (chest.parts.isNotEmpty) {
+      grantParts(save, chest.parts);
+    }
+    _log(
+      save,
+      '📊',
+      'city',
+      '城市之王赛季分数 +$scoreGained'
+          '（基础 $baseScore × $scoreMul 倍，本赛季 ${save.citySeasonWins} 胜、'
+          '累计 ${save.citySeasonScore} 分）',
+      'City King season score +$scoreGained '
+          '(base $baseScore × $scoreMul; season ${save.citySeasonWins} wins, '
+          'total ${save.citySeasonScore})',
+    );
     checkAchievements(save);
 
     return CityKingResult(
@@ -2229,6 +2399,13 @@ class LifeSimEngine {
       cash: cash,
       token: token,
       parts: parts,
+      baseScore: baseScore,
+      scoreMultiplier: scoreMul,
+      scoreGained: scoreGained,
+      seasonWins: save.citySeasonWins,
+      seasonScore: save.citySeasonScore,
+      chestParts: chest.parts,
+      chestToken: chestToken,
       activityGained: activityGained,
     );
   }

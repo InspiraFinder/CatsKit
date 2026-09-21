@@ -311,8 +311,19 @@ class LifeSimSave {
   int cityOpponentActivity;
   int cityOpponentPower;
   bool cityChallenged;
+
+  /// 城市之王累计胜场 / 败场（生涯统计）
   int cityWins;
   int cityLosses;
+
+  /// 城市之王**本赛季**胜场（40 天一赛季，跨赛季清零）
+  int citySeasonWins;
+
+  /// 城市之王本赛季累计结算分数（跨赛季清零）
+  int citySeasonScore;
+
+  /// 城市之王本赛季已领取的胜场里程碑序号（跨赛季清零）
+  int citySeasonClaimed;
 
   /// 统计（成就用）
   int totalChoices;
@@ -368,6 +379,9 @@ class LifeSimSave {
     this.cityChallenged = false,
     this.cityWins = 0,
     this.cityLosses = 0,
+    this.citySeasonWins = 0,
+    this.citySeasonScore = 0,
+    this.citySeasonClaimed = 0,
     this.totalChoices = 0,
     this.rankSCount = 0,
     this.rankACount = 0,
@@ -483,6 +497,9 @@ class LifeSimSave {
     'cDone': cityChallenged,
     'cWin': cityWins,
     'cLose': cityLosses,
+    'cSWins': citySeasonWins,
+    'cSScore': citySeasonScore,
+    'cSClaim': citySeasonClaimed,
     'choices': totalChoices,
     'sCount': rankSCount,
     'aCount': rankACount,
@@ -556,6 +573,9 @@ class LifeSimSave {
       cityChallenged: json['cDone'] as bool? ?? false,
       cityWins: (json['cWin'] as num?)?.toInt() ?? 0,
       cityLosses: (json['cLose'] as num?)?.toInt() ?? 0,
+      citySeasonWins: (json['cSWins'] as num?)?.toInt() ?? 0,
+      citySeasonScore: (json['cSScore'] as num?)?.toInt() ?? 0,
+      citySeasonClaimed: (json['cSClaim'] as num?)?.toInt() ?? 0,
       totalChoices: (json['choices'] as num?)?.toInt() ?? 0,
       rankSCount: (json['sCount'] as num?)?.toInt() ?? 0,
       rankACount: (json['aCount'] as num?)?.toInt() ?? 0,

@@ -959,6 +959,144 @@ List<AllStarEntry> buildGpBoard({required int seed}) {
   return entries;
 }
 
+// =====================================================================
+// 三之五、城市之王：40 天一赛季（胜场里程碑 + 赛季结算分数）
+// =====================================================================
+
+/// 城市之王赛季长度（天）
+const int kCitySeasonDays = 40;
+
+/// 城市之王基础分数的「每多少帮派战力 = 1 分」
+const int kCityBaseScorePowerPerPoint = 100000;
+
+/// 帮派活跃度对基础分的加成（活跃度 100 → +100%）
+const double kCityActivityScoreBonus = 1.0;
+
+/// 一个胜场里程碑
+class CityWinMilestone {
+  /// 达到这个胜场数时触发
+  final int wins;
+
+  /// 宝箱数量（每个宝箱 = 随机一个该稀有度的部件）
+  final int chestCount;
+
+  /// 宝箱稀有度下标（4 = R5，5 = R6）
+  final int chestRarityIndex;
+
+  /// 附带代币
+  final int token;
+
+  /// 达到该胜场后，每场城市之王的结算分数倍率
+  final int scoreMultiplier;
+
+  const CityWinMilestone({
+    required this.wins,
+    required this.chestCount,
+    required this.chestRarityIndex,
+    required this.token,
+    required this.scoreMultiplier,
+  });
+
+  /// 宝箱稀有度的可读名（R5 / R6）
+  String get chestRarityName => 'R${chestRarityIndex + 1}';
+}
+
+/// 城市之王赛季胜场里程碑（按胜场升序）
+///
+/// 1/2/4/6/9 胜 → 5 × R5 宝箱；12/16/20/25/30 胜 → 3 × R6 宝箱；
+/// 附带代币 1/1/2/2/3/3/4/4/5/5；结算分数倍率 ×2…×15。
+const List<CityWinMilestone> kCityWinMilestones = <CityWinMilestone>[
+  CityWinMilestone(
+    wins: 1,
+    chestCount: 5,
+    chestRarityIndex: 4,
+    token: 1,
+    scoreMultiplier: 2,
+  ),
+  CityWinMilestone(
+    wins: 2,
+    chestCount: 5,
+    chestRarityIndex: 4,
+    token: 1,
+    scoreMultiplier: 3,
+  ),
+  CityWinMilestone(
+    wins: 4,
+    chestCount: 5,
+    chestRarityIndex: 4,
+    token: 2,
+    scoreMultiplier: 4,
+  ),
+  CityWinMilestone(
+    wins: 6,
+    chestCount: 5,
+    chestRarityIndex: 4,
+    token: 2,
+    scoreMultiplier: 5,
+  ),
+  CityWinMilestone(
+    wins: 9,
+    chestCount: 5,
+    chestRarityIndex: 4,
+    token: 3,
+    scoreMultiplier: 6,
+  ),
+  CityWinMilestone(
+    wins: 12,
+    chestCount: 3,
+    chestRarityIndex: 5,
+    token: 3,
+    scoreMultiplier: 7,
+  ),
+  CityWinMilestone(
+    wins: 16,
+    chestCount: 3,
+    chestRarityIndex: 5,
+    token: 4,
+    scoreMultiplier: 8,
+  ),
+  CityWinMilestone(
+    wins: 20,
+    chestCount: 3,
+    chestRarityIndex: 5,
+    token: 4,
+    scoreMultiplier: 9,
+  ),
+  CityWinMilestone(
+    wins: 25,
+    chestCount: 3,
+    chestRarityIndex: 5,
+    token: 5,
+    scoreMultiplier: 10,
+  ),
+  CityWinMilestone(
+    wins: 30,
+    chestCount: 3,
+    chestRarityIndex: 5,
+    token: 5,
+    scoreMultiplier: 15,
+  ),
+];
+
+/// 当前赛季胜场对应的结算分数倍率（未达到任何里程碑 = ×1）
+int cityScoreMultiplier(int seasonWins) {
+  var mul = 1;
+  for (final m in kCityWinMilestones) {
+    if (seasonWins >= m.wins) mul = m.scoreMultiplier;
+  }
+  return mul;
+}
+
+/// 城市之王一场的基础结算分数
+///
+/// 随**帮派车辆大小**（车队总战力，含队友）与**帮派活跃度**决定：
+/// `帮派战力 / [kCityBaseScorePowerPerPoint] × (1 + 活跃度 × [kCityActivityScoreBonus] / 100)`
+int cityBaseScoreOf({required int gangPower, required int gangActivity}) {
+  final powerPart = max(0, gangPower) ~/ kCityBaseScorePowerPerPoint;
+  final actMul = 1 + gangActivity.clamp(0, 100) / 100.0 * kCityActivityScoreBonus;
+  return max(1, (powerPart * actMul).round());
+}
+
 /// 废铁行动的四档决策：进度 +50/100/150/200，精力 1/2/4/8
 ///
 /// 前两档每点精力更划算（+50/精力），后两档用来快速把剩余精力砸进进度条。

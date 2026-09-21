@@ -1250,7 +1250,65 @@ class _LifeSimScreenState extends State<LifeSimScreen> {
               'Record ${s.cityWins}W ${s.cityLosses}L'),
           style: TextStyle(fontSize: 12, color: Colors.grey[600]),
         ),
-        const SizedBox(height: 12),
+        const Divider(height: 16),
+        // ---- 赛季（40 天）----
+        Text(
+          _t(
+            '本赛季第 ${LifeSimEngine.citySeasonDay(s.day)}/'
+                '$kCitySeasonDays 天 · ${s.citySeasonWins} 胜 · '
+                '赛季分数 ${_fmt(s.citySeasonScore)}',
+            'Season day ${LifeSimEngine.citySeasonDay(s.day)}/'
+                '$kCitySeasonDays · ${s.citySeasonWins}W · '
+                'season score ${_fmt(s.citySeasonScore)}',
+          ),
+          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+        ),
+        Text(
+          _t(
+            '本场基础结算分数 ${_fmt(_engine.cityBaseScore(s))}'
+                '（帮派战力 ${_fmt(_engine.gangPower(s))}、活跃度 ${s.gangActivity}%）'
+                ' · 当前倍率 ×${_engine.cityScoreMul(s)}',
+            'Base settlement score ${_fmt(_engine.cityBaseScore(s))} '
+                '(gang power ${_fmt(_engine.gangPower(s))}, activity ${s.gangActivity}%) '
+                '· current multiplier ×${_engine.cityScoreMul(s)}',
+          ),
+          style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+        ),
+        const SizedBox(height: 6),
+        Text(
+          _t('胜场奖励（每个宝箱 = 随机一个该稀有度部件）',
+              'Win rewards (1 chest = 1 random part of that rarity)'),
+          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+        ),
+        for (var i = 0; i < kCityWinMilestones.length; i++)
+          Builder(
+            builder: (context) {
+              final m = kCityWinMilestones[i];
+              final done = i < s.citySeasonClaimed;
+              final next = i == s.citySeasonClaimed;
+              return Padding(
+                padding: const EdgeInsets.symmetric(vertical: 1),
+                child: Text(
+                  _t(
+                    '${done ? '✅' : (next ? '➡️' : '　')} ${m.wins} 胜：'
+                        '${m.chestCount} × ${m.chestRarityName} 宝箱 + 代币 ${m.token}'
+                        '（结算分数 ×${m.scoreMultiplier}）',
+                    '${done ? '✅' : (next ? '➡️' : '  ')} ${m.wins} wins: '
+                        '${m.chestCount} × ${m.chestRarityName} chests + '
+                        '${m.token} tokens (score ×${m.scoreMultiplier})',
+                  ),
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: done
+                        ? Colors.green
+                        : (next ? Colors.teal : Colors.grey[600]),
+                    fontWeight: next ? FontWeight.bold : FontWeight.normal,
+                  ),
+                ),
+              );
+            },
+          ),
+        const SizedBox(height: 6),
         if (canFight)
           SizedBox(
             width: double.infinity,
@@ -2190,6 +2248,50 @@ class _LifeSimScreenState extends State<LifeSimScreen> {
               'Parts: ${r.parts.map((id) => _engine.partIndex[id] == null ? id : _pn(_engine.partIndex[id]!)).join(', ')}',
             ),
           ),
+        const Divider(height: 16),
+        Text(
+          _t(
+            '赛季分数 +${_fmt(r.scoreGained)}'
+                '（基础 ${_fmt(r.baseScore)} × ${r.scoreMultiplier} 倍）',
+            'Season score +${_fmt(r.scoreGained)} '
+                '(base ${_fmt(r.baseScore)} × ${r.scoreMultiplier})',
+          ),
+          style: const TextStyle(fontWeight: FontWeight.bold),
+        ),
+        Text(
+          _t(
+            '本赛季 ${r.seasonWins} 胜 · 累计 ${_fmt(r.seasonScore)} 分',
+            'This season: ${r.seasonWins}W · ${_fmt(r.seasonScore)} score',
+          ),
+          style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+        ),
+        if (r.chestParts.isNotEmpty || r.chestToken > 0) ...[
+          const SizedBox(height: 6),
+          Text(
+            _t('🎁 达成胜场里程碑！',
+                '🎁 Win milestone reached!'),
+            style: const TextStyle(
+              fontWeight: FontWeight.bold,
+              color: Colors.teal,
+            ),
+          ),
+          if (r.chestParts.isNotEmpty)
+            Text(
+              _t(
+                '宝箱部件 ×${r.chestParts.length}：'
+                '${r.chestParts.map((id) => _engine.partIndex[id] == null ? id : _pn(_engine.partIndex[id]!)).join('、')}',
+                'Chest parts ×${r.chestParts.length}: '
+                    '${r.chestParts.map((id) => _engine.partIndex[id] == null ? id : _pn(_engine.partIndex[id]!)).join(', ')}',
+              ),
+              style: const TextStyle(fontSize: 13),
+            ),
+          if (r.chestToken > 0)
+            Text(
+              _t('里程碑代币 +${r.chestToken}',
+                  'Milestone tokens +${r.chestToken}'),
+              style: const TextStyle(fontSize: 13),
+            ),
+        ],
       ],
     );
   }
