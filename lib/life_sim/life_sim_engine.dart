@@ -590,15 +590,19 @@ class LifeSimEngine {
 
   /// 当前周期可用的决策列表
   ///
-  /// 废铁行动是四档固定进度决策；其他活动是通用 3 个 + 专属 1 个。
-  List<ActivityChoice> choicesFor(String activityId) =>
-      isScrapActivity(activityId)
-      ? kScrapChoices
-      : <ActivityChoice>[
-          ...kCommonChoices,
-          if (kSignatureChoices[activityId] != null)
-            kSignatureChoices[activityId]!,
-        ];
+  /// - 废铁行动：四档固定进度决策
+  /// - 齿轮奔袭：四档「战力基础值 × 倍数」决策
+  /// - 24h锦标赛+黑市：本期不设活动（空列表，只有看广告）
+  /// - 其他活动：通用 3 个 + 专属 1 个
+  List<ActivityChoice> choicesFor(String activityId) {
+    if (activityId == 'scrap') return kScrapChoices;
+    if (activityId == 'gear') return kGearChoices;
+    if (activityId == kChampActivityId) return const <ActivityChoice>[];
+    return <ActivityChoice>[
+      ...kCommonChoices,
+      if (kSignatureChoices[activityId] != null) kSignatureChoices[activityId]!,
+    ];
+  }
 
   /// 做出一次活动决策
   ChoiceOutcome makeChoice(LifeSimSave save, ActivityChoice choice) {
@@ -628,10 +632,9 @@ class LifeSimEngine {
     final score = powerScore(save);
     final gangMul = save.inGang ? activityMultiplier(save.gangActivity) : 1.0;
     final jitter = 0.9 + _rng.nextDouble() * 0.2;
-    // 废铁行动：固定点数 × 本次活动的氪金倍率（与战力无关）
-    final isScrap = isScrapActivity(period.activityId);
-    final gain = isScrap
-        ? (choice.fixedPoints ?? 0) * save.scrapMultiplier
+    final isMilestone = isMilestoneActivity(period.activityId);
+    final gain = isMilestone
+        ? milestoneGain(save, period.activityId, choice)
         : (score *
                   coef *
                   (1 + save.activeActivityBonus) *
@@ -658,6 +661,13 @@ class LifeSimEngine {
 
     final actName = activityName(period.activityId, 'zh');
     final actNameEn = activityName(period.activityId, 'en');
+    final total = isMilestone
+        ? milestoneConfig(period.activityId)!.total
+        : 0;
+    final progressSuffix = isMilestone ? '（${save.progress}/$total）' : '';
+    final progressSuffixEn = isMilestone
+        ? ' (${save.progress}/$total)'
+        : '';
     if (backfired) {
       _log(
         save,
@@ -671,16 +681,14 @@ class LifeSimEngine {
         save,
         '🎯',
         'activity',
-        isScrap
-            ? '$actName：${choice.nameZh}，进度 +$gain'
-                  '（${save.progress}/$kScrapTotalProgress）'
-            : '$actName：${choice.nameZh}，进度 +$gain',
-        '$actNameEn: ${choice.nameEn}, progress +$gain'
-            '${isScrap ? ' (${save.progress}/$kScrapTotalProgress)' : ''}',
+        '$actName：${choice.nameZh}，进度 +$gain$progressSuffix',
+        '$actNameEn: ${choice.nameEn}, progress +$gain$progressSuffixEn',
       );
     }
-    // 废铁行动：达到节点立即发奖
-    final nodes = isScrap ? claimScrapNodes(save) : const <ScrapNode>[];
+    // 里程碑活动：达到节点立即发奖
+    final nodes = isMilestone
+        ? claimMilestoneNodes(save, period.activityId)
+        : const <ScrapNode>[];
 
     return ChoiceOutcome(
       ok: true,
@@ -695,21 +703,55 @@ class LifeSimEngine {
   }
 
   // ===================================================================
-  // 废铁行动（总进度条 + 奖励节点）
+  // 里程碑活动（废铁行动 / 齿轮奔袭）：总进度条 + 奖励节点
   // ===================================================================
+
+  /// 该活动是否为里程碑式活动（有总进度条与奖励节点）
+  static bool isMilestoneActivity(String activityId) =>
+      kMilestoneActivities.containsKey(activityId);
 
   /// 该活动是否为废铁行动
   static bool isScrapActivity(String activityId) => activityId == 'scrap';
 
-  /// 看广告：消耗 1 精力，随机抽「紫票」与「进度」各一档（受氪金倍率影响）
+  /// 里程碑活动配置（非里程碑返回 null）
+  static MilestoneConfig? milestoneConfig(String activityId) =>
+      kMilestoneActivities[activityId];
+
+  /// 是否可以看广告（24h锦标赛+黑市与里程碑活动）
+  static bool canWatchAd(String activityId) =>
+      activityId == kChampActivityId || isMilestoneActivity(activityId);
+
+  /// 里程碑活动一次决策的进度
+  ///
+  /// - 废铁行动：决策的固定点数 × 氪金倍率
+  /// - 齿轮奔袭：战力阶梯基础值 × 精力倍数 × 氪金倍率
+  int milestoneGain(
+    LifeSimSave save,
+    String activityId,
+    ActivityChoice choice,
+  ) {
+    final mul = save.scrapMultiplier;
+    if (activityId == 'gear') {
+      final base = gearBasePoints(fleetPower(save));
+      final energyMul = kGearEnergyMultipliers[choice.energyCost] ?? 1.0;
+      return (base * energyMul * mul).round();
+    }
+    return (choice.fixedPoints ?? 0) * mul;
+  }
+
+  /// 看广告：消耗 1 精力
+  ///
+  /// - 24h锦标赛+黑市：只给随机紫票（本期不设活动）
+  /// - 里程碑活动：随机紫票 + 随机进度（进度受氪金倍率影响）
   ({bool ok, String errorZh, String errorEn, int cash, int progress, int baseProgress, List<ScrapNode> nodes})
   watchAd(LifeSimSave save) {
     final period = periodForDay(save.day);
-    if (!isScrapActivity(period.activityId)) {
+    final activityId = period.activityId;
+    if (!canWatchAd(activityId)) {
       return (
         ok: false,
-        errorZh: '只有废铁行动期间才能看广告',
-        errorEn: 'Ads are only available during Scrap Run',
+        errorZh: '当前活动没有看广告',
+        errorEn: 'No ads for the current activity',
         cash: 0,
         progress: 0,
         baseProgress: 0,
@@ -729,23 +771,40 @@ class LifeSimEngine {
     }
     save.energy -= kAdEnergyCost;
     final cash = kAdCashTiers[_rng.nextInt(kAdCashTiers.length)];
-    final base = kAdProgressTiers[_rng.nextInt(kAdProgressTiers.length)];
-    final progress = base * save.scrapMultiplier;
-
     save.cash += cash;
     save.lifetimeCash += cash;
-    save.progress += progress;
 
-    _log(
-      save,
-      '📺',
-      'activity',
-      '看广告：紫票 +$cash、进度 +$progress'
-          '（${save.progress}/$kScrapTotalProgress）',
-      'Watched an ad: Cash +$cash, progress +$progress'
-          ' (${save.progress}/$kScrapTotalProgress)',
-    );
-    final nodes = claimScrapNodes(save);
+    final config = milestoneConfig(activityId);
+    var base = 0;
+    var progress = 0;
+    var nodes = const <ScrapNode>[];
+    final actZh = activityName(activityId, 'zh');
+    final actEn = activityName(activityId, 'en');
+    if (config != null && config.adProgressTiers.isNotEmpty) {
+      base = config.adProgressTiers[_rng.nextInt(
+        config.adProgressTiers.length,
+      )];
+      progress = base * save.scrapMultiplier;
+      save.progress += progress;
+      nodes = claimMilestoneNodes(save, activityId);
+      _log(
+        save,
+        '📺',
+        'activity',
+        '$actZh看广告：紫票 +$cash、进度 +$progress'
+            '（${save.progress}/${config.total}）',
+        '$actEn ad: Cash +$cash, progress +$progress'
+            ' (${save.progress}/${config.total})',
+      );
+    } else {
+      _log(
+        save,
+        '📺',
+        'activity',
+        '$actZh看广告：紫票 +$cash',
+        '$actEn ad: Cash +$cash',
+      );
+    }
     return (
       ok: true,
       errorZh: '',
@@ -757,7 +816,7 @@ class LifeSimEngine {
     );
   }
 
-  /// 氪金：消耗「钱」换取本次废铁行动的进度倍率
+  /// 氪金：消耗「钱」换取本次里程碑活动的进度倍率
   ///
   /// 钱可以扣至负值；倍率取「更高者」，周期结束时重置为 1。
   ({bool ok, String errorZh, String errorEn, int multiplier})
@@ -771,11 +830,11 @@ class LifeSimEngine {
       );
     }
     final period = periodForDay(save.day);
-    if (!isScrapActivity(period.activityId)) {
+    if (!isMilestoneActivity(period.activityId)) {
       return (
         ok: false,
-        errorZh: '只有废铁行动期间才能氪金',
-        errorEn: 'Top-up is only available during Scrap Run',
+        errorZh: '只有里程碑活动（废铁行动 / 齿轮奔袭）才能氪金',
+        errorEn: 'Top-up is only available during Scrap Run / Gear Run',
         multiplier: save.scrapMultiplier,
       );
     }
@@ -784,21 +843,22 @@ class LifeSimEngine {
       return (
         ok: false,
         errorZh: '已有效果不低于该档（当前 ×${save.scrapMultiplier}）',
-        errorEn:
-            'Current multiplier is already ×${save.scrapMultiplier}',
+        errorEn: 'Current multiplier is already ×${save.scrapMultiplier}',
         multiplier: save.scrapMultiplier,
       );
     }
     // 钱可以扣至负值
     save.money -= tier.cost;
     save.scrapMultiplier = tier.multiplier;
+    final actZh = activityName(period.activityId, 'zh');
+    final actEn = activityName(period.activityId, 'en');
     _log(
       save,
       '💎',
       'system',
-      '氪金：花费 ${tier.cost} 钱，本次废铁行动进度 ×${tier.multiplier}'
+      '氪金：花费 ${tier.cost} 钱，本次$actZh进度 ×${tier.multiplier}'
           '（钱余额 ${save.money}）',
-      'Top-up: spent ${tier.cost} money, Scrap Run progress ×${tier.multiplier}'
+      'Top-up: spent ${tier.cost} money, $actEn progress ×${tier.multiplier}'
           ' (money balance ${save.money})',
     );
     return (
@@ -809,7 +869,7 @@ class LifeSimEngine {
     );
   }
 
-  static final Map<String, List<ScrapNode>> _scrapNodesCache =
+  static final Map<String, List<ScrapNode>> _milestoneNodesCache =
       <String, List<ScrapNode>>{};
 
   /// 废铁行动奖励的 R6 部件（15 种）
@@ -830,27 +890,48 @@ class LifeSimEngine {
   }
 
   /// 当前服务器的废铁行动节点表
-  List<ScrapNode> get scrapNodes => _scrapNodesCache.putIfAbsent(
-    server,
-    () => buildScrapNodes(scrapR6PartIds),
-  );
+  List<ScrapNode> get scrapNodes => milestoneNodes('scrap');
+
+  /// 某个里程碑活动的节点表
+  List<ScrapNode> milestoneNodes(String activityId) =>
+      _milestoneNodesCache.putIfAbsent('$server/$activityId', () {
+        if (activityId == 'gear') return buildGearNodes();
+        return buildScrapNodes(scrapR6PartIds);
+      });
 
   /// 领取所有已达成的节点（按顺序），返回本次新达成的节点
-  List<ScrapNode> claimScrapNodes(LifeSimSave save) {
-    final nodes = scrapNodes;
+  List<ScrapNode> claimMilestoneNodes(LifeSimSave save, String activityId) {
+    final nodes = milestoneNodes(activityId);
     final gained = <ScrapNode>[];
     while (save.scrapClaimed < nodes.length &&
         nodes[save.scrapClaimed].progress <= save.progress) {
       final node = nodes[save.scrapClaimed];
-      _grantScrapNode(save, node);
+      _grantMilestoneNode(save, activityId, node);
       gained.add(node);
       save.scrapClaimed++;
     }
     return gained;
   }
 
+  /// 兼容旧接口
+  List<ScrapNode> claimScrapNodes(LifeSimSave save) =>
+      claimMilestoneNodes(save, 'scrap');
+
+  /// 随机抽一个 R6 部件
+  String rollR6Part() {
+    final pool = PartDatabase.partsForServer(
+      server,
+    ).where((p) => p.rarity == Rarity.r6).toList();
+    if (pool.isEmpty) return '';
+    return pool[_rng.nextInt(pool.length)].id;
+  }
+
   /// 发放一个节点的奖励并写日志
-  void _grantScrapNode(LifeSimSave save, ScrapNode node) {
+  void _grantMilestoneNode(
+    LifeSimSave save,
+    String activityId,
+    ScrapNode node,
+  ) {
     final partIds = <String>[];
     var token = 0;
     var cash = 0;
@@ -865,6 +946,13 @@ class LifeSimEngine {
           partIds.addAll(List<String>.filled(r.amount, id));
           summaryZh.add('${_partLabel(id, true)} ×${r.amount}');
           summaryEn.add('${_partLabel(id, false)} ×${r.amount}');
+          break;
+        case ScrapRewardKind.randomR6Part:
+          final id = rollR6Part();
+          if (id.isEmpty) break;
+          partIds.addAll(List<String>.filled(r.amount, id));
+          summaryZh.add('${_partLabel(id, true)} ×${r.amount}（随机 R6）');
+          summaryEn.add('${_partLabel(id, false)} ×${r.amount} (random R6)');
           break;
         case ScrapRewardKind.randomPart:
           final ids = <String>[
@@ -895,14 +983,16 @@ class LifeSimEngine {
       save.token += token;
       save.lifetimeToken += token;
     }
+    final config = milestoneConfig(activityId);
+    final total = config?.total ?? 0;
+    final actZh = activityName(activityId, 'zh');
+    final actEn = activityName(activityId, 'en');
     _log(
       save,
       '🏁',
       'reward',
-      '废铁行动节点 ${node.progress}/$kScrapTotalProgress：'
-          '${summaryZh.join('、')}',
-      'Scrap Run node ${node.progress}/$kScrapTotalProgress: '
-          '${summaryEn.join(', ')}',
+      '$actZh节点 ${node.progress}/$total：${summaryZh.join('、')}',
+      '$actEn node ${node.progress}/$total: ${summaryEn.join(', ')}',
     );
     if (partIds.isNotEmpty) {
       save.partsGained += partIds.length;
@@ -920,21 +1010,39 @@ class LifeSimEngine {
     final nameZh = activityName(period.activityId, 'zh');
     final nameEn = activityName(period.activityId, 'en');
 
-    if (isScrapActivity(period.activityId)) {
-      final nodes = scrapNodes;
+    if (isMilestoneActivity(period.activityId)) {
+      final nodes = milestoneNodes(period.activityId);
+      final total = milestoneConfig(period.activityId)!.total;
       _log(
         save,
         '📦',
         'reward',
-        '$nameZh 结束：进度 ${save.progress}/$kScrapTotalProgress，'
+        '$nameZh 结束：进度 ${save.progress}/$total，'
             '已领取 ${save.scrapClaimed}/${nodes.length} 个奖励节点'
             '（节点奖励已即时发放）',
-        '$nameEn finished: progress ${save.progress}/$kScrapTotalProgress, '
+        '$nameEn finished: progress ${save.progress}/$total, '
             '${save.scrapClaimed}/${nodes.length} nodes claimed',
       );
       save.scrapClaimed = 0;
       save.scrapMultiplier = 1;
       save.progress = 0;
+      save.activeActivityBonus = min(1.0, save.nextActivityBonus);
+      save.nextActivityBonus = 0;
+      save.progressPeriodStart = periodStartDay(endedDay + 1);
+      return null;
+    }
+
+    if (period.activityId == kChampActivityId) {
+      // 24h锦标赛+黑市：本期不设活动，不结算档位
+      _log(
+        save,
+        '📦',
+        'reward',
+        '$nameZh 结束：本期不设活动（仅可看广告换紫票）',
+        '$nameEn finished: no activity this cycle (ads only)',
+      );
+      save.progress = 0;
+      save.scrapClaimed = 0;
       save.activeActivityBonus = min(1.0, save.nextActivityBonus);
       save.nextActivityBonus = 0;
       save.progressPeriodStart = periodStartDay(endedDay + 1);

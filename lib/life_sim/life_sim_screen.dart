@@ -266,13 +266,18 @@ class _LifeSimScreenState extends State<LifeSimScreen> {
   /// 底部行动条：当前活动 / 进度 / 决策按钮 / 城市之王 / 结束这一天
   Widget _buildActionBar(LifeSimSave s) {
     final period = _engine.periodForDay(s.day);
-    final isScrap = LifeSimEngine.isScrapActivity(period.activityId);
+    final activityId = period.activityId;
+    final milestone = LifeSimEngine.isMilestoneActivity(activityId);
+    final isChamp = activityId == kChampActivityId;
+    final canAd = LifeSimEngine.canWatchAd(activityId);
     final tiers = LifeSimEngine.tiersFor(period.isMajor);
     final rank = LifeSimEngine.rankFor(s.progress, period.isMajor);
     final nextTier = tiers.where((t) => t.min > s.progress).toList();
     final next = nextTier.isEmpty ? null : nextTier.last;
-    final nodes = isScrap ? _engine.scrapNodes : const <ScrapNode>[];
-    final nextNode = isScrap && s.scrapClaimed < nodes.length
+    final nodes = milestone
+        ? _engine.milestoneNodes(activityId)
+        : const <ScrapNode>[];
+    final nextNode = milestone && s.scrapClaimed < nodes.length
         ? nodes[s.scrapClaimed]
         : null;
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -304,7 +309,7 @@ class _LifeSimScreenState extends State<LifeSimScreen> {
                   style: TextStyle(fontSize: 11, color: Colors.grey[600]),
                 ),
                 const Spacer(),
-                if (isScrap)
+                if (milestone)
                   Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
@@ -337,6 +342,14 @@ class _LifeSimScreenState extends State<LifeSimScreen> {
                       ),
                     ],
                   )
+                else if (isChamp)
+                  Chip(
+                    visualDensity: VisualDensity.compact,
+                    label: Text(
+                      _t('本期无活动', 'No activity'),
+                      style: const TextStyle(fontSize: 11),
+                    ),
+                  )
                 else
                   _rankChip(rank),
                 if (s.unclaimedCount > 0)
@@ -351,28 +364,47 @@ class _LifeSimScreenState extends State<LifeSimScreen> {
                   ),
               ],
             ),
-            if (isScrap) ...[
-              ClipRRect(
-                borderRadius: BorderRadius.circular(4),
-                child: LinearProgressIndicator(
-                  value: (s.progress / kScrapTotalProgress).clamp(0.0, 1.0),
-                  minHeight: 6,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                nextNode == null
-                    ? _t(
-                        '进度 ${s.progress}/$kScrapTotalProgress（全部节点已达成）',
-                        'Progress ${s.progress}/$kScrapTotalProgress (all nodes done)',
-                      )
-                    : _t(
-                        '进度 ${s.progress}/$kScrapTotalProgress · 下一节点 ${nextNode.progress}',
-                        'Progress ${s.progress}/$kScrapTotalProgress · next node ${nextNode.progress}',
+            if (milestone) ...[
+              Builder(
+                builder: (context) {
+                  final total =
+                      LifeSimEngine.milestoneConfig(activityId)?.total ?? 0;
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(4),
+                        child: LinearProgressIndicator(
+                          value: (s.progress / total).clamp(0.0, 1.0),
+                          minHeight: 6,
+                        ),
                       ),
-                style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                      const SizedBox(height: 4),
+                      Text(
+                        nextNode == null
+                            ? _t(
+                                '进度 ${s.progress}/$total（全部节点已达成）',
+                                'Progress ${s.progress}/$total (all nodes done)',
+                              )
+                            : _t(
+                                '进度 ${s.progress}/$total · 下一节点 ${nextNode.progress}',
+                                'Progress ${s.progress}/$total · next node ${nextNode.progress}',
+                              ),
+                        style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                      ),
+                    ],
+                  );
+                },
               ),
-            ] else
+            ] else if (isChamp)
+              Text(
+                _t(
+                  '本期不设活动，只能看广告换紫票（1 精力）。',
+                  'No activity this cycle — ads only (1 energy for Cash).',
+                ),
+                style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+              )
+            else
               Text(
                 next == null
                     ? _t(
@@ -390,37 +422,40 @@ class _LifeSimScreenState extends State<LifeSimScreen> {
               spacing: 6,
               runSpacing: 6,
               children: [
-                for (final c in _engine.choicesFor(period.activityId))
+                for (final c in _engine.choicesFor(activityId))
                   ActionChip(
                     avatar: const Icon(Icons.bolt, size: 14),
                     label: Text(
-                      isScrap
-                          ? '${_locale == 'zh' ? c.nameZh : c.nameEn} '
-                                '+${c.fixedPoints} · ${c.energyCost}⚡'
-                          : '${_locale == 'zh' ? c.nameZh : c.nameEn} ${c.energyCost}',
+                      '${_locale == 'zh' ? c.nameZh : c.nameEn} '
+                      '${_milestoneChoiceBadge(activityId, c)}'
+                      '${c.energyCost}⚡',
                       style: const TextStyle(fontSize: 12),
                     ),
                     onPressed: s.energy >= c.energyCost
                         ? () => _makeChoice(c)
                         : null,
                   ),
-                if (isScrap) ...[
+                if (canAd) ...[
                   ActionChip(
                     avatar: const Icon(Icons.ondemand_video, size: 14),
                     label: Text(
-                      _t('看广告 · $kAdEnergyCost⚡', 'Watch ad · $kAdEnergyCost⚡'),
+                      _t(
+                        '看广告 · $kAdEnergyCost⚡',
+                        'Watch ad · $kAdEnergyCost⚡',
+                      ),
                       style: const TextStyle(fontSize: 12),
                     ),
                     onPressed: s.energy >= kAdEnergyCost ? _watchAd : null,
                   ),
-                  ActionChip(
-                    avatar: const Icon(Icons.diamond, size: 14),
-                    label: Text(
-                      _t('氪金', 'Top-up'),
-                      style: const TextStyle(fontSize: 12),
+                  if (milestone)
+                    ActionChip(
+                      avatar: const Icon(Icons.diamond, size: 14),
+                      label: Text(
+                        _t('氪金', 'Top-up'),
+                        style: const TextStyle(fontSize: 12),
+                      ),
+                      onPressed: () => _showTopUpDialog(s),
                     ),
-                    onPressed: () => _showTopUpDialog(s),
-                  ),
                 ],
               ],
             ),
@@ -478,21 +513,36 @@ class _LifeSimScreenState extends State<LifeSimScreen> {
     );
   }
 
-  /// 废铁行动的奖励节点列表
+  /// 里程碑活动决策按钮上的小标签（废铁：+50；齿轮：×0.25）
+  String _milestoneChoiceBadge(String activityId, ActivityChoice c) {
+    if (activityId == 'scrap') return '+${c.fixedPoints} · ';
+    if (activityId == 'gear') {
+      final mul = kGearEnergyMultipliers[c.energyCost] ?? 1.0;
+      return '×${mul.toString().replaceFirst(RegExp(r'\.0$'), '')} · ';
+    }
+    return '';
+  }
+
+  /// 里程碑活动的奖励节点列表
   void _showScrapNodesDialog(LifeSimSave s) {
-    final nodes = _engine.scrapNodes;
+    final period = _engine.periodForDay(s.day);
+    final activityId = period.activityId;
+    final config = LifeSimEngine.milestoneConfig(activityId);
+    if (config == null) return;
+    final nodes = _engine.milestoneNodes(activityId);
+    final actName = LifeSimEngine.activityName(activityId, _locale);
     _dialog(
       title: _t(
-        '废铁行动奖励节点（${s.scrapClaimed}/${nodes.length}）',
-        'Scrap Run nodes (${s.scrapClaimed}/${nodes.length})',
+        '$actName奖励节点（${s.scrapClaimed}/${nodes.length}）',
+        '$actName nodes (${s.scrapClaimed}/${nodes.length})',
       ),
       children: [
         Text(
           _t(
-            '总进度 $kScrapTotalProgress，节点按对数分布（先密后疏）、'
+            '总进度 ${config.total}，节点按对数分布（先密后疏）、'
             '一个节点只给一种奖励，达成后奖励立即发放。'
             '每个周期结束后进度与节点会重置。',
-            'Total progress $kScrapTotalProgress. Nodes are log-spaced (dense early, sparse late), one reward per node, granted immediately. Progress and nodes reset each cycle.',
+            'Total progress ${config.total}. Nodes are log-spaced (dense early, sparse late), one reward per node, granted immediately. Progress and nodes reset each cycle.',
           ),
           style: TextStyle(fontSize: 12, color: Colors.grey[600]),
         ),
@@ -547,6 +597,8 @@ class _LifeSimScreenState extends State<LifeSimScreen> {
       case ScrapRewardKind.r6Part:
         final id = r.partId ?? '';
         return '${_engine.partLabel(id, _locale == 'zh')} ×${r.amount}';
+      case ScrapRewardKind.randomR6Part:
+        return _t('随机 R6 部件 ×${r.amount}', 'Random R6 part ×${r.amount}');
       case ScrapRewardKind.randomPart:
         return _t('随机部件宝箱 ×${r.amount}', 'Random part chest ×${r.amount}');
       case ScrapRewardKind.token:

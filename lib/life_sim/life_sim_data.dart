@@ -328,6 +328,119 @@ const Map<String, List<int>> kDropWeights = <String, List<int>>{
 /// 废铁行动的总进度
 const int kScrapTotalProgress = 2000;
 
+/// 齿轮奔袭的总进度
+const int kGearTotalProgress = 12500;
+
+/// 齿轮奔袭：按车队战力取「基础进度」的阶梯（从高到低匹配）
+const List<({int power, int points})> kGearPowerTiers =
+    <({int power, int points})>[
+      (power: 2000000, points: 1000),
+      (power: 1000000, points: 500),
+      (power: 400000, points: 350),
+      (power: 100000, points: 200),
+    ];
+
+/// 齿轮奔袭：战力 → 基础进度（低于最低档时取最低档）
+int gearBasePoints(int fleetPower) {
+  for (final t in kGearPowerTiers) {
+    if (fleetPower >= t.power) return t.points;
+  }
+  return kGearPowerTiers.last.points;
+}
+
+/// 齿轮奔袭：精力 → 倍数
+const Map<int, double> kGearEnergyMultipliers = <int, double>{
+  1: 0.25,
+  2: 0.5,
+  4: 0.75,
+  8: 1.0,
+};
+
+/// 齿轮奔袭的四档决策（进度 = 战力基础值 × 倍数）
+const List<ActivityChoice> kGearChoices = <ActivityChoice>[
+  ActivityChoice(
+    id: 'gear1',
+    nameZh: '低速档',
+    nameEn: 'Low Gear',
+    descZh: '战力基础值 ×0.25',
+    descEn: 'Base ×0.25',
+    energyCost: 1,
+    coef: 0,
+  ),
+  ActivityChoice(
+    id: 'gear2',
+    nameZh: '中速档',
+    nameEn: 'Mid Gear',
+    descZh: '战力基础值 ×0.5',
+    descEn: 'Base ×0.5',
+    energyCost: 2,
+    coef: 0,
+  ),
+  ActivityChoice(
+    id: 'gear3',
+    nameZh: '高速档',
+    nameEn: 'High Gear',
+    descZh: '战力基础值 ×0.75',
+    descEn: 'Base ×0.75',
+    energyCost: 4,
+    coef: 0,
+  ),
+  ActivityChoice(
+    id: 'gear4',
+    nameZh: '超频档',
+    nameEn: 'Overdrive',
+    descZh: '战力基础值 ×1',
+    descEn: 'Base ×1',
+    energyCost: 8,
+    coef: 0,
+  ),
+];
+
+/// 里程碑式活动（总进度条 + 奖励节点）的配置
+class MilestoneConfig {
+  final String id;
+
+  /// 总进度
+  final int total;
+
+  /// 节点位置取整步长（节点位置都是该值的倍数）
+  final int step;
+
+  /// 看广告的进度档位（随机取一档；空 = 该活动看广告只给紫票）
+  final List<int> adProgressTiers;
+
+  /// 部件奖励是否为「随机 R6 部件」（齿轮奔袭 = true，废铁行动 = 指定 15 种）
+  final bool randomR6Parts;
+
+  const MilestoneConfig({
+    required this.id,
+    required this.total,
+    required this.step,
+    required this.adProgressTiers,
+    this.randomR6Parts = false,
+  });
+}
+
+const Map<String, MilestoneConfig> kMilestoneActivities =
+    <String, MilestoneConfig>{
+      'scrap': MilestoneConfig(
+        id: 'scrap',
+        total: kScrapTotalProgress,
+        step: 5,
+        adProgressTiers: <int>[3, 5, 10],
+      ),
+      'gear': MilestoneConfig(
+        id: 'gear',
+        total: kGearTotalProgress,
+        step: 50,
+        adProgressTiers: <int>[20, 50, 100],
+        randomR6Parts: true,
+      ),
+    };
+
+/// 24h锦标赛+黑市：本期不设活动，只保留「看广告」按钮（只给紫票）
+const String kChampActivityId = 'champ';
+
 /// 废铁行动的四档决策：进度 +50/100/150/200，精力 1/2/4/8
 ///
 /// 前两档每点精力更划算（+50/精力），后两档用来快速把剩余精力砸进进度条。
@@ -375,9 +488,10 @@ const List<ActivityChoice> kScrapChoices = <ActivityChoice>[
 ];
 
 /// 看广告：消耗 1 精力，随机抽「紫票」和「进度」各一档
+///
+/// 进度档位按活动区分，见 [kMilestoneActivities] 的 `adProgressTiers`。
 const int kAdEnergyCost = 1;
 const List<int> kAdCashTiers = <int>[200, 500, 1000];
-const List<int> kAdProgressTiers = <int>[3, 5, 10];
 
 /// 氪金：消耗「钱」换取「本次废铁行动」的进度倍率
 class TopUpTier {
@@ -397,10 +511,16 @@ const List<TopUpTier> kTopUpTiers = <TopUpTier>[
 /// 节点位置取整步长（节点位置都是 5 的倍数）
 const int kScrapNodeStep = 5;
 
+/// 齿轮奔袭节点位置取整步长（节点位置都是 50 的倍数）
+const int kGearNodeStep = 50;
+
 /// 废铁行动奖励类型
 enum ScrapRewardKind {
   /// 指定的 R6 部件碎片
   r6Part,
+
+  /// 随机 R6 部件碎片（齿轮奔袭用）
+  randomR6Part,
 
   /// 随机部件宝箱（开出 1 个随机部件）
   randomPart,
@@ -487,15 +607,13 @@ const int kScrapR6SecondBatch = 6;
 
 /// 对数分布：第 [i]（0 起）个节点在进度条上的位置
 ///
-/// `pos = 5 × (2000/5)^(i/(n-1))`，四舍五入到 [kScrapNodeStep] 的倍数；
-/// 先密后疏（前面的节点便宜、后面的贵），最后一个节点正好在
-/// [kScrapTotalProgress]。
-int scrapLogPosition(int i, int n) {
-  if (n <= 1) return kScrapTotalProgress;
-  final raw = kScrapNodeStep *
-      pow(kScrapTotalProgress / kScrapNodeStep, i / (n - 1));
-  final rounded = (raw / kScrapNodeStep).round() * kScrapNodeStep;
-  return rounded.clamp(kScrapNodeStep, kScrapTotalProgress);
+/// `pos = step × (total/step)^(i/(n-1))`，四舍五入到 [step] 的倍数；
+/// 先密后疏（前面的节点便宜、后面的贵），最后一个节点正好在 [total]。
+int milestoneLogPosition(int i, int n, int total, int step) {
+  if (n <= 1) return total;
+  final raw = step * pow(total / step, i / (n - 1));
+  final rounded = (raw / step).round() * step;
+  return rounded.clamp(step, total);
 }
 
 /// 奖励的粗略价值分（只用于决定在进度条上的先后：小的在前、大的在后）
@@ -505,20 +623,23 @@ int scrapRewardValue(ScrapReward r) => switch (r.kind) {
   ScrapRewardKind.token => r.amount * 10,
   ScrapRewardKind.cash => r.amount ~/ 500,
   ScrapRewardKind.randomPart => r.amount * 40,
-  ScrapRewardKind.r6Part => r.amount * 30,
+  ScrapRewardKind.r6Part || ScrapRewardKind.randomR6Part => r.amount * 30,
 };
 
-/// 生成废铁行动的奖励节点表
+/// 生成里程碑活动（废铁行动 / 齿轮奔袭）的奖励节点表
 ///
 /// 规则：
-/// - **一个节点只给一种奖励**（不再合并）；
-/// - 15 种 R6 部件各 11 个碎片，分两个节点（先 5 后 6）；
-/// - 180 代币、1,500,000 紫票、30 个随机部件宝箱，各自拆成若干节点；
+/// - **一个节点只给一种奖励**（不合并）；
+/// - 部件碎片 30 个节点（15 组「先 5 后 6」）、代币 18、紫票 15、宝箱 10，共 73 个；
 /// - 每个奖励族内部「先少后多」；
-/// - 位置按**对数分布**（先密后疏），取整为 5 的倍数且互不重复，
-///   最后一个节点正好在 [kScrapTotalProgress]；
-/// - 节点的先后顺序按 [scrapRewardValue] 从小到大排（小奖在前、大奖在后）。
-List<ScrapNode> buildScrapNodes(List<String> r6PartIds) {
+/// - 位置按**对数分布**（先密后疏），取整为 [step] 的倍数且互不重复，
+///   最后一个节点正好在 [total]；
+/// - 节点先后按 [scrapRewardValue] 从小到大排（小奖在前、大奖在后）。
+List<ScrapNode> buildMilestoneNodes({
+  required int total,
+  required int step,
+  required List<ScrapReward> partRewards,
+}) {
   final families = <List<ScrapReward>>[
     <ScrapReward>[
       for (final c in kScrapChestSeq)
@@ -527,13 +648,7 @@ List<ScrapNode> buildScrapNodes(List<String> r6PartIds) {
     <ScrapReward>[
       for (final t in kScrapTokenSeq) ScrapReward(ScrapRewardKind.token, t),
     ],
-    // R6 部件：15 种 × (5 + 6)，5 的那批整体排在前面
-    <ScrapReward>[
-      for (final id in r6PartIds)
-        ScrapReward(ScrapRewardKind.r6Part, kScrapR6FirstBatch, partId: id),
-      for (final id in r6PartIds)
-        ScrapReward(ScrapRewardKind.r6Part, kScrapR6SecondBatch, partId: id),
-    ],
+    partRewards,
     <ScrapReward>[
       for (final c in kScrapCashSeq) ScrapReward(ScrapRewardKind.cash, c),
     ],
@@ -564,20 +679,47 @@ List<ScrapNode> buildScrapNodes(List<String> r6PartIds) {
   var prev = 0;
   for (var i = 0; i < n; i++) {
     // 对数分布 + 保证严格递增（位置互不重复）
-    final raw = scrapLogPosition(i, n);
-    final pos = raw <= prev ? prev + kScrapNodeStep : raw;
+    final raw = milestoneLogPosition(i, n, total, step);
+    final pos = raw <= prev ? prev + step : raw;
     nodes.add(ScrapNode(pos, <ScrapReward>[entries[i].reward]));
     prev = pos;
   }
   if (nodes.isNotEmpty) {
     // 最后节点固定为总进度
-    nodes[nodes.length - 1] = ScrapNode(
-      kScrapTotalProgress,
-      nodes.last.rewards,
-    );
+    nodes[nodes.length - 1] = ScrapNode(total, nodes.last.rewards);
   }
   return nodes;
 }
+
+/// 废铁行动：指定 15 种 R6 部件，各 11 个碎片（先 5 后 6）
+List<ScrapReward> buildScrapPartRewards(List<String> r6PartIds) => <ScrapReward>[
+  for (final id in r6PartIds)
+    ScrapReward(ScrapRewardKind.r6Part, kScrapR6FirstBatch, partId: id),
+  for (final id in r6PartIds)
+    ScrapReward(ScrapRewardKind.r6Part, kScrapR6SecondBatch, partId: id),
+];
+
+/// 齿轮奔袭：15 组随机 R6 部件，各 11 个碎片（先 5 后 6）
+List<ScrapReward> buildGearPartRewards() => <ScrapReward>[
+  for (var i = 0; i < 15; i++)
+    const ScrapReward(ScrapRewardKind.randomR6Part, kScrapR6FirstBatch),
+  for (var i = 0; i < 15; i++)
+    const ScrapReward(ScrapRewardKind.randomR6Part, kScrapR6SecondBatch),
+];
+
+/// 生成废铁行动的奖励节点表（兼容旧接口）
+List<ScrapNode> buildScrapNodes(List<String> r6PartIds) => buildMilestoneNodes(
+  total: kScrapTotalProgress,
+  step: kScrapNodeStep,
+  partRewards: buildScrapPartRewards(r6PartIds),
+);
+
+/// 生成齿轮奔袭的奖励节点表
+List<ScrapNode> buildGearNodes() => buildMilestoneNodes(
+  total: kGearTotalProgress,
+  step: kGearNodeStep,
+  partRewards: buildGearPartRewards(),
+);
 
 // =====================================================================
 // 四、帮派库
