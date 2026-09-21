@@ -331,7 +331,7 @@ const int kScrapTotalProgress = 2000;
 /// 齿轮奔袭的总进度
 const int kGearTotalProgress = 12500;
 
-/// 齿轮奔袭：按车队战力取「基础进度」的阶梯（从高到低匹配）
+/// 齿轮奔袭：按**单车最高战力**取「基础进度」的阶梯（从高到低匹配）
 const List<({int power, int points})> kGearPowerTiers =
     <({int power, int points})>[
       (power: 2000000, points: 1000),
@@ -340,10 +340,16 @@ const List<({int power, int points})> kGearPowerTiers =
       (power: 100000, points: 200),
     ];
 
-/// 齿轮奔袭：战力 → 基础进度（低于最低档时取最低档）
-int gearBasePoints(int fleetPower) {
+/// 齿轮奔袭的最低战力要求：单车最高战力低于该值时进度 ×0（提示提升车辆战力）
+const int kGearMinPower = 100000;
+
+/// 齿轮奔袭：单车最高战力 → 基础进度
+///
+/// 低于 [kGearMinPower] 返回 0（即进度 ×0）。
+int gearBasePoints(int maxCarPower) {
+  if (maxCarPower < kGearMinPower) return 0;
   for (final t in kGearPowerTiers) {
-    if (fleetPower >= t.power) return t.points;
+    if (maxCarPower >= t.power) return t.points;
   }
   return kGearPowerTiers.last.points;
 }

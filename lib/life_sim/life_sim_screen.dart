@@ -268,6 +268,8 @@ class _LifeSimScreenState extends State<LifeSimScreen> {
     final period = _engine.periodForDay(s.day);
     final activityId = period.activityId;
     final milestone = LifeSimEngine.isMilestoneActivity(activityId);
+    final isGear = activityId == 'gear';
+    final gearReady = !isGear || _engine.gearPowerReady(s);
     final isChamp = activityId == kChampActivityId;
     final canAd = LifeSimEngine.canWatchAd(activityId);
     final tiers = LifeSimEngine.tiersFor(period.isMajor);
@@ -392,6 +394,33 @@ class _LifeSimScreenState extends State<LifeSimScreen> {
                               ),
                         style: TextStyle(fontSize: 12, color: Colors.grey[600]),
                       ),
+                      if (isGear) ...[
+                        const SizedBox(height: 2),
+                        Text(
+                          _t(
+                            '单车最高战力 ${_fmt(_engine.maxVehiclePower(s))} · '
+                            '基础进度 ${gearBasePoints(_engine.maxVehiclePower(s))}',
+                            'Top car power ${_fmt(_engine.maxVehiclePower(s))} · '
+                            'base progress ${gearBasePoints(_engine.maxVehiclePower(s))}',
+                          ),
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: gearReady ? Colors.grey[600] : Colors.red,
+                          ),
+                        ),
+                        if (!gearReady)
+                          Text(
+                            _t(
+                              '需要提升车辆战力（单车最高战力需 ≥ ${_fmt(kGearMinPower)}，'
+                              '否则进度 ×0）',
+                              'Increase your car power (top car must be ≥ ${_fmt(kGearMinPower)}, otherwise progress ×0)',
+                            ),
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: Colors.red,
+                            ),
+                          ),
+                      ],
                     ],
                   );
                 },
@@ -431,7 +460,7 @@ class _LifeSimScreenState extends State<LifeSimScreen> {
                       '${c.energyCost}⚡',
                       style: const TextStyle(fontSize: 12),
                     ),
-                    onPressed: s.energy >= c.energyCost
+                    onPressed: s.energy >= c.energyCost && gearReady
                         ? () => _makeChoice(c)
                         : null,
                   ),

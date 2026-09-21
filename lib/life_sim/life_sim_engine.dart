@@ -226,6 +226,15 @@ class LifeSimEngine {
   List<int> vehiclePowers(LifeSimSave save) =>
       [for (final v in save.vehicles) vehiclePower(v, save.partLevels)];
 
+  /// 车队中**单车最高战力**（齿轮奔袭按此判定；未组车返回 0）
+  int maxVehiclePower(LifeSimSave save) {
+    var best = 0;
+    for (final p in vehiclePowers(save)) {
+      if (p > best) best = p;
+    }
+    return best;
+  }
+
   /// 车队总战力
   int fleetPower(LifeSimSave save) =>
       vehiclePowers(save).fold(0, (a, b) => a + b);
@@ -724,7 +733,8 @@ class LifeSimEngine {
   /// 里程碑活动一次决策的进度
   ///
   /// - 废铁行动：决策的固定点数 × 氪金倍率
-  /// - 齿轮奔袭：战力阶梯基础值 × 精力倍数 × 氪金倍率
+  /// - 齿轮奔袭：**单车最高战力**的阶梯基础值 × 精力倍数 × 氪金倍率
+  ///   （单车最高战力 < [kGearMinPower] 时基础值为 0，即进度 ×0）
   int milestoneGain(
     LifeSimSave save,
     String activityId,
@@ -732,12 +742,16 @@ class LifeSimEngine {
   ) {
     final mul = save.scrapMultiplier;
     if (activityId == 'gear') {
-      final base = gearBasePoints(fleetPower(save));
+      final base = gearBasePoints(maxVehiclePower(save));
       final energyMul = kGearEnergyMultipliers[choice.energyCost] ?? 1.0;
       return (base * energyMul * mul).round();
     }
     return (choice.fixedPoints ?? 0) * mul;
   }
+
+  /// 齿轮奔袭：单车最高战力是否达标（不达标则进度 ×0）
+  bool gearPowerReady(LifeSimSave save) =>
+      maxVehiclePower(save) >= kGearMinPower;
 
   /// 看广告：消耗 1 精力
   ///
@@ -784,17 +798,24 @@ class LifeSimEngine {
       base = config.adProgressTiers[_rng.nextInt(
         config.adProgressTiers.length,
       )];
-      progress = base * save.scrapMultiplier;
+      // 齿轮奔袭：单车最高战力不达标时进度 ×0
+      final ready =
+          activityId != 'gear' || gearPowerReady(save);
+      progress = ready ? base * save.scrapMultiplier : 0;
       save.progress += progress;
       nodes = claimMilestoneNodes(save, activityId);
       _log(
         save,
         '📺',
         'activity',
-        '$actZh看广告：紫票 +$cash、进度 +$progress'
-            '（${save.progress}/${config.total}）',
-        '$actEn ad: Cash +$cash, progress +$progress'
-            ' (${save.progress}/${config.total})',
+        progress > 0
+            ? '$actZh看广告：紫票 +$cash、进度 +$progress'
+                  '（${save.progress}/${config.total}）'
+            : '$actZh看广告：紫票 +$cash（单车最高战力不足 $kGearMinPower，进度 ×0）',
+        progress > 0
+            ? '$actEn ad: Cash +$cash, progress +$progress'
+                  ' (${save.progress}/${config.total})'
+            : '$actEn ad: Cash +$cash (top car power below $kGearMinPower, progress ×0)',
       );
     } else {
       _log(
