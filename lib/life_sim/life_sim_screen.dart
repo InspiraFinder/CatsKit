@@ -270,6 +270,7 @@ class _LifeSimScreenState extends State<LifeSimScreen> {
     final milestone = LifeSimEngine.isMilestoneActivity(activityId);
     final isGear = activityId == 'gear';
     final gearReady = !isGear || _engine.gearPowerReady(s);
+    final limitedUsed = !_engine.canUseLimitedChoice(s);
     final isChamp = activityId == kChampActivityId;
     final canAd = LifeSimEngine.canWatchAd(activityId);
     final tiers = LifeSimEngine.tiersFor(period.isMajor);
@@ -421,6 +422,17 @@ class _LifeSimScreenState extends State<LifeSimScreen> {
                             ),
                           ),
                       ],
+                      if (limitedUsed)
+                        Text(
+                          _t(
+                            '带倍率的决策每天只能用 1 次，今天已用完（明天恢复）',
+                            'Multiplier choices are limited to once per day — used today (resets tomorrow)',
+                          ),
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: Colors.orange,
+                          ),
+                        ),
                     ],
                   );
                 },
@@ -460,7 +472,7 @@ class _LifeSimScreenState extends State<LifeSimScreen> {
                       '${c.energyCost}⚡',
                       style: const TextStyle(fontSize: 12),
                     ),
-                    onPressed: s.energy >= c.energyCost && gearReady
+                    onPressed: s.energy >= c.energyCost && gearReady && !limitedUsed
                         ? () => _makeChoice(c)
                         : null,
                   ),
@@ -1229,6 +1241,14 @@ class _LifeSimScreenState extends State<LifeSimScreen> {
                 ),
                 style: TextStyle(fontSize: 12, color: Colors.grey[600]),
               ),
+              const SizedBox(height: 2),
+              Text(
+                _t(
+                  '同一部件只能装在一辆车上（三辆车的部件不能重复）。',
+                  'A part can only be fitted on one car (no duplicates across your 3 cars).',
+                ),
+                style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+              ),
               const SizedBox(height: 8),
               Wrap(
                 spacing: 6,
@@ -1272,6 +1292,14 @@ class _LifeSimScreenState extends State<LifeSimScreen> {
     );
   }
 
+  /// 某个部件当前装配在哪辆车上（未装配返回 null）
+  int? _equippedCarIndex(LifeSimSave s, String partId) {
+    for (var i = 0; i < s.vehicles.length; i++) {
+      if (s.vehicles[i].allPartIds.contains(partId)) return i;
+    }
+    return null;
+  }
+
   Widget _partTile(LifeSimSave s, String id) {
     final p = _engine.partIndex[id]!;
     final level = s.levelOf(id).clamp(1, p.maxLevel);
@@ -1303,6 +1331,20 @@ class _LifeSimScreenState extends State<LifeSimScreen> {
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
+                if (_equippedCarIndex(s, id) != null)
+                  Padding(
+                    padding: const EdgeInsets.only(right: 6),
+                    child: Text(
+                      _t(
+                        '第 ${_equippedCarIndex(s, id)! + 1} 辆车在用',
+                        'On car ${_equippedCarIndex(s, id)! + 1}',
+                      ),
+                      style: const TextStyle(
+                        fontSize: 11,
+                        color: Colors.teal,
+                      ),
+                    ),
+                  ),
                 Text(
                   'Lv.$level/${p.maxLevel}',
                   style: const TextStyle(fontSize: 12, color: Colors.blue),
@@ -1742,18 +1784,36 @@ class _LifeSimScreenState extends State<LifeSimScreen> {
       _PartSlotRef.wheel => PartCategory.wheel,
       _PartSlotRef.gadget => PartCategory.gadget,
     };
+    // 三辆车的部件不能重复：排除其他车辆正在使用的部件
+    final blocked = _engine.partsUsedByOtherCars(s, vehicleIndex);
     final owned = <PartData>[
       for (final id in s.ownedParts)
-        if (_engine.partIndex[id]?.category == category) _engine.partIndex[id]!,
+        if (_engine.partIndex[id]?.category == category &&
+            !blocked.contains(id))
+          _engine.partIndex[id]!,
     ]..sort((a, b) {
       final sa = a.hpMax + a.atkMax;
       final sb = b.hpMax + b.atkMax;
       return sb.compareTo(sa);
     });
+    final blockedInCategory = blocked
+        .where((id) => _engine.partIndex[id]?.category == category)
+        .length;
 
     _dialog(
       title: _t('选择部件', 'Choose a part'),
       children: [
+        if (blockedInCategory > 0)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 6),
+            child: Text(
+              _t(
+                '已排除其他车辆正在使用的 $blockedInCategory 个部件（同一部件只能装一辆车）',
+                '$blockedInCategory part(s) hidden — already used by another car',
+              ),
+              style: TextStyle(fontSize: 12, color: Colors.orange[800]),
+            ),
+          ),
         if (owned.isEmpty)
           Text(_t('没有该分类的部件', 'No parts in this category')),
         for (final p in owned)

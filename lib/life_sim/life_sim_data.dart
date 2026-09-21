@@ -418,12 +418,18 @@ class MilestoneConfig {
   /// 部件奖励是否为「随机 R6 部件」（齿轮奔袭 = true，废铁行动 = 指定 15 种）
   final bool randomR6Parts;
 
+  /// 是否限制「带倍率的决策」每天只能用一次（齿轮奔袭 = true）
+  ///
+  /// 为 true 时，本活动的所有决策**合计每天只能选 1 次**（次日重置）。
+  final bool oneChoicePerDay;
+
   const MilestoneConfig({
     required this.id,
     required this.total,
     required this.step,
     required this.adProgressTiers,
     this.randomR6Parts = false,
+    this.oneChoicePerDay = false,
   });
 }
 
@@ -441,6 +447,7 @@ const Map<String, MilestoneConfig> kMilestoneActivities =
         step: 50,
         adProgressTiers: <int>[20, 50, 100],
         randomR6Parts: true,
+        oneChoicePerDay: true,
       ),
     };
 
@@ -1157,3 +1164,4 @@ final List<Achievement> kAchievements = <Achievement>[
     test: (s, p) => s.day >= 365,
   ),
 ];
+

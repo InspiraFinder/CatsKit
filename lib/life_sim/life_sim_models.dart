@@ -270,6 +270,11 @@ class LifeSimSave {
   /// 废铁行动：本次活动的进度倍率（氪金获得，周期结束时重置为 1）
   int scrapMultiplier;
 
+  /// 最近一次使用「带倍率的决策」的天数
+  ///
+  /// 齿轮奔袭的决策合计每天只能用 1 次：`limitedChoiceDay == day` 表示今天已用过。
+  int limitedChoiceDay;
+
   /// 本活动周期生效的进度加成
   double activeActivityBonus;
 
@@ -325,6 +330,7 @@ class LifeSimSave {
     this.progressPeriodStart = 1,
     this.scrapClaimed = 0,
     this.scrapMultiplier = 1,
+    this.limitedChoiceDay = 0,
     this.activeActivityBonus = 0,
     this.nextActivityBonus = 0,
     List<RewardBundle>? pendingRewards,
@@ -430,6 +436,7 @@ class LifeSimSave {
     'progStart': progressPeriodStart,
     'scrap': scrapClaimed,
     'scrapMul': scrapMultiplier,
+    'lcd': limitedChoiceDay,
     'actBonus': activeActivityBonus,
     'nextBonus': nextActivityBonus,
     'pending': [for (final r in pendingRewards) r.toJson()],
@@ -488,6 +495,7 @@ class LifeSimSave {
       progressPeriodStart: (json['progStart'] as num?)?.toInt() ?? 1,
       scrapClaimed: (json['scrap'] as num?)?.toInt() ?? 0,
       scrapMultiplier: (json['scrapMul'] as num?)?.toInt() ?? 1,
+      limitedChoiceDay: (json['lcd'] as num?)?.toInt() ?? 0,
       activeActivityBonus: (json['actBonus'] as num?)?.toDouble() ?? 0,
       nextActivityBonus: (json['nextBonus'] as num?)?.toDouble() ?? 0,
       pendingRewards: ((json['pending'] as List?) ?? const [])

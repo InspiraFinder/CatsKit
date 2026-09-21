@@ -235,6 +235,47 @@ class LifeSimEngine {
     return best;
   }
 
+  /// 其他车辆已使用的部件 id
+  ///
+  /// **三辆车的部件不能重复**：装配/自动配车时都要排除这些部件。
+  Set<String> partsUsedByOtherCars(LifeSimSave save, int vehicleIndex) {
+    final used = <String>{};
+    for (var i = 0; i < save.vehicles.length; i++) {
+      if (i == vehicleIndex) continue;
+      used.addAll(save.vehicles[i].allPartIds);
+    }
+    return used;
+  }
+
+  /// 某个部件是否已被其他车辆占用
+  bool isPartUsedByOtherCar(
+    LifeSimSave save,
+    int vehicleIndex,
+    String partId,
+  ) => partsUsedByOtherCars(save, vehicleIndex).contains(partId);
+
+  /// 某辆车可用的部件（已解锁且未被其他车辆占用）
+  List<PartData> availableParts(
+    LifeSimSave save,
+    int vehicleIndex, {
+    PartCategory? category,
+  }) {
+    final blocked = partsUsedByOtherCars(save, vehicleIndex);
+    return <PartData>[
+      for (final id in save.ownedParts)
+        if (partIndex[id] != null &&
+            !blocked.contains(id) &&
+            (category == null || partIndex[id]!.category == category))
+          partIndex[id]!,
+    ];
+  }
+
+  /// 某辆车上装配的部件是否与其他车辆重复（重复返回 true）
+  bool hasDuplicateParts(LifeSimSave save, int vehicleIndex) {
+    final blocked = partsUsedByOtherCars(save, vehicleIndex);
+    return save.vehicles[vehicleIndex].allPartIds.any(blocked.contains);
+  }
+
   /// 车队总战力
   int fleetPower(LifeSimSave save) =>
       vehiclePowers(save).fold(0, (a, b) => a + b);
@@ -490,12 +531,15 @@ class LifeSimEngine {
   // ===================================================================
 
   /// 用已解锁的最强部件自动配好第 [index] 辆车（按部件当前等级计算）
+  ///
+  /// **不会使用其他车辆已装配的部件**（三辆车的部件不能重复）。
   void autoBuild(LifeSimSave save, int index) {
     if (index < 0 || index >= save.vehicles.length) return;
     final idx = partIndex;
+    final blocked = partsUsedByOtherCars(save, index);
     final owned = <PartData>[
       for (final id in save.ownedParts)
-        if (idx[id] != null) idx[id]!,
+        if (idx[id] != null && !blocked.contains(id)) idx[id]!,
     ];
     // 部件实际数值随等级变化，排序也必须用等级后的值
     double hpOf(PartData p) => p.hp(save.levelOf(p.id).clamp(1, p.maxLevel));
@@ -623,6 +667,15 @@ class LifeSimEngine {
       );
     }
     final period = periodForDay(save.day);
+    // 带倍率的决策（齿轮奔袭四档）合计每天只能用一次
+    if (isDailyLimitedChoice(period.activityId) &&
+        save.limitedChoiceDay == save.day) {
+      return const ChoiceOutcome(
+        ok: false,
+        errorZh: '今天已经用过带倍率的决策了（每天 1 次）',
+        errorEn: 'You already used a multiplier choice today (once per day)',
+      );
+    }
     save.energy -= choice.energyCost;
 
     var coef = choice.coef;
@@ -653,6 +706,10 @@ class LifeSimEngine {
 
     save.progress += gain;
     save.totalChoices++;
+    if (isDailyLimitedChoice(period.activityId)) {
+      // 记录「今天已用过带倍率的决策」
+      save.limitedChoiceDay = save.day;
+    }
     if (choice.bonusCash > 0) {
       save.cash += choice.bonusCash;
       save.lifetimeCash += choice.bonusCash;
@@ -752,6 +809,17 @@ class LifeSimEngine {
   /// 齿轮奔袭：单车最高战力是否达标（不达标则进度 ×0）
   bool gearPowerReady(LifeSimSave save) =>
       maxVehiclePower(save) >= kGearMinPower;
+
+  /// 该活动的决策是否「带倍率、每天只能用一次」（齿轮奔袭）
+  static bool isDailyLimitedChoice(String activityId) =>
+      milestoneConfig(activityId)?.oneChoicePerDay ?? false;
+
+  /// 今天是否还能选带倍率的决策
+  bool canUseLimitedChoice(LifeSimSave save) {
+    final period = periodForDay(save.day);
+    if (!isDailyLimitedChoice(period.activityId)) return true;
+    return save.limitedChoiceDay != save.day;
+  }
 
   /// 看广告：消耗 1 精力
   ///
