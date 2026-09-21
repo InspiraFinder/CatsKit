@@ -1123,44 +1123,45 @@ int gangStrengthOf({required int gangPower, required int gangActivity}) {
 
 /// 废铁行动的四档决策：进度 +50/100/150/200，精力 1/2/4/8
 ///
-/// 前两档每点精力更划算（+50/精力），后两档用来快速把剩余精力砸进进度条。
+/// 和齿轮奔袭 / 全明星用**同一套四档名与精力阶梯**（1/2/4/8 → 0.25/0.5/0.75/1）：
+/// 50/100/150/200 正好是满档 200 的 0.25/0.5/0.75/1 倍。
 const List<ActivityChoice> kScrapChoices = <ActivityChoice>[
   ActivityChoice(
     id: 'scrap1',
-    nameZh: '捡废铁',
-    nameEn: 'Scavenge',
-    descZh: '进度 +50',
-    descEn: 'Progress +50',
+    nameZh: '浅尝辄止',
+    nameEn: 'A Taste',
+    descZh: '投入最少，收益最少',
+    descEn: 'Least effort, least reward',
     energyCost: 1,
     coef: 0,
     fixedPoints: 50,
   ),
   ActivityChoice(
     id: 'scrap2',
-    nameZh: '小队搜刮',
-    nameEn: 'Squad Sweep',
-    descZh: '进度 +100',
-    descEn: 'Progress +100',
+    nameZh: '投入精力',
+    nameEn: 'Put In Effort',
+    descZh: '投入一般',
+    descEn: 'Moderate effort',
     energyCost: 2,
     coef: 0,
     fixedPoints: 100,
   ),
   ActivityChoice(
     id: 'scrap3',
-    nameZh: '大举搜刮',
-    nameEn: 'Mass Sweep',
-    descZh: '进度 +150',
-    descEn: 'Progress +150',
+    nameZh: '全神贯注',
+    nameEn: 'Full Focus',
+    descZh: '投入较多',
+    descEn: 'High effort',
     energyCost: 4,
     coef: 0,
     fixedPoints: 150,
   ),
   ActivityChoice(
     id: 'scrap4',
-    nameZh: '全城清空',
-    nameEn: 'City Clear',
-    descZh: '进度 +200',
-    descEn: 'Progress +200',
+    nameZh: '我爱上班',
+    nameEn: 'Love the Grind',
+    descZh: '全力投入',
+    descEn: 'All in',
     energyCost: 8,
     coef: 0,
     fixedPoints: 200,
