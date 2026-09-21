@@ -828,16 +828,69 @@ class _LifeSimScreenState extends State<LifeSimScreen> {
   // ===================================================================
 
   Widget _buildGarage(LifeSimSave s) {
+    final dup = _engine.findDuplicateParts(s);
     return ListView(
       padding: const EdgeInsets.all(12),
       children: [
         Text(
           _t(
-            '用活动奖励拿到的部件组建最多 3 辆车；部件数值随等级提升（等级在「部件」页升级），已解锁即可重复装配。',
-            'Build up to 3 cars from your parts. Stats scale with part level (upgrade on the Parts tab); unlocked parts can be reused freely.',
+            '用活动奖励拿到的部件组建最多 3 辆车；部件数值随等级提升（等级在「部件」页升级）。'
+            '同一个部件只能装在一辆车上，装到新车上时会自动从原车卸下。',
+            'Build up to 3 cars from your parts. Stats scale with part level (upgrade on the Parts tab). '
+            'Each part can only be fitted on one car; fitting it elsewhere removes it from the old car.',
           ),
           style: TextStyle(fontSize: 12, color: Colors.grey[600]),
         ),
+        if (dup.isNotEmpty) ...[
+          const SizedBox(height: 8),
+          Card(
+            color: Colors.orange.withValues(alpha: 0.15),
+            child: Padding(
+              padding: const EdgeInsets.all(10),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    _t(
+                      '检测到 ${dup.length} 个部件被多辆车同时使用（旧存档遗留）',
+                      '${dup.length} part(s) are used by multiple cars (legacy save)',
+                    ),
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    _t(
+                      '同一部件只能装一辆车；清理后会保留在战力最高的那辆车上。',
+                      'A part can only be on one car; cleanup keeps it on the strongest car.',
+                    ),
+                    style: TextStyle(fontSize: 11, color: Colors.grey[700]),
+                  ),
+                  const SizedBox(height: 6),
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      onPressed: () {
+                        final n = _engine.removeDuplicateParts(s);
+                        _run(() {});
+                        _snack(
+                          _t('已清理 $n 个重复部件', 'Removed $n duplicated part(s)'),
+                        );
+                      },
+                      icon: const Icon(Icons.cleaning_services, size: 16),
+                      label: Text(
+                        _t('一键清理重复部件', 'Clean up duplicates'),
+                        style: const TextStyle(fontSize: 12),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
         const SizedBox(height: 12),
         for (var i = 0; i < s.vehicles.length; i++) _vehicleCard(s, i),
       ],
@@ -1784,8 +1837,12 @@ class _LifeSimScreenState extends State<LifeSimScreen> {
       _PartSlotRef.wheel => PartCategory.wheel,
       _PartSlotRef.gadget => PartCategory.gadget,
     };
-    // 三辆车的部件不能重复：排除其他车辆正在使用的部件
-    final blocked = _engine.partsUsedByOtherCars(s, vehicleIndex);
+    // 部件不能重复：排除其他车辆正在使用的部件，
+    // 以及本车其它插槽已装的部件（同一个部件不能装两次）
+    final blocked = <String>{
+      ..._engine.partsUsedByOtherCars(s, vehicleIndex),
+      ...s.vehicles[vehicleIndex].allPartIds.where((id) => id != currentId),
+    };
     final owned = <PartData>[
       for (final id in s.ownedParts)
         if (_engine.partIndex[id]?.category == category &&

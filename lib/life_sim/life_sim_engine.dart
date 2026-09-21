@@ -276,6 +276,67 @@ class LifeSimEngine {
     return save.vehicles[vehicleIndex].allPartIds.any(blocked.contains);
   }
 
+  /// 找出被多辆车同时使用的部件：partId → 车辆序号列表
+  ///
+  /// 用于兼容旧存档（改规则之前配的车可能已经重复）。
+  Map<String, List<int>> findDuplicateParts(LifeSimSave save) {
+    final map = <String, List<int>>{};
+    for (var i = 0; i < save.vehicles.length; i++) {
+      for (final id in save.vehicles[i].allPartIds) {
+        map.putIfAbsent(id, () => <int>[]).add(i);
+      }
+    }
+    map.removeWhere((_, cars) => cars.length <= 1);
+    return map;
+  }
+
+  /// 清理重复部件：每个重复部件只保留在「单车战力最高」的那辆车上，
+  /// 其余车辆移除该部件；返回被移除的部件引用数。
+  int removeDuplicateParts(LifeSimSave save) {
+    final dup = findDuplicateParts(save);
+    if (dup.isEmpty) return 0;
+    var removed = 0;
+    for (final entry in dup.entries) {
+      final cars = entry.value;
+      var keep = cars.first;
+      var bestPower = -1;
+      for (final i in cars) {
+        final p = vehiclePower(save.vehicles[i], save.partLevels);
+        if (p > bestPower) {
+          bestPower = p;
+          keep = i;
+        }
+      }
+      for (final i in cars) {
+        if (i == keep) continue;
+        final v = save.vehicles[i];
+        if (v.bodyId == entry.key) {
+          // 换车身会牵动插槽，直接清空这辆车（部件会随之释放）
+          removed += v.partCount;
+          v.clear();
+          continue;
+        }
+        if (v.extraWeaponId == entry.key) {
+          v.extraWeaponId = null;
+          removed++;
+        }
+        if (v.weaponIds.remove(entry.key)) removed++;
+        if (v.wheelIds.remove(entry.key)) removed++;
+        if (v.gadgetIds.remove(entry.key)) removed++;
+      }
+    }
+    if (removed > 0) {
+      _log(
+        save,
+        '🧹',
+        'garage',
+        '清理了重复部件：移除 $removed 个（同一部件只能装一辆车）',
+        'Removed $removed duplicated part(s) (a part can only be on one car)',
+      );
+    }
+    return removed;
+  }
+
   /// 车队总战力
   int fleetPower(LifeSimSave save) =>
       vehiclePowers(save).fold(0, (a, b) => a + b);
