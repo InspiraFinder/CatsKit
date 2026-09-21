@@ -1871,6 +1871,8 @@ class LifeSimEngine {
         'A new City King season begins '
             '(day ${citySeasonDay(save.day)}/$kCitySeasonDays)',
       );
+      // 帮派联赛：同一个赛季结束时结算晋级 / 退级
+      settleGangLeague(save);
     }
 
     // 城市之王：每天刷新对手
@@ -2135,6 +2137,149 @@ class LifeSimEngine {
   static int citySeasonStartDay(int day) =>
       ((day - 1) ~/ kCitySeasonDays) * kCitySeasonDays + 1;
 
+  /// 第 [day] 天所属赛季的序号（0 起）——城市之王与帮派联赛共用同一个赛季
+  static int seasonIndexOf(int day) => (day - 1) ~/ kCitySeasonDays;
+
+  // ===================================================================
+  // 帮派联赛（金 / 银 / 铜 / 木）
+  // ===================================================================
+
+  /// 玩家帮派所在的联赛组别
+  GangDivision gangDivision(LifeSimSave save) => GangDivision
+      .values[save.gangDivisionIndex.clamp(0, GangDivision.values.length - 1)];
+
+  static final Map<String, List<GangLeagueRow>> _gangBoardCache =
+      <String, List<GangLeagueRow>>{};
+
+  /// 玩家所在组别的联赛榜单（[kGangDivisionSize] 个对手 + 玩家自己，按战力降序）
+  ///
+  /// 一个赛季内榜单固定（按服务器 + 组别 + 赛季序号做种子），
+  /// 只有玩家自己的战力变化时名次才会动。
+  List<GangLeagueRow> gangBoard(LifeSimSave save) {
+    final div = gangDivision(save);
+    final season = seasonIndexOf(save.day);
+    final key = '$server/${div.name}/$season';
+    final npc = _gangBoardCache.putIfAbsent(
+      key,
+      () => buildGangDivisionBoard(
+        division: div,
+        seed: server.hashCode * 131 + div.index * 7717 + season * 104729,
+        seasonIndex: season,
+      ),
+    );
+    if (!save.inGang) return npc;
+    final rows = <GangLeagueRow>[
+      ...npc,
+      GangLeagueRow(
+        rank: 0,
+        name: save.gangName!,
+        power: gangPower(save),
+        members: 1 + save.gangMembers.length,
+        activity: save.gangActivity,
+        isPlayer: true,
+      ),
+    ]..sort((a, b) => b.power.compareTo(a.power));
+    return <GangLeagueRow>[
+      for (var i = 0; i < rows.length; i++) rows[i].withRank(i + 1),
+    ];
+  }
+
+  /// 玩家在所在组别的名次（1 起；不在帮派时返回榜单末位）
+  int gangLeagueRank(LifeSimSave save) {
+    final board = gangBoard(save);
+    for (final r in board) {
+      if (r.isPlayer) return r.rank;
+    }
+    return board.length;
+  }
+
+  /// 按榜单一行生成一个帮派实例（成员战力由总战力与成员数反推）
+  GangInstance gangFromRow(GangLeagueRow row) {
+    final count = max(1, row.members);
+    final perCar = max(1, row.power ~/ count ~/ 3);
+    return GangInstance(
+      name: row.name,
+      fromLibrary: kGangLeagueRoster.any((e) => e.name == row.name),
+      members: <SimGangMember>[
+        for (var i = 0; i < count; i++)
+          SimGangMember(
+            name: _memberName(),
+            carPowers: <int>[
+              for (var c = 0; c < 3; c++)
+                max(1, (perCar * (0.85 + _rng.nextDouble() * 0.3)).round()),
+            ],
+          ),
+      ],
+      activity: row.activity,
+    );
+  }
+
+  /// 帮派联赛赛季结算：组内前 [kGangPromoteRank] 名晋级，
+  /// [kGangDemoteRank] 名及之后退级（金组不再晋级 / 木组不再退级）
+  void settleGangLeague(LifeSimSave save) {
+    if (!save.inGang) return;
+    final div = gangDivision(save);
+    final rank = gangLeagueRank(save);
+    final size = gangBoard(save).length;
+    if (rank <= kGangPromoteRank) {
+      final next = div.promoted;
+      if (next == null) {
+        _log(
+          save,
+          '🏅',
+          'gang',
+          '帮派联赛赛季结束：${div.leagueZh} 第 $rank/$size 名'
+              '（已是最高组别，无法再晋级）',
+          'Gang league season ended: ${div.leagueEn} #$rank/$size '
+              '(already the top division)',
+        );
+      } else {
+        save.gangDivisionIndex = next.index;
+        _log(
+          save,
+          '🏅',
+          'gang',
+          '帮派联赛赛季结束：${div.leagueZh} 第 $rank/$size 名 → '
+              '**晋级 ${next.leagueZh}**',
+          'Gang league season ended: ${div.leagueEn} #$rank/$size → '
+              '**promoted to ${next.leagueEn}**',
+        );
+      }
+    } else if (rank >= kGangDemoteRank) {
+      final prev = div.demoted;
+      if (prev == null) {
+        _log(
+          save,
+          '🏅',
+          'gang',
+          '帮派联赛赛季结束：${div.leagueZh} 第 $rank/$size 名'
+              '（已是最低组别，无法再退级）',
+          'Gang league season ended: ${div.leagueEn} #$rank/$size '
+              '(already the lowest division)',
+        );
+      } else {
+        save.gangDivisionIndex = prev.index;
+        _log(
+          save,
+          '🏅',
+          'gang',
+          '帮派联赛赛季结束：${div.leagueZh} 第 $rank/$size 名 → '
+              '**退级 ${prev.leagueZh}**',
+          'Gang league season ended: ${div.leagueEn} #$rank/$size → '
+              '**relegated to ${prev.leagueEn}**',
+        );
+      }
+    } else {
+      _log(
+        save,
+        '🏅',
+        'gang',
+        '帮派联赛赛季结束：${div.leagueZh} 第 $rank/$size 名（保级）',
+        'Gang league season ended: ${div.leagueEn} #$rank/$size (stayed)',
+      );
+    }
+  }
+
   /// 城市之王赛季的结束天
   static int citySeasonEndDay(int day) =>
       citySeasonStartDay(day) + kCitySeasonDays - 1;
@@ -2292,15 +2437,15 @@ class LifeSimEngine {
   }
 
   /// 刷新当天的城市之王对手
+  ///
+  /// **同组别匹配**：只从玩家帮派所在组别的联赛榜单里挑对手（不含自己）。
   void rollCityOpponent(LifeSimSave save) {
-    final useLibrary = kGangLibrary.isNotEmpty && _rng.nextInt(100) < 60;
-    final GangInstance gang;
-    if (useLibrary) {
-      final a = kGangLibrary[_rng.nextInt(kGangLibrary.length)];
-      gang = generateGang(save, archetype: a);
-    } else {
-      gang = generateGang(save);
-    }
+    final board = gangBoard(
+      save,
+    ).where((r) => !r.isPlayer).toList(growable: false);
+    if (board.isEmpty) return;
+    final row = board[_rng.nextInt(board.length)];
+    final gang = gangFromRow(row);
     save.cityOpponentName = gang.name;
     save.cityOpponentCars = _topCars(gang);
     save.cityOpponentActivity = gang.activity;

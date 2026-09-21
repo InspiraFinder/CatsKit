@@ -1197,6 +1197,126 @@ class _LifeSimScreenState extends State<LifeSimScreen> {
     );
   }
 
+  /// 帮派联赛榜单（只显示玩家所在组别）
+  void _showGangBoardDialog(LifeSimSave s) {
+    final div = _engine.gangDivision(s);
+    final board = _engine.gangBoard(s);
+    final rank = _engine.gangLeagueRank(s);
+    final next = div.promoted;
+    final prev = div.demoted;
+    _dialog(
+      title: _t('帮派联赛 · ${div.leagueZh}', 'Gang League · ${div.leagueEn}'),
+      children: [
+        Text(
+          _t(
+            '${s.gangName ?? ''} 第 $rank/${board.length} 名',
+            '${s.gangName ?? ''} rank #$rank/${board.length}',
+          ),
+          style: const TextStyle(fontWeight: FontWeight.bold),
+        ),
+        Text(
+          _t(
+            '赛季结束：前 $kGangPromoteRank 名'
+                '${next == null ? '（已是最高组别）' : '晋级 ${next.leagueZh}'}；'
+                '$kGangDemoteRank 名及之后'
+                '${prev == null ? '（已是最低组别）' : '退级 ${prev.leagueZh}'}',
+            'Season end: top $kGangPromoteRank '
+                '${next == null ? '(top division)' : '→ ${next.leagueEn}'}; '
+                '#$kGangDemoteRank+ '
+                '${prev == null ? '(lowest division)' : '→ ${prev.leagueEn}'}',
+          ),
+          style: TextStyle(fontSize: 11, color: Colors.grey[600]),
+        ),
+        const SizedBox(height: 8),
+        // 前 3 名 + 玩家附近的名次
+        for (final r in board)
+          if (r.isPlayer || r.rank <= 3 || (r.rank - rank).abs() <= 3)
+            _gangBoardRow(r),
+        const Divider(height: 16),
+        Text(
+          _t('四个组别（每组 $kGangDivisionSize 席）',
+              'Four divisions ($kGangDivisionSize slots each)'),
+          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+        ),
+        for (final d in GangDivision.values.reversed)
+          Text(
+            _t(
+              '${d.leagueZh}：帮派战力 ${_fmt(kGangDivisionPower[d]!.min)}'
+                  '~${_fmt(kGangDivisionPower[d]!.max)}'
+                  '${d == div ? '　← 你在这里' : ''}',
+              '${d.leagueEn}: power ${_fmt(kGangDivisionPower[d]!.min)}'
+                  '~${_fmt(kGangDivisionPower[d]!.max)}'
+                  '${d == div ? '  ← you are here' : ''}',
+            ),
+            style: TextStyle(
+              fontSize: 11,
+              color: d == div ? Colors.teal : Colors.grey[700],
+              fontWeight: d == div ? FontWeight.bold : FontWeight.normal,
+            ),
+          ),
+        const SizedBox(height: 6),
+        Text(
+          _t(
+            '注：有些帮派会**故意升降级轮换**——上面的组实力太强，升上去拿到的奖励'
+                '还不如留在下面，于是两个帮派相互轮换、成员在两个帮派之间迁徙'
+                '（如「风起撼花铃」与「风动护花铃」在 银组 与 金组 之间来回）。',
+            'Note: some gangs deliberately rotate between divisions — the higher '
+                'division is too strong, so staying lower pays better. Two gangs '
+                'swap and their members migrate between them.',
+          ),
+          style: TextStyle(fontSize: 11, color: Colors.grey[600]),
+        ),
+      ],
+    );
+  }
+
+  Widget _gangBoardRow(GangLeagueRow r) {
+    final color = r.isPlayer
+        ? Colors.teal
+        : r.rank <= kGangPromoteRank
+        ? Colors.green
+        : r.rank >= kGangDemoteRank
+        ? Colors.red
+        : Colors.grey;
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 1),
+      child: Row(
+        children: [
+          SizedBox(
+            width: 46,
+            child: Text(
+              '#${r.rank}',
+              style: TextStyle(
+                fontSize: 12,
+                color: color,
+                fontWeight: r.isPlayer ? FontWeight.bold : FontWeight.normal,
+              ),
+            ),
+          ),
+          Expanded(
+            child: Text(
+              r.isPlayer ? '${r.name}（你）' : r.name,
+              style: TextStyle(
+                fontSize: 12,
+                color: r.isPlayer ? Colors.teal : null,
+                fontWeight: r.isPlayer ? FontWeight.bold : FontWeight.normal,
+              ),
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          Text(
+            _fmt(r.power),
+            style: TextStyle(
+              fontSize: 12,
+              color: r.isPlayer ? Colors.teal : null,
+              fontWeight: r.isPlayer ? FontWeight.bold : FontWeight.normal,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   /// 城市之王详情 / 发起挑战
   void _showCityKingDialog(LifeSimSave s) {
     if (!s.inGang) {
@@ -1731,6 +1851,46 @@ class _LifeSimScreenState extends State<LifeSimScreen> {
               Text(
                 _t('大致排名：第 $rank 位', 'Estimated rank: #$rank'),
                 style: const TextStyle(fontSize: 12, color: Colors.orange),
+              ),
+              const SizedBox(height: 4),
+              // 帮派联赛：组别 + 组内名次 + 榜单
+              Row(
+                children: [
+                  Text(
+                    _t(
+                      '帮派联赛：${_engine.gangDivision(s).leagueZh} 第 '
+                          '${_engine.gangLeagueRank(s)} 名',
+                      'Gang league: ${_engine.gangDivision(s).leagueEn} '
+                          '#${_engine.gangLeagueRank(s)}',
+                    ),
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.teal,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  TextButton(
+                    onPressed: () => _showGangBoardDialog(s),
+                    style: TextButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                    ),
+                    child: Text(
+                      _t('查看榜单', 'Board'),
+                      style: const TextStyle(fontSize: 12),
+                    ),
+                  ),
+                ],
+              ),
+              Text(
+                _t(
+                  '赛季结束时：前 $kGangPromoteRank 名晋级、'
+                  '$kGangDemoteRank 名及之后退级；城市之王只匹配同组别的帮派',
+                  'At season end the top $kGangPromoteRank promote and '
+                      '#$kGangDemoteRank+ relegate. City King only matches '
+                      'gangs in your own division.',
+                ),
+                style: TextStyle(fontSize: 11, color: Colors.grey[600]),
               ),
               const SizedBox(height: 8),
               Row(

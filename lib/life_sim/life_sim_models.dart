@@ -258,6 +258,9 @@ class LifeSimSave {
   final List<SimGangMember> gangMembers;
   int gangRankHint;
 
+  /// 帮派联赛组别（`GangDivision.index`：0 木 / 1 铜 / 2 银 / 3 金）
+  int gangDivisionIndex;
+
   /// 当前活动进度
   int progress;
 
@@ -358,6 +361,7 @@ class LifeSimSave {
     this.gangActivity = 0,
     List<SimGangMember>? gangMembers,
     this.gangRankHint = 0,
+    this.gangDivisionIndex = 0,
     this.progress = 0,
     this.progressPeriodStart = 1,
     this.scrapClaimed = 0,
@@ -476,6 +480,7 @@ class LifeSimSave {
     'gangAct': gangActivity,
     'gangMem': [for (final m in gangMembers) m.toJson()],
     'gangRank': gangRankHint,
+    'gangDiv': gangDivisionIndex,
     'prog': progress,
     'progStart': progressPeriodStart,
     'scrap': scrapClaimed,
@@ -544,6 +549,7 @@ class LifeSimSave {
           .map((m) => SimGangMember.fromJson(m.cast<String, dynamic>()))
           .toList(),
       gangRankHint: (json['gangRank'] as num?)?.toInt() ?? 0,
+      gangDivisionIndex: (json['gangDiv'] as num?)?.toInt() ?? 0,
       progress: (json['prog'] as num?)?.toInt() ?? 0,
       progressPeriodStart: (json['progStart'] as num?)?.toInt() ?? 1,
       scrapClaimed: (json['scrap'] as num?)?.toInt() ?? 0,

@@ -1578,6 +1578,270 @@ const List<String> kMemberNamePrefix = <String>[
 ];
 
 // =====================================================================
+// 四之二、帮派联赛（金 / 银 / 铜 / 木，每赛季升降级）
+// =====================================================================
+
+/// 帮派组别（[index] 越大越强：木 → 铜 → 银 → 金）
+enum GangDivision { wood, bronze, silver, gold }
+
+extension GangDivisionInfo on GangDivision {
+  String get nameZh => switch (this) {
+    GangDivision.gold => '金',
+    GangDivision.silver => '银',
+    GangDivision.bronze => '铜',
+    GangDivision.wood => '木',
+  };
+
+  String get nameEn => switch (this) {
+    GangDivision.gold => 'Gold',
+    GangDivision.silver => 'Silver',
+    GangDivision.bronze => 'Bronze',
+    GangDivision.wood => 'Wood',
+  };
+
+  /// 「金组」/「Gold League」
+  String get leagueZh => '$nameZh组';
+  String get leagueEn => '$nameEn League';
+
+  /// 晋级后的组别（金组不再晋级 → null）
+  GangDivision? get promoted =>
+      this == GangDivision.gold ? null : GangDivision.values[index + 1];
+
+  /// 退级后的组别（木组不再退级 → null）
+  GangDivision? get demoted =>
+      this == GangDivision.wood ? null : GangDivision.values[index - 1];
+}
+
+/// 每组席位数（前 [kGangPromoteRank] 名晋级、[kGangDemoteRank] 名及之后退级）
+const int kGangDivisionSize = 100;
+
+/// 晋级线：组内第 1 ~ 20 名晋级
+const int kGangPromoteRank = 20;
+
+/// 退级线：组内第 81 名及之后退级
+const int kGangDemoteRank = 81;
+
+/// 每组帮派总战力的区间（木最弱、金最强）
+const Map<GangDivision, ({int min, int max})> kGangDivisionPower =
+    <GangDivision, ({int min, int max})>{
+      GangDivision.wood: (min: 500000, max: 10000000),
+      GangDivision.bronze: (min: 10000000, max: 40000000),
+      GangDivision.silver: (min: 40000000, max: 120000000),
+      GangDivision.gold: (min: 120000000, max: 300000000),
+    };
+
+/// 每组帮派活跃度的区间
+const Map<GangDivision, ({int min, int max})> kGangDivisionActivity =
+    <GangDivision, ({int min, int max})>{
+      GangDivision.wood: (min: 15, max: 55),
+      GangDivision.bronze: (min: 30, max: 70),
+      GangDivision.silver: (min: 45, max: 88),
+      GangDivision.gold: (min: 60, max: 99),
+    };
+
+/// 每组帮派成员数的区间（名次越前成员越多）
+const Map<GangDivision, ({int min, int max})> kGangDivisionMembers =
+    <GangDivision, ({int min, int max})>{
+      GangDivision.wood: (min: 3, max: 10),
+      GangDivision.bronze: (min: 5, max: 14),
+      GangDivision.silver: (min: 8, max: 20),
+      GangDivision.gold: (min: 12, max: 24),
+    };
+
+/// 导入的真实帮派名单
+///
+/// - [division] + [rankMin]~[rankMax]：该帮派在**组内的名次区间**，
+///   每个赛季在区间里取一个确定值（榜单按战力排序，帮派占用该名次）
+/// - [altDivision] 等：**故意升降级轮换**的第二套归属。上面的组实力太强，
+///   升上去拿到的奖励还不如留在下面，于是两个帮派相互轮换、
+///   成员一直在两个帮派之间迁徙（按赛季序号的奇偶切换，[altPhase] 错开相位）
+class GangLeagueEntry {
+  final String name;
+  final GangDivision division;
+  final int rankMin;
+  final int rankMax;
+  final GangDivision? altDivision;
+  final int altRankMin;
+  final int altRankMax;
+  final int altPhase;
+
+  const GangLeagueEntry({
+    required this.name,
+    required this.division,
+    required this.rankMin,
+    required this.rankMax,
+    this.altDivision,
+    this.altRankMin = 0,
+    this.altRankMax = 0,
+    this.altPhase = 0,
+  });
+}
+
+const List<GangLeagueEntry> kGangLeagueRoster = <GangLeagueEntry>[
+  GangLeagueEntry(
+    name: '风铃儿',
+    division: GangDivision.gold,
+    rankMin: 40,
+    rankMax: 50,
+  ),
+  // 这一对在「银 1-3」与「金 81+」之间互相轮换
+  GangLeagueEntry(
+    name: '风起撼花铃',
+    division: GangDivision.silver,
+    rankMin: 1,
+    rankMax: 3,
+    altDivision: GangDivision.gold,
+    altRankMin: 81,
+    altRankMax: 100,
+    altPhase: 0,
+  ),
+  GangLeagueEntry(
+    name: '风动护花铃',
+    division: GangDivision.silver,
+    rankMin: 1,
+    rankMax: 3,
+    altDivision: GangDivision.gold,
+    altRankMin: 81,
+    altRankMax: 100,
+    altPhase: 1,
+  ),
+  GangLeagueEntry(
+    name: '风拂摇花铃',
+    division: GangDivision.silver,
+    rankMin: 30,
+    rankMax: 45,
+  ),
+  GangLeagueEntry(
+    name: '风过掠花铃',
+    division: GangDivision.silver,
+    rankMin: 30,
+    rankMax: 45,
+  ),
+  GangLeagueEntry(
+    name: '风吹稻花香',
+    division: GangDivision.bronze,
+    rankMin: 3,
+    rankMax: 6,
+  ),
+];
+
+/// 某个固定帮派在第 [seasonIndex] 个赛季的归属（处理故意升降级轮换）
+({GangDivision division, int rankMin, int rankMax}) gangLeaguePlacement(
+  GangLeagueEntry e,
+  int seasonIndex,
+) {
+  final alt = e.altDivision;
+  if (alt == null) {
+    return (division: e.division, rankMin: e.rankMin, rankMax: e.rankMax);
+  }
+  final useAlt = (seasonIndex + e.altPhase) % 2 != 0;
+  return useAlt
+      ? (division: alt, rankMin: e.altRankMin, rankMax: e.altRankMax)
+      : (division: e.division, rankMin: e.rankMin, rankMax: e.rankMax);
+}
+
+/// 联赛榜单上的一行
+class GangLeagueRow {
+  /// 组内名次（1 起）
+  final int rank;
+  final String name;
+
+  /// 帮派总战力
+  final int power;
+  final int members;
+  final int activity;
+
+  /// 是否是玩家自己的帮派
+  final bool isPlayer;
+
+  const GangLeagueRow({
+    required this.rank,
+    required this.name,
+    required this.power,
+    required this.members,
+    required this.activity,
+    this.isPlayer = false,
+  });
+
+  GangLeagueRow withRank(int newRank) => GangLeagueRow(
+    rank: newRank,
+    name: name,
+    power: power,
+    members: members,
+    activity: activity,
+    isPlayer: isPlayer,
+  );
+}
+
+/// 生成一个随机帮派名（前缀 + 后缀）
+String randomGangName(Random rng) =>
+    '${kGangNamePrefix[rng.nextInt(kGangNamePrefix.length)]}'
+    '${kGangNameSuffix[rng.nextInt(kGangNameSuffix.length)]}';
+
+/// 生成某组别在第 [seasonIndex] 个赛季的榜单（[kGangDivisionSize] 席，按战力降序）
+///
+/// - 名次越前战力越高（在对数刻度上从组别上限铺到下限，再加抖动）
+/// - [kGangLeagueRoster] 里的固定帮派占用它们对应的名次
+List<GangLeagueRow> buildGangDivisionBoard({
+  required GangDivision division,
+  required int seed,
+  required int seasonIndex,
+}) {
+  // 赛季也混进随机种子，保证「同组别 + 同 seed + 同赛季」稳定、换赛季会重排
+  final rng = Random(seed + seasonIndex * 7919);
+  final band = kGangDivisionPower[division]!;
+  final act = kGangDivisionActivity[division]!;
+  final mem = kGangDivisionMembers[division]!;
+  final logHi = log(band.max.toDouble());
+  final logLo = log(band.min.toDouble());
+  final usedNames = <String>{};
+
+  final rows = <GangLeagueRow>[];
+  for (var i = 0; i < kGangDivisionSize; i++) {
+    final t = kGangDivisionSize == 1 ? 0.0 : i / (kGangDivisionSize - 1);
+    final base = exp(logHi - (logHi - logLo) * t);
+    final jitter = 0.94 + rng.nextDouble() * 0.12;
+    var name = randomGangName(rng);
+    var guard = 0;
+    while (usedNames.contains(name) && guard < 20) {
+      name = randomGangName(rng);
+      guard++;
+    }
+    usedNames.add(name);
+    rows.add(
+      GangLeagueRow(
+        rank: 0,
+        name: name,
+        power: max(1, (base * jitter).round()),
+        members: (mem.max - (mem.max - mem.min) * t).round(),
+        activity: (act.max - (act.max - act.min) * t).round(),
+      ),
+    );
+  }
+  rows.sort((a, b) => b.power.compareTo(a.power));
+  for (var i = 0; i < rows.length; i++) {
+    rows[i] = rows[i].withRank(i + 1);
+  }
+
+  // 固定帮派占用对应名次（继承该名次的战力 / 成员数 / 活跃度）
+  for (final e in kGangLeagueRoster) {
+    final p = gangLeaguePlacement(e, seasonIndex);
+    if (p.division != division) continue;
+    final span = p.rankMax - p.rankMin + 1;
+    final rank = p.rankMin + (span <= 1 ? 0 : rng.nextInt(span));
+    final idx = (rank - 1).clamp(0, rows.length - 1);
+    rows[idx] = GangLeagueRow(
+      rank: idx + 1,
+      name: e.name,
+      power: rows[idx].power,
+      members: rows[idx].members,
+      activity: rows[idx].activity,
+    );
+  }
+  return rows;
+}
+
+// =====================================================================
 // 五、成就
 // =====================================================================
 
