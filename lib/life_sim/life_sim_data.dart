@@ -76,6 +76,18 @@ class ActivityChoice {
   /// 固定进度点数（废铁行动专用；非 null 时忽略 [coef]，与战力无关）
   final int? fixedPoints;
 
+  /// GP 专用：一次决策消耗的汽油（0 = 不消耗）
+  final int gasCost;
+
+  /// GP 专用：旗帜随机变动区间（含两端，均匀分布）
+  ///
+  /// `flagMin >= 0` 表示「只增不减」的低风险档。
+  final int flagMin;
+  final int flagMax;
+
+  /// GP 专用：基础分数（最终得分 = 基础分 × GP 分数乘数）
+  final int baseScore;
+
   const ActivityChoice({
     required this.id,
     required this.nameZh,
@@ -92,6 +104,10 @@ class ActivityChoice {
     this.nextActivityBonus = 0,
     this.wildCard = false,
     this.fixedPoints,
+    this.gasCost = 0,
+    this.flagMin = 0,
+    this.flagMax = 0,
+    this.baseScore = 0,
   });
 }
 
@@ -670,6 +686,272 @@ List<AllStarEntry> buildAllStarBoard({required int seed}) {
       AllStarEntry(
         '${100000 + rng.nextInt(8999999)}',
         (base * jitter).round(),
+      ),
+    );
+  }
+  entries.sort((a, b) => b.score.compareTo(a.score));
+  return entries;
+}
+
+// =====================================================================
+// 三之四、GP 大奖赛（高随机 / 高耗体的打榜活动）
+// =====================================================================
+// 与全明星的区别：**和战车大小完全无关**（分数只看决策与乘数，不看战力）。
+// 特点：
+// - 两种专用代币：汽油（gasoline）与旗帜（flags），二者均不可为负
+// - 高随机：每次决策旗帜大幅波动，可能一路亏到 0
+// - 非常耗体力：高风险一次 2 精力
+// - 玩家可以氪乘数：每 10 钱 → 分数 +150%，上限 50 次
+
+/// GP 开局给的旗帜（**整局只给一次**，之后不再补；归零当天全部禁选）
+///
+/// 数值定义在 [LifeSimSave.kGpInitialFlags]（存档默认值需要它）。
+const int kGpInitialFlags = LifeSimSave.kGpInitialFlags;
+
+/// GP 每天补充的汽油（会累积）
+const int kGpDailyGasoline = 2000;
+
+/// GP 一次决策消耗的汽油
+const int kGpGasPerChoice = 200;
+
+/// 每累计消耗这么多汽油，分数乘数 +[kGpGasBonusStepPct]%
+const int kGpGasBonusStep = 1000;
+
+/// 每 [kGpGasBonusStep] 汽油提供的乘数加成（百分比）
+const int kGpGasBonusStepPct = 50;
+
+/// 汽油部分的乘数加成上限（+450%）
+const int kGpGasBonusMaxPct = 450;
+
+/// GP 一次氪金消耗的钱
+const int kGpTopUpMoney = 10;
+
+/// GP 一次氪金提供的乘数加成（百分比）
+const int kGpTopUpBonusPct = 150;
+
+/// GP 氪金次数上限
+const int kGpMaxTopUpCount = 50;
+
+/// GP 分数乘数加成的**整体**上限（氪金 + 汽油 相加后封顶 +7650%）
+const int kGpTotalBonusCapPct = 7650;
+
+/// GP 的三档决策（与战车战力无关）
+///
+/// - 高风险：旗帜 -5000~+3000，200 汽油 + 2 精力，分数 +50000
+/// - 中风险：旗帜 -2500~+2000，200 汽油 + 2 精力，分数 +20000
+/// - 低风险：旗帜 0~+3000，200 汽油 + 1 精力，分数 +1000（唯一不亏旗帜的档）
+const List<ActivityChoice> kGpChoices = <ActivityChoice>[
+  ActivityChoice(
+    id: 'gpHigh',
+    nameZh: '高风险',
+    nameEn: 'High Risk',
+    descZh: '旗帜 -5000~+3000 · 200 汽油 + 2 精力 · 分数 +50000',
+    descEn: 'Flags -5000~+3000 · 200 gas + 2 energy · score +50000',
+    energyCost: 2,
+    coef: 0,
+    gasCost: kGpGasPerChoice,
+    flagMin: -5000,
+    flagMax: 3000,
+    baseScore: 50000,
+  ),
+  ActivityChoice(
+    id: 'gpMid',
+    nameZh: '中风险',
+    nameEn: 'Medium Risk',
+    descZh: '旗帜 -2500~+2000 · 200 汽油 + 2 精力 · 分数 +20000',
+    descEn: 'Flags -2500~+2000 · 200 gas + 2 energy · score +20000',
+    energyCost: 2,
+    coef: 0,
+    gasCost: kGpGasPerChoice,
+    flagMin: -2500,
+    flagMax: 2000,
+    baseScore: 20000,
+  ),
+  ActivityChoice(
+    id: 'gpLow',
+    nameZh: '低风险',
+    nameEn: 'Low Risk',
+    descZh: '旗帜 0~+3000 · 200 汽油 + 1 精力 · 分数 +1000',
+    descEn: 'Flags 0~+3000 · 200 gas + 1 energy · score +1000',
+    energyCost: 1,
+    coef: 0,
+    gasCost: kGpGasPerChoice,
+    flagMin: 0,
+    flagMax: 3000,
+    baseScore: 1000,
+  ),
+];
+
+/// GP 汽油部分的乘数加成（百分比，上限 +450%）
+int gpGasBonusPct(int gasConsumed) => min(
+  kGpGasBonusMaxPct,
+  (max(0, gasConsumed) ~/ kGpGasBonusStep) * kGpGasBonusStepPct,
+);
+
+/// GP 氪金部分的乘数加成（百分比，上限 +7500%）
+int gpMoneyBonusPct(int topUpCount) =>
+    min(max(0, topUpCount), kGpMaxTopUpCount) * kGpTopUpBonusPct;
+
+/// GP 分数乘数的总加成（百分比；氪金 + 汽油 相加后整体封顶 +7650%）
+int gpBonusPct({required int gasConsumed, required int topUpCount}) => min(
+  kGpTotalBonusCapPct,
+  gpGasBonusPct(gasConsumed) + gpMoneyBonusPct(topUpCount),
+);
+
+/// GP 分数乘数（从 1.0 起：`1 + 总加成% / 100`）
+double gpMultiplierOf({required int gasConsumed, required int topUpCount}) =>
+    1 + gpBonusPct(gasConsumed: gasConsumed, topUpCount: topUpCount) / 100;
+
+/// GP 一次决策的实际得分（基础分 × 乘数）
+int gpChoiceScore(ActivityChoice choice, double multiplier) =>
+    (choice.baseScore * multiplier).round();
+
+// ---- GP 榜单与名次奖励 ----
+
+/// GP 榜单人数
+const int kGpBoardSize = 400;
+
+/// GP 榜单控制点（名次 → 分数），控制点之间按**对数线性**插值
+///
+/// 为什么不用幂律 `A / rank^B`：
+/// 氪金乘数上限 +7500% 远大于汽油的 +450%，所以「200 氪」与「0 氪」的分数
+/// 差接近 18 倍，但按需求两者只差 2-3 倍名次。幂律只能取一个指数：
+/// - 要让 0 氪进 50-100 名 → 指数 ≈ 3.17 → 第 1 名需要 1.45 万亿分（永远拿不到）
+/// - 要让 200 氪进 10-50 名 → 指数 ≈ 0.23 → 0 氪掉到第 400 名开外
+/// 对数线性锚点可以做到「顶部平缓、中段陡峭」，同时满足两条需求。
+///
+/// 锚点取值（实测模拟：4 天周期、精力打满、全程高风险，41 个随机种子取中位数）：
+/// - 第 1 名 ≈ 9500 万（重氪 + 旗帜运气好时的极限约 1.08 亿，所以第 1 名可达）
+/// - 第 30 名 ≈ 3020 万（200 氪中位分）
+/// - 第 75 名 ≈ 166 万（0 氪中位分）
+/// - 第 400 名 ≈ 2 万
+///
+/// 实测名次分布（中位 / 最好 / 最差）：
+/// - 0 氪（乘数只吃汽油，约 ×3.5）：75 / 67 / 175 → 落在 50-100 ✓
+/// - 200 氪（20 次 ×+150% = +3000%，乘数约 ×33）：31 / 21 / 47 → 落在 10-50 ✓
+/// - 500 氪（氪满 50 次，乘数封顶 ×77.5）：7 / 1 / 32 → 第 1 名可达 ✓
+/// - 全程低风险（不亏旗帜，约 11 万分）：275 → 兜底档 ✓
+const List<({int rank, int score})> kGpBoardAnchors =
+    <({int rank, int score})>[
+      (rank: 1, score: 95000000),
+      (rank: 30, score: 30200000),
+      (rank: 75, score: 1660000),
+      (rank: 400, score: 20000),
+    ];
+
+/// GP 榜单每天的抖动幅度（±；比全明星小，因为顶部对分数很敏感）
+const double kGpBoardJitter = 0.05;
+
+/// 某个名次对应的榜单分数（控制点之间对数线性插值）
+double gpBoardScore(int rank) {
+  final anchors = kGpBoardAnchors;
+  if (rank <= anchors.first.rank) return anchors.first.score.toDouble();
+  for (var i = 1; i < anchors.length; i++) {
+    final a = anchors[i - 1];
+    final b = anchors[i];
+    if (rank <= b.rank) {
+      final t = (rank - a.rank) / (b.rank - a.rank);
+      return (a.score * pow(b.score / a.score, t)).toDouble();
+    }
+  }
+  return anchors.last.score.toDouble();
+}
+
+/// GP 名次奖励（8 档；名次越前奖励越多，档位与全明星同形）
+const List<AllStarTier> kGpTiers = <AllStarTier>[
+  AllStarTier(
+    maxRank: 1,
+    labelZh: '第 1 名',
+    labelEn: 'Rank 1',
+    partKinds: 12,
+    partEach: 20,
+    token: 225,
+    cash: 3000000,
+  ),
+  AllStarTier(
+    maxRank: 3,
+    labelZh: '第 2-3 名',
+    labelEn: 'Rank 2-3',
+    partKinds: 11,
+    partEach: 18,
+    token: 200,
+    cash: 2600000,
+  ),
+  AllStarTier(
+    maxRank: 10,
+    labelZh: '第 4-10 名',
+    labelEn: 'Rank 4-10',
+    partKinds: 10,
+    partEach: 16,
+    token: 175,
+    cash: 2200000,
+  ),
+  AllStarTier(
+    maxRank: 25,
+    labelZh: '第 11-25 名',
+    labelEn: 'Rank 11-25',
+    partKinds: 9,
+    partEach: 14,
+    token: 150,
+    cash: 1800000,
+  ),
+  AllStarTier(
+    maxRank: 50,
+    labelZh: '第 26-50 名',
+    labelEn: 'Rank 26-50',
+    partKinds: 8,
+    partEach: 12,
+    token: 125,
+    cash: 1400000,
+  ),
+  AllStarTier(
+    maxRank: 100,
+    labelZh: '第 51-100 名',
+    labelEn: 'Rank 51-100',
+    partKinds: 7,
+    partEach: 10,
+    token: 100,
+    cash: 1000000,
+  ),
+  AllStarTier(
+    maxRank: 250,
+    labelZh: '第 101-250 名',
+    labelEn: 'Rank 101-250',
+    partKinds: 6,
+    partEach: 8,
+    token: 75,
+    cash: 600000,
+  ),
+  AllStarTier(
+    maxRank: 1 << 30,
+    labelZh: '第 251 名及以后',
+    labelEn: 'Rank 251+',
+    partKinds: 5,
+    partEach: 6,
+    token: 50,
+    cash: 200000,
+  ),
+];
+
+/// GP 名次 → 档位
+AllStarTier gpTierFor(int rank) {
+  for (final t in kGpTiers) {
+    if (rank <= t.maxRank) return t;
+  }
+  return kGpTiers.last;
+}
+
+/// 生成某一天的 GP 榜单（人数固定，分数按 [kGpBoardAnchors] 插值 + 抖动）
+List<AllStarEntry> buildGpBoard({required int seed}) {
+  final rng = Random(seed);
+  final entries = <AllStarEntry>[];
+  for (var rank = 1; rank <= kGpBoardSize; rank++) {
+    final jitter =
+        1 - kGpBoardJitter + rng.nextDouble() * kGpBoardJitter * 2;
+    entries.add(
+      AllStarEntry(
+        '${200000 + rng.nextInt(7999999)}',
+        (gpBoardScore(rank) * jitter).round(),
       ),
     );
   }

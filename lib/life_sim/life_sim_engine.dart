@@ -60,6 +60,15 @@ class ChoiceOutcome {
   /// 废铁行动：本次达成并已发放的奖励节点
   final List<ScrapNode> scrapNodes;
 
+  /// GP：本次决策的旗帜变动（可为负；已按「不可为负」截断到实际值）
+  final int flagDelta;
+
+  /// GP：决策后剩余的旗帜
+  final int gpFlags;
+
+  /// GP：本次决策的实际分数乘数（1.0 起）
+  final double gpMultiplier;
+
   const ChoiceOutcome({
     required this.ok,
     this.errorZh = '',
@@ -71,6 +80,9 @@ class ChoiceOutcome {
     this.cash = 0,
     this.token = 0,
     this.scrapNodes = const <ScrapNode>[],
+    this.flagDelta = 0,
+    this.gpFlags = 0,
+    this.gpMultiplier = 1,
   });
 }
 
@@ -445,6 +457,7 @@ class LifeSimEngine {
       'Your first car was auto-built from your parts',
     );
     save.cityOpponentName = '——';
+    _syncGpDay(save);
     return save;
   }
 
@@ -712,6 +725,7 @@ class LifeSimEngine {
     if (activityId == 'scrap') return kScrapChoices;
     if (activityId == 'gear') return kGearChoices;
     if (activityId == 'allstar') return kAllStarChoices;
+    if (activityId == 'gp') return kGpChoices;
     if (activityId == kChampActivityId) return const <ActivityChoice>[];
     return <ActivityChoice>[
       ...kCommonChoices,
@@ -721,6 +735,11 @@ class LifeSimEngine {
 
   /// 做出一次活动决策
   ChoiceOutcome makeChoice(LifeSimSave save, ActivityChoice choice) {
+    final period0 = periodForDay(save.day);
+    // GP 是独立玩法（两种专用代币 + 旗帜禁选规则）
+    if (isGpActivity(period0.activityId)) {
+      return _makeGpChoice(save, choice);
+    }
     if (save.energy < choice.energyCost) {
       return const ChoiceOutcome(
         ok: false,
@@ -845,11 +864,12 @@ class LifeSimEngine {
   static MilestoneConfig? milestoneConfig(String activityId) =>
       kMilestoneActivities[activityId];
 
-  /// 是否可以看广告（24h锦标赛+黑市、里程碑活动与全明星）
+  /// 是否可以看广告（24h锦标赛+黑市、里程碑活动、全明星与 GP）
   static bool canWatchAd(String activityId) =>
       activityId == kChampActivityId ||
       isMilestoneActivity(activityId) ||
-      isAllStarActivity(activityId);
+      isAllStarActivity(activityId) ||
+      isGpActivity(activityId);
 
   /// 里程碑活动一次决策的进度
   ///
@@ -908,6 +928,211 @@ class LifeSimEngine {
   /// 玩家当前名次对应的档位
   AllStarTier allStarTier(LifeSimSave save) =>
       allStarTierFor(allStarRank(save));
+
+  // ===================================================================
+  // GP 大奖赛（高随机 / 高耗体；与战车大小无关）
+  // ===================================================================
+
+  /// 该活动是否为 GP 大奖赛
+  static bool isGpActivity(String activityId) => activityId == 'gp';
+
+  /// GP：汽油带来的乘数加成（百分比）
+  int gpGasBonus(LifeSimSave save) => gpGasBonusPct(save.gpGasConsumed);
+
+  /// GP：氪金带来的乘数加成（百分比）
+  int gpMoneyBonus(LifeSimSave save) => gpMoneyBonusPct(save.gpTopUpCount);
+
+  /// GP：乘数总加成（百分比，整体封顶 +7650%）
+  int gpBonus(LifeSimSave save) => gpBonusPct(
+    gasConsumed: save.gpGasConsumed,
+    topUpCount: save.gpTopUpCount,
+  );
+
+  /// GP：当前分数乘数（1.0 起）
+  double gpMultiplier(LifeSimSave save) => gpMultiplierOf(
+    gasConsumed: save.gpGasConsumed,
+    topUpCount: save.gpTopUpCount,
+  );
+
+  /// GP：旗帜是否已归零
+  bool gpFlagZero(LifeSimSave save) => save.gpFlags <= 0;
+
+  /// GP：今天是否还能靠「起始为 0 的那一次低风险」把旗帜救回来
+  bool gpRescueAvailable(LifeSimSave save) =>
+      gpFlagZero(save) &&
+      save.gpDayStartFlags <= 0 &&
+      save.gpFlagsRescueDay != save.day;
+
+  /// GP：这一档决策现在能不能选
+  ///
+  /// - 旗帜 > 0：三档都能选（只要汽油 / 精力够）
+  /// - 旗帜 = 0 且当天开始时也是 0，且今天还没用过救援：
+  ///   **只允许一次低风险**（低风险旗帜只增不减，见 `flagMin >= 0`）
+  /// - 其余情况：高中低全部禁选
+  bool gpCanChoose(LifeSimSave save, ActivityChoice choice) {
+    if (save.gpFlags > 0) return true;
+    if (!gpRescueAvailable(save)) return false;
+    return choice.flagMin >= 0;
+  }
+
+  /// GP：三档是否都被「旗帜归零」禁掉了
+  bool gpAllLocked(LifeSimSave save) => !gpCanChoose(save, kGpChoices.first);
+
+  /// GP：做一次决策（扣汽油 + 精力 → 随机变动旗帜 → 按乘数加分）
+  ChoiceOutcome _makeGpChoice(LifeSimSave save, ActivityChoice choice) {
+    if (!gpCanChoose(save, choice)) {
+      if (gpFlagZero(save)) {
+        return const ChoiceOutcome(
+          ok: false,
+          errorZh: '旗帜已归零，今天不能再决策了',
+          errorEn: 'Flags are at zero — no more choices today',
+        );
+      }
+      return const ChoiceOutcome(
+        ok: false,
+        errorZh: '这一档现在不能选',
+        errorEn: 'This option is not available now',
+      );
+    }
+    if (save.energy < choice.energyCost) {
+      return const ChoiceOutcome(
+        ok: false,
+        errorZh: '精力不足',
+        errorEn: 'Not enough energy',
+      );
+    }
+    if (save.gpGasoline < choice.gasCost) {
+      return ChoiceOutcome(
+        ok: false,
+        errorZh: '汽油不足（需要 ${choice.gasCost}，当前 ${save.gpGasoline}）',
+        errorEn:
+            'Not enough gasoline (need ${choice.gasCost}, have ${save.gpGasoline})',
+      );
+    }
+
+    // 乘数取「本次消耗之前」的汽油累计（先消耗满 1000 才拿到 +50%）
+    final mul = gpMultiplier(save);
+    final wasZero = gpFlagZero(save);
+
+    save.energy -= choice.energyCost;
+    save.gpGasoline -= choice.gasCost;
+    save.gpGasConsumed += choice.gasCost;
+
+    // 旗帜随机（区间含两端），且不可为负
+    final roll =
+        choice.flagMin + _rng.nextInt(choice.flagMax - choice.flagMin + 1);
+    final before = save.gpFlags;
+    save.gpFlags = max(0, save.gpFlags + roll);
+    final delta = save.gpFlags - before;
+
+    // 用掉今天「起始为 0」的那一次低风险救援
+    if (wasZero && choice.flagMin >= 0) {
+      save.gpFlagsRescueDay = save.day;
+    }
+
+    final gain = gpChoiceScore(choice, mul);
+    save.progress += gain;
+    save.totalChoices++;
+
+    final actZh = activityName('gp', 'zh');
+    final actEn = activityName('gp', 'en');
+    final flagText = delta >= 0 ? '+$delta' : '$delta';
+    _log(
+      save,
+      '🏁',
+      'activity',
+      '$actZh ${choice.nameZh}：旗帜 $flagText（剩 ${save.gpFlags}）、'
+          '分数 +$gain（×${mul.toStringAsFixed(2)}）、'
+          '汽油 -${choice.gasCost}（剩 ${save.gpGasoline}）',
+      '$actEn ${choice.nameEn}: flags $flagText (left ${save.gpFlags}), '
+          'score +$gain (×${mul.toStringAsFixed(2)}), '
+          'gasoline -${choice.gasCost} (left ${save.gpGasoline})',
+    );
+
+    return ChoiceOutcome(
+      ok: true,
+      progress: gain,
+      effectiveCoef: mul,
+      gpMultiplier: mul,
+      flagDelta: delta,
+      gpFlags: save.gpFlags,
+    );
+  }
+
+  /// GP：氪乘数（每 [kGpTopUpMoney] 钱 → 乘数 +[kGpTopUpBonusPct]%，上限 50 次）
+  ({bool ok, String errorZh, String errorEn, int bonusPct, int count})
+  gpTopUp(LifeSimSave save) {
+    final period = periodForDay(save.day);
+    if (!isGpActivity(period.activityId)) {
+      return (
+        ok: false,
+        errorZh: '只有在 GP 周期才能氪乘数',
+        errorEn: 'GP multiplier top-up is only available during GP',
+        bonusPct: gpBonus(save),
+        count: save.gpTopUpCount,
+      );
+    }
+    if (save.gpTopUpCount >= kGpMaxTopUpCount) {
+      return (
+        ok: false,
+        errorZh: '已氪满 $kGpMaxTopUpCount 次',
+        errorEn: 'Already topped up $kGpMaxTopUpCount times',
+        bonusPct: gpBonus(save),
+        count: save.gpTopUpCount,
+      );
+    }
+    save.money -= kGpTopUpMoney;
+    save.gpTopUpCount++;
+    final pct = gpBonus(save);
+    _log(
+      save,
+      '💎',
+      'activity',
+      'GP 氪乘数：花费 $kGpTopUpMoney 钱 → 分数乘数 +$kGpTopUpBonusPct%'
+          '（第 ${save.gpTopUpCount}/$kGpMaxTopUpCount 次，'
+          '当前总加成 +$pct%，钱余额 ${save.money}）',
+      'GP top-up: spent $kGpTopUpMoney money → multiplier '
+          '+$kGpTopUpBonusPct% (${save.gpTopUpCount}/$kGpMaxTopUpCount, '
+          'total bonus +$pct%, money ${save.money})',
+    );
+    return (
+      ok: true,
+      errorZh: '',
+      errorEn: '',
+      bonusPct: pct,
+      count: save.gpTopUpCount,
+    );
+  }
+
+  static final Map<String, List<AllStarEntry>> _gpBoardCache =
+      <String, List<AllStarEntry>>{};
+
+  /// 当天的 GP 榜单（同一天同一服务器固定；换天会重新生成）
+  List<AllStarEntry> gpBoard(LifeSimSave save) {
+    final period = periodForDay(save.day);
+    final key = 'gp/$server/${period.startDay}/${save.day}';
+    return _gpBoardCache.putIfAbsent(key, () {
+      final seed =
+          server.hashCode * 67 +
+          period.startDay * 15485863 +
+          save.day * 32452843;
+      return buildGpBoard(seed: seed);
+    });
+  }
+
+  /// 玩家在当天 GP 榜单上的名次（1 起；分数越高名次越靠前）
+  int gpRank(LifeSimSave save) {
+    final board = gpBoard(save);
+    var better = 0;
+    for (final e in board) {
+      if (e.score > save.progress) better++;
+    }
+    return better + 1;
+  }
+
+  /// 玩家当前 GP 名次对应的奖励档位
+  AllStarTier gpTier(LifeSimSave save) => gpTierFor(gpRank(save));
+
   /// 齿轮奔袭：单车最高战力是否达标（不达标则进度 ×0）
   bool gearPowerReady(LifeSimSave save) =>
       maxVehiclePower(save) >= kGearMinPower;
@@ -1166,6 +1391,97 @@ class LifeSimEngine {
   List<ScrapNode> claimScrapNodes(LifeSimSave save) =>
       claimMilestoneNodes(save, 'scrap');
 
+  // ===================================================================
+  // GP：周期初始化与结算
+  // ===================================================================
+
+  /// 进入 GP 周期的第一天：发旗帜与首日汽油，并清空本周期累计
+  void _startGpCycle(LifeSimSave save) {
+    save.gpGasoline = kGpDailyGasoline;
+    save.gpFlags = kGpInitialFlags;
+    save.gpGasConsumed = 0;
+    save.gpTopUpCount = 0;
+    save.gpFlagsRescueDay = -1;
+    _log(
+      save,
+      '🏁',
+      'activity',
+      'GP 开始：旗帜 $kGpInitialFlags、汽油 $kGpDailyGasoline'
+          '（旗帜归零则当天三档全禁；当天起始为 0 时可救一次低风险）',
+      'GP started: $kGpInitialFlags flags, $kGpDailyGasoline gasoline '
+          '(flags at zero locks all options for the day)',
+    );
+  }
+
+  /// 天数推进后同步 GP 状态（补汽油、记录当天起始旗帜）
+  void _syncGpDay(LifeSimSave save) {
+    final p = periodForDay(save.day);
+    if (isGpActivity(p.activityId)) {
+      if (save.day == p.startDay) {
+        _startGpCycle(save);
+      } else {
+        save.gpGasoline += kGpDailyGasoline;
+        _log(
+          save,
+          '⛽',
+          'day',
+          'GP 汽油 +$kGpDailyGasoline（当前 ${save.gpGasoline}）',
+          'GP gasoline +$kGpDailyGasoline (now ${save.gpGasoline})',
+        );
+      }
+    }
+    // 「当天起始旗帜」用于判断归零禁选与低风险救援
+    save.gpDayStartFlags = save.gpFlags;
+  }
+
+  /// GP 结算：按当日名次档位生成奖励（进待领取）
+  RewardBundle _settleGp(LifeSimSave save, int endedDay) {
+    final rank = gpRank(save);
+    final tier = gpTierFor(rank);
+    final pool = PartDatabase.partsForServer(
+      server,
+    ).where((p) => p.rarity == Rarity.r6).toList()..shuffle(_rng);
+    final kinds = <String>[
+      for (final p in pool.take(tier.partKinds)) p.id,
+    ];
+    final partIds = <String>[
+      for (final id in kinds) ...List<String>.filled(tier.partEach, id),
+    ];
+    final bundle = RewardBundle(
+      activityId: 'gp',
+      rank: tier.labelZh,
+      day: save.day,
+      cash: tier.cash,
+      token: tier.token,
+      partIds: partIds,
+    );
+    save.pendingRewards.add(bundle);
+    _log(
+      save,
+      '🏆',
+      'reward',
+      'GP 结算：$rank 名（${tier.labelZh}，总分 ${save.progress}，'
+          '共氪 ${save.gpTopUpCount} 次、消耗汽油 ${save.gpGasConsumed}）'
+          '→ 部件 ${tier.partKinds} 种×${tier.partEach}、'
+          '代币 ${tier.token}、紫票 ${tier.cash}，奖励待领取',
+      'GP settled: rank $rank (${tier.labelEn}, score ${save.progress}, '
+          '${save.gpTopUpCount} top-ups, ${save.gpGasConsumed} gasoline) '
+          '→ ${tier.partKinds} kinds ×${tier.partEach}, '
+          '${tier.token} tokens, ${tier.cash} cash (pending)',
+    );
+    save.progress = 0;
+    save.scrapClaimed = 0;
+    save.scrapMultiplier = 1;
+    // GP 本周期状态清空（旗帜留到下次进入 GP 时由 _startGpCycle 重发）
+    save.gpGasoline = 0;
+    save.gpGasConsumed = 0;
+    save.gpTopUpCount = 0;
+    save.activeActivityBonus = min(1.0, save.nextActivityBonus);
+    save.nextActivityBonus = 0;
+    save.progressPeriodStart = periodStartDay(endedDay + 1);
+    return bundle;
+  }
+
   /// 全明星结算：按名次档位生成奖励（进待领取）
   RewardBundle _settleAllStar(LifeSimSave save, int endedDay) {
     final rank = allStarRank(save);
@@ -1305,6 +1621,11 @@ class LifeSimEngine {
     if (isAllStarActivity(period.activityId)) {
       // 全明星：打榜活动，按名次档位发奖
       return _settleAllStar(save, endedDay);
+    }
+
+    if (isGpActivity(period.activityId)) {
+      // GP：打榜活动（与战车大小无关），按名次档位发奖
+      return _settleGp(save, endedDay);
     }
 
     if (isMilestoneActivity(period.activityId)) {
@@ -1477,6 +1798,9 @@ class LifeSimEngine {
       '第 ${save.day} 天开始了，精力恢复到 ${save.energy}/${save.maxEnergy}',
       'Day ${save.day} begins. Energy restored to ${save.energy}/${save.maxEnergy}',
     );
+
+    // GP：补汽油 + 记录当天起始旗帜
+    _syncGpDay(save);
 
     // 城市之王：每天刷新对手
     if (save.inGang) {

@@ -273,6 +273,11 @@ class _LifeSimScreenState extends State<LifeSimScreen> {
     final limitedUsed = !_engine.canUseLimitedChoice(s);
     final isChamp = activityId == kChampActivityId;
     final isAllStar = LifeSimEngine.isAllStarActivity(activityId);
+    final isGp = LifeSimEngine.isGpActivity(activityId);
+    final gpRank = isGp ? _engine.gpRank(s) : 0;
+    final gpTier = isGp ? _engine.gpTier(s) : null;
+    final gpLocked = isGp && _engine.gpAllLocked(s);
+    final gpRescue = isGp && _engine.gpRescueAvailable(s);
     final allStarRank = isAllStar ? _engine.allStarRank(s) : 0;
     final allStarTier = isAllStar ? _engine.allStarTier(s) : null;
     final canAd = LifeSimEngine.canWatchAd(activityId);
@@ -379,6 +384,33 @@ class _LifeSimScreenState extends State<LifeSimScreen> {
                         ),
                       TextButton(
                         onPressed: () => _showAllStarBoardDialog(s),
+                        style: TextButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(horizontal: 8),
+                        ),
+                        child: Text(
+                          _t('查看榜单', 'Board'),
+                          style: const TextStyle(fontSize: 12),
+                        ),
+                      ),
+                    ],
+                  )
+                else if (isGp)
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Chip(
+                        visualDensity: VisualDensity.compact,
+                        backgroundColor: Colors.amber.withValues(alpha: 0.25),
+                        label: Text(
+                          _t(
+                            '分数 ×${_engine.gpMultiplier(s).toStringAsFixed(2)}',
+                            'Score ×${_engine.gpMultiplier(s).toStringAsFixed(2)}',
+                          ),
+                          style: const TextStyle(fontSize: 11),
+                        ),
+                      ),
+                      TextButton(
+                        onPressed: () => _showGpBoardDialog(s),
                         style: TextButton.styleFrom(
                           padding: const EdgeInsets.symmetric(horizontal: 8),
                         ),
@@ -513,6 +545,65 @@ class _LifeSimScreenState extends State<LifeSimScreen> {
                   ),
                   style: const TextStyle(fontSize: 12, color: Colors.teal),
                 ),
+            ] else if (isGp) ...[
+              Text(
+                _t(
+                  '分数 ${_fmt(s.progress)} · 当前名次 #$gpRank · '
+                  '档位 ${gpTier?.labelZh ?? ''}',
+                  'Score ${_fmt(s.progress)} · rank #$gpRank · '
+                  '${gpTier?.labelEn ?? ''}',
+                ),
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              Text(
+                _t(
+                  '旗帜 ${_fmt(s.gpFlags)} · 汽油 ${_fmt(s.gpGasoline)} · '
+                  '乘数 +${_engine.gpBonus(s)}%'
+                  '（汽油 +${_engine.gpGasBonus(s)}% / 氪金 +${_engine.gpMoneyBonus(s)}%）',
+                  'Flags ${_fmt(s.gpFlags)} · gasoline ${_fmt(s.gpGasoline)} · '
+                  'multiplier +${_engine.gpBonus(s)}% '
+                  '(gas +${_engine.gpGasBonus(s)}% / top-up +${_engine.gpMoneyBonus(s)}%)',
+                ),
+                style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+              ),
+              Text(
+                _t(
+                  '与战车大小无关；榜单每天变化，名次奖励在周期结束时发放',
+                  'Independent of car power. The board changes daily; '
+                      'rewards are paid at the end of the cycle',
+                ),
+                style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+              ),
+              if (gpLocked)
+                Text(
+                  _t(
+                    '旗帜已归零 → 今天三档全部禁选（明天若起始仍为 0，可救一次低风险）',
+                    'Flags are at zero → all options locked today '
+                        '(tomorrow one low-risk rescue is allowed if still zero)',
+                  ),
+                  style: const TextStyle(fontSize: 12, color: Colors.red),
+                )
+              else if (gpRescue)
+                Text(
+                  _t(
+                    '旗帜归零 → 今天可以做 1 次低风险把旗帜救回来',
+                    'Flags at zero → one low-risk rescue allowed today',
+                  ),
+                  style: const TextStyle(fontSize: 12, color: Colors.orange),
+                ),
+              if (gpTier != null)
+                Text(
+                  _t(
+                    '本档奖励：部件 ${gpTier.partKinds} 种×${gpTier.partEach}、'
+                    '代币 ${gpTier.token}、紫票 ${_fmt(gpTier.cash)}',
+                    'Tier reward: ${gpTier.partKinds} kinds ×${gpTier.partEach}, '
+                        '${gpTier.token} tokens, ${_fmt(gpTier.cash)} cash',
+                  ),
+                  style: const TextStyle(fontSize: 12, color: Colors.teal),
+                ),
             ] else
               Text(
                 next == null
@@ -537,10 +628,17 @@ class _LifeSimScreenState extends State<LifeSimScreen> {
                     label: Text(
                       '${_locale == 'zh' ? c.nameZh : c.nameEn} '
                       '${_milestoneChoiceBadge(s, activityId, c)}'
+                      '${isGp ? '${c.gasCost}⛽ ' : ''}'
                       '${c.energyCost}⚡',
                       style: const TextStyle(fontSize: 12),
                     ),
-                    onPressed: s.energy >= c.energyCost && gearReady && !limitedUsed
+                    onPressed:
+                        s.energy >= c.energyCost &&
+                            gearReady &&
+                            !limitedUsed &&
+                            (!isGp ||
+                                (_engine.gpCanChoose(s, c) &&
+                                    s.gpGasoline >= c.gasCost))
                         ? () => _makeChoice(c)
                         : null,
                   ),
@@ -556,7 +654,7 @@ class _LifeSimScreenState extends State<LifeSimScreen> {
                     ),
                     onPressed: s.energy >= kAdEnergyCost ? _watchAd : null,
                   ),
-                  if (milestone || isAllStar)
+                  if (milestone || isAllStar || isGp)
                     ActionChip(
                       avatar: const Icon(Icons.diamond, size: 14),
                       label: Text(
@@ -637,40 +735,45 @@ class _LifeSimScreenState extends State<LifeSimScreen> {
     return '';
   }
 
-  /// 全明星榜单（含玩家名次与档位奖励表）
-  void _showAllStarBoardDialog(LifeSimSave s) {
-    final board = _engine.allStarBoard(s);
-    final rank = _engine.allStarRank(s);
-    final tier = _engine.allStarTier(s);
+  /// 打榜榜单弹窗（全明星 / GP 共用）
+  void _showBoardDialog({
+    required String title,
+    required List<AllStarEntry> board,
+    required int rank,
+    required AllStarTier tier,
+    required List<AllStarTier> tiers,
+    required int score,
+    required String noteZh,
+    required String noteEn,
+    List<Widget> extra = const <Widget>[],
+  }) {
     _dialog(
-      title: _t('全明星榜单', 'All-Star Board'),
+      title: title,
       children: [
         Text(
           _t(
-            '分数 ${_fmt(s.progress)} · 名次 #$rank（${tier.labelZh}）',
-            'Score ${_fmt(s.progress)} · rank #$rank (${tier.labelEn})',
+            '分数 ${_fmt(score)} · 名次 #$rank（${tier.labelZh}）',
+            'Score ${_fmt(score)} · rank #$rank (${tier.labelEn})',
           ),
           style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
         ),
         Text(
-          _t(
-            '榜单每天重新生成，可能出现加了分名次反而后退的情况。',
-            'The board is regenerated daily — your rank can slip even after gaining score.',
-          ),
+          _t(noteZh, noteEn),
           style: TextStyle(fontSize: 11, color: Colors.grey[600]),
         ),
+        ...extra,
         const SizedBox(height: 8),
-        // 玩家附近的名次
+        // 榜首 + 玩家附近的名次
         for (var i = 0; i < board.length; i++)
           if ((i + 1 - rank).abs() <= 2 || i < 3)
             _boardRow(i + 1, board[i], isPlayer: false),
-        _boardRow(rank, AllStarEntry(_t('你', 'You'), s.progress), isPlayer: true),
+        _boardRow(rank, AllStarEntry(_t('你', 'You'), score), isPlayer: true),
         const SizedBox(height: 10),
         Text(
           _t('名次奖励', 'Rank rewards'),
           style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
         ),
-        for (final t in kAllStarTiers)
+        for (final t in tiers)
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 2),
             child: Text(
@@ -687,6 +790,63 @@ class _LifeSimScreenState extends State<LifeSimScreen> {
               ),
             ),
           ),
+      ],
+    );
+  }
+
+  /// 全明星榜单（含玩家名次与档位奖励表）
+  void _showAllStarBoardDialog(LifeSimSave s) {
+    _showBoardDialog(
+      title: _t('全明星榜单', 'All-Star Board'),
+      board: _engine.allStarBoard(s),
+      rank: _engine.allStarRank(s),
+      tier: _engine.allStarTier(s),
+      tiers: kAllStarTiers,
+      score: s.progress,
+      noteZh: '榜单每天重新生成，可能出现加了分名次反而后退的情况。',
+      noteEn:
+          'The board is regenerated daily — your rank can slip even after gaining score.',
+    );
+  }
+
+  /// GP 榜单（含玩家名次、乘数明细与档位奖励表）
+  void _showGpBoardDialog(LifeSimSave s) {
+    _showBoardDialog(
+      title: _t('GP 榜单', 'Grand Prix Board'),
+      board: _engine.gpBoard(s),
+      rank: _engine.gpRank(s),
+      tier: _engine.gpTier(s),
+      tiers: kGpTiers,
+      score: s.progress,
+      noteZh: '与战车大小无关；榜单每天重新生成，名次奖励在周期结束时发放。',
+      noteEn:
+          'Independent of car power. The board is regenerated daily; '
+          'rewards are paid at the end of the cycle.',
+      extra: [
+        Text(
+          _t(
+            '旗帜 ${_fmt(s.gpFlags)} · 汽油 ${_fmt(s.gpGasoline)} · '
+            '乘数 +${_engine.gpBonus(s)}%'
+            '（汽油 +${_engine.gpGasBonus(s)}% / 氪金 +${_engine.gpMoneyBonus(s)}%）',
+            'Flags ${_fmt(s.gpFlags)} · gasoline ${_fmt(s.gpGasoline)} · '
+            'multiplier +${_engine.gpBonus(s)}% '
+            '(gas +${_engine.gpGasBonus(s)}% / top-up +${_engine.gpMoneyBonus(s)}%)',
+          ),
+          style: TextStyle(fontSize: 11, color: Colors.grey[700]),
+        ),
+        Text(
+          _t(
+            '每消耗 $kGpGasBonusStep 汽油 → 乘数 +$kGpGasBonusStepPct%'
+            '（上限 +$kGpGasBonusMaxPct%）；'
+            '每 $kGpTopUpMoney 钱 → 乘数 +$kGpTopUpBonusPct%'
+            '（上限 $kGpMaxTopUpCount 次）；整体封顶 +$kGpTotalBonusCapPct%',
+            'Every $kGpGasBonusStep gasoline → +$kGpGasBonusStepPct% '
+            '(max +$kGpGasBonusMaxPct%); every $kGpTopUpMoney money → '
+            '+$kGpTopUpBonusPct% (max $kGpMaxTopUpCount times); '
+            'overall cap +$kGpTotalBonusCapPct%',
+          ),
+          style: TextStyle(fontSize: 11, color: Colors.grey[600]),
+        ),
       ],
     );
   }
@@ -859,10 +1019,11 @@ class _LifeSimScreenState extends State<LifeSimScreen> {
     );
   }
 
-  /// 氪金：里程碑活动消耗「钱」换进度倍率；全明星另有「买分」（次数不限）
+  /// 氪金：里程碑活动消耗「钱」换进度倍率；全明星「买分」；GP「氪乘数」
   void _showTopUpDialog(LifeSimSave s) {
     final period = _engine.periodForDay(s.day);
     final isAllStar = LifeSimEngine.isAllStarActivity(period.activityId);
+    final isGp = LifeSimEngine.isGpActivity(period.activityId);
     final unitZh = isAllStar ? '分数' : '进度';
     final unitEn = isAllStar ? 'score' : 'progress';
     showDialog<void>(
@@ -876,44 +1037,105 @@ class _LifeSimScreenState extends State<LifeSimScreen> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
-                  _t(
-                    '消耗「钱」获得本次活动的$unitZh倍率（周期结束时失效）。'
-                    '钱可以为负。当前余额：${_fmt(s.money)}',
-                    'Spend money for a $unitEn multiplier in this event cycle '
-                    '(expires at cycle end). Money may go negative. '
-                    'Balance: ${_fmt(s.money)}',
-                  ),
+                  isGp
+                      ? _t(
+                          '每花 $kGpTopUpMoney 钱，GP 分数乘数永久 +$kGpTopUpBonusPct%'
+                          '（最多 $kGpMaxTopUpCount 次）。'
+                          '钱可以为负。当前余额：${_fmt(s.money)}',
+                          'Spend $kGpTopUpMoney money for a permanent '
+                              '+$kGpTopUpBonusPct% GP score multiplier '
+                              '(max $kGpMaxTopUpCount times). Money may go '
+                              'negative. Balance: ${_fmt(s.money)}',
+                        )
+                      : _t(
+                          '消耗「钱」获得本次活动的$unitZh倍率（周期结束时失效）。'
+                          '钱可以为负。当前余额：${_fmt(s.money)}',
+                          'Spend money for a $unitEn multiplier in this event '
+                              'cycle (expires at cycle end). Money may go '
+                              'negative. Balance: ${_fmt(s.money)}',
+                        ),
                   style: TextStyle(fontSize: 12, color: Colors.grey[600]),
                 ),
                 const SizedBox(height: 8),
-                for (var i = 0; i < kTopUpTiers.length; i++)
+                if (!isGp)
+                  for (var i = 0; i < kTopUpTiers.length; i++)
+                    Card(
+                      margin: const EdgeInsets.only(bottom: 6),
+                      child: ListTile(
+                        dense: true,
+                        title: Text(
+                          _t(
+                            '花费 ${kTopUpTiers[i].cost} 钱 → $unitZh ×${kTopUpTiers[i].multiplier}',
+                            'Spend ${kTopUpTiers[i].cost} money → $unitEn ×${kTopUpTiers[i].multiplier}',
+                          ),
+                          style: const TextStyle(fontSize: 13),
+                        ),
+                        trailing:
+                            s.scrapMultiplier >= kTopUpTiers[i].multiplier
+                            ? const Icon(Icons.check, color: Colors.green)
+                            : const Icon(Icons.chevron_right),
+                        enabled: s.scrapMultiplier < kTopUpTiers[i].multiplier,
+                        onTap: () {
+                          final r = _engine.topUp(s, i);
+                          if (!r.ok) {
+                            _snack(_locale == 'zh' ? r.errorZh : r.errorEn);
+                            return;
+                          }
+                          Navigator.pop(ctx);
+                          _run(() {});
+                          _snack(
+                            _t(
+                              '本次活动$unitZh ×${r.multiplier}',
+                              'Event $unitEn ×${r.multiplier}',
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                if (isGp)
                   Card(
                     margin: const EdgeInsets.only(bottom: 6),
+                    color: Colors.purple.withValues(alpha: 0.10),
                     child: ListTile(
                       dense: true,
+                      leading: const Icon(
+                        Icons.trending_up,
+                        size: 18,
+                      ),
                       title: Text(
                         _t(
-                          '花费 ${kTopUpTiers[i].cost} 钱 → $unitZh ×${kTopUpTiers[i].multiplier}',
-                          'Spend ${kTopUpTiers[i].cost} money → $unitEn ×${kTopUpTiers[i].multiplier}',
+                          '氪乘数：$kGpTopUpMoney 钱 → 乘数 +$kGpTopUpBonusPct%'
+                              '（已氪 ${s.gpTopUpCount}/$kGpMaxTopUpCount 次）',
+                          'Top up: $kGpTopUpMoney money → multiplier '
+                              '+$kGpTopUpBonusPct% '
+                              '(${s.gpTopUpCount}/$kGpMaxTopUpCount used)',
                         ),
                         style: const TextStyle(fontSize: 13),
                       ),
-                      trailing: s.scrapMultiplier >= kTopUpTiers[i].multiplier
-                          ? const Icon(Icons.check, color: Colors.green)
-                          : const Icon(Icons.chevron_right),
-                      enabled: s.scrapMultiplier < kTopUpTiers[i].multiplier,
+                      subtitle: Text(
+                        _t(
+                          '当前总加成 +${_engine.gpBonus(s)}%'
+                              ' · 分数 ×${_engine.gpMultiplier(s).toStringAsFixed(2)}'
+                              ' · 整体封顶 +$kGpTotalBonusCapPct%',
+                          'Current bonus +${_engine.gpBonus(s)}% '
+                              '· score ×${_engine.gpMultiplier(s).toStringAsFixed(2)} '
+                              '· cap +$kGpTotalBonusCapPct%',
+                        ),
+                        style: const TextStyle(fontSize: 11),
+                      ),
+                      enabled: s.gpTopUpCount < kGpMaxTopUpCount,
                       onTap: () {
-                        final r = _engine.topUp(s, i);
+                        final r = _engine.gpTopUp(s);
                         if (!r.ok) {
                           _snack(_locale == 'zh' ? r.errorZh : r.errorEn);
                           return;
                         }
-                        Navigator.pop(ctx);
+                        setState(() {});
                         _run(() {});
                         _snack(
                           _t(
-                            '本次活动$unitZh ×${r.multiplier}',
-                            'Event $unitEn ×${r.multiplier}',
+                            'GP 乘数总加成 +${r.bonusPct}%（第 ${r.count} 次）',
+                            'GP total bonus +${r.bonusPct}% (#${r.count})',
                           ),
                         );
                       },
@@ -1748,12 +1970,44 @@ class _LifeSimScreenState extends State<LifeSimScreen> {
 
   void _makeChoice(ActivityChoice c) {
     final s = _save!;
+    final isGp = LifeSimEngine.isGpActivity(
+      _engine.periodForDay(s.day).activityId,
+    );
     final r = _engine.makeChoice(s, c);
     if (!r.ok) {
       _snack(_locale == 'zh' ? r.errorZh : r.errorEn);
       return;
     }
     _run(() {});
+    if (isGp) {
+      // GP：提示旗帜变动与分数
+      final flag = r.flagDelta >= 0
+          ? '+${r.flagDelta}'
+          : '${r.flagDelta}';
+      _snack(
+        _t(
+          '旗帜 $flag（剩 ${r.gpFlags}）· 分数 +${_fmt(r.progress)}',
+          'Flags $flag (left ${r.gpFlags}) · Score +${_fmt(r.progress)}',
+        ),
+      );
+      if (r.gpFlags <= 0) {
+        _dialog(
+          title: _t('旗帜归零', 'Flags at zero'),
+          children: [
+            Text(
+              _t(
+                '旗帜已经归零，今天的三个选项全部禁用。'
+                '明天如果当天起始旗帜仍为 0，可以做 1 次低风险把它救回来。',
+                'Your flags hit zero, so all three options are locked today. '
+                    'Tomorrow, if the day starts at zero, one low-risk rescue '
+                    'is allowed.',
+              ),
+            ),
+          ],
+        );
+      }
+      return;
+    }
     if (r.scrapNodes.isNotEmpty) {
       // 废铁行动：本次达成了奖励节点（可能一次跨过多个）
       final shown = r.scrapNodes.take(5).toList();

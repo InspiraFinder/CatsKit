@@ -275,6 +275,27 @@ class LifeSimSave {
   /// 齿轮奔袭的决策合计每天只能用 1 次：`limitedChoiceDay == day` 表示今天已用过。
   int limitedChoiceDay;
 
+  /// GP：汽油（每天 +[kGpDailyGasoline] 累积；不可为负）
+  int gpGasoline;
+
+  /// GP：旗帜（开局给 [kGpInitialFlags]，**整局只给一次**；不可为负）
+  int gpFlags;
+
+  /// GP：本周期累计消耗的汽油（决定汽油乘数加成）
+  int gpGasConsumed;
+
+  /// GP：本周期已氪金次数（每次 10 钱 → 分数 +150%）
+  int gpTopUpCount;
+
+  /// GP：当天开始时的旗帜数
+  ///
+  /// 用于实现「旗帜归零则当天禁选」以及
+  /// 「当天开始时旗帜就是 0 → 可以救一次低风险」。
+  int gpDayStartFlags;
+
+  /// GP：已用掉「起始为 0 的那一次低风险」的天数（-1 = 还没用过）
+  int gpFlagsRescueDay;
+
   /// 本活动周期生效的进度加成
   double activeActivityBonus;
 
@@ -331,6 +352,12 @@ class LifeSimSave {
     this.scrapClaimed = 0,
     this.scrapMultiplier = 1,
     this.limitedChoiceDay = 0,
+    this.gpGasoline = 0,
+    this.gpFlags = kGpInitialFlags,
+    this.gpGasConsumed = 0,
+    this.gpTopUpCount = 0,
+    this.gpDayStartFlags = kGpInitialFlags,
+    this.gpFlagsRescueDay = -1,
     this.activeActivityBonus = 0,
     this.nextActivityBonus = 0,
     List<RewardBundle>? pendingRewards,
@@ -374,6 +401,9 @@ class LifeSimSave {
 
   /// 每天恢复的精力
   static const int kDailyEnergy = 12;
+
+  /// GP：开局给的旗帜（**整局只给一次**，之后不再补）
+  static const int kGpInitialFlags = 10000;
 
   /// 在帮派中
   bool get inGang => gangName != null && gangName!.isNotEmpty;
@@ -437,6 +467,12 @@ class LifeSimSave {
     'scrap': scrapClaimed,
     'scrapMul': scrapMultiplier,
     'lcd': limitedChoiceDay,
+    'gpGas': gpGasoline,
+    'gpFlag': gpFlags,
+    'gpGasUsed': gpGasConsumed,
+    'gpTop': gpTopUpCount,
+    'gpDayFlag': gpDayStartFlags,
+    'gpRescue': gpFlagsRescueDay,
     'actBonus': activeActivityBonus,
     'nextBonus': nextActivityBonus,
     'pending': [for (final r in pendingRewards) r.toJson()],
@@ -496,6 +532,15 @@ class LifeSimSave {
       scrapClaimed: (json['scrap'] as num?)?.toInt() ?? 0,
       scrapMultiplier: (json['scrapMul'] as num?)?.toInt() ?? 1,
       limitedChoiceDay: (json['lcd'] as num?)?.toInt() ?? 0,
+      gpGasoline: (json['gpGas'] as num?)?.toInt() ?? 0,
+      gpFlags: (json['gpFlag'] as num?)?.toInt() ?? kGpInitialFlags,
+      gpGasConsumed: (json['gpGasUsed'] as num?)?.toInt() ?? 0,
+      gpTopUpCount: (json['gpTop'] as num?)?.toInt() ?? 0,
+      gpDayStartFlags:
+          (json['gpDayFlag'] as num?)?.toInt() ??
+          (json['gpFlag'] as num?)?.toInt() ??
+          kGpInitialFlags,
+      gpFlagsRescueDay: (json['gpRescue'] as num?)?.toInt() ?? -1,
       activeActivityBonus: (json['actBonus'] as num?)?.toDouble() ?? 0,
       nextActivityBonus: (json['nextBonus'] as num?)?.toDouble() ?? 0,
       pendingRewards: ((json['pending'] as List?) ?? const [])
