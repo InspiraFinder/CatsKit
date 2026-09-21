@@ -271,7 +271,7 @@ class _LifeSimScreenState extends State<LifeSimScreen> {
     final isGear = activityId == 'gear';
     final gearReady = !isGear || _engine.gearPowerReady(s);
     final limitedUsed = !_engine.canUseLimitedChoice(s);
-    final isChamp = activityId == kChampActivityId;
+    final isAdOnly = LifeSimEngine.isAdOnlyActivity(activityId);
     final isAllStar = LifeSimEngine.isAllStarActivity(activityId);
     final isGp = LifeSimEngine.isGpActivity(activityId);
     final gpRank = isGp ? _engine.gpRank(s) : 0;
@@ -353,11 +353,11 @@ class _LifeSimScreenState extends State<LifeSimScreen> {
                       ),
                     ],
                   )
-                else if (isChamp)
+                else if (isAdOnly)
                   Chip(
                     visualDensity: VisualDensity.compact,
                     label: Text(
-                      _t('本期无活动', 'No activity'),
+                      _t('仅看广告', 'Ads only'),
                       style: const TextStyle(fontSize: 11),
                     ),
                   )
@@ -505,11 +505,11 @@ class _LifeSimScreenState extends State<LifeSimScreen> {
                   );
                 },
               ),
-            ] else if (isChamp)
+            ] else if (isAdOnly)
               Text(
                 _t(
-                  '本期不设活动，只能看广告换紫票（1 精力）。',
-                  'No activity this cycle — ads only (1 energy for Cash).',
+                  '本期不设决策选项，只能看广告换紫票（1 精力）。',
+                  'No choices this cycle — ads only (1 energy for Cash).',
                 ),
                 style: TextStyle(fontSize: 12, color: Colors.grey[600]),
               )

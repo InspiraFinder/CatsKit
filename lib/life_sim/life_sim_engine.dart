@@ -745,18 +745,33 @@ class LifeSimEngine {
   // 活动决策
   // ===================================================================
 
+  /// 本期「只能看广告」的活动（没有任何决策选项）
+  ///
+  /// 太空 / 酒馆 / 王牌暂时只保留看广告（紫票）；以后要恢复它们的决策时，
+  /// 从这个集合里删掉即可（[kCommonChoices] / [kSignatureChoices] 都还留着）。
+  static const Set<String> kAdOnlyActivities = <String>{
+    kChampActivityId,
+    'space',
+    'tavern',
+    'joker',
+  };
+
+  /// 该活动本期是否只能看广告（没有决策选项）
+  static bool isAdOnlyActivity(String activityId) =>
+      kAdOnlyActivities.contains(activityId);
+
   /// 当前周期可用的决策列表
   ///
-  /// - 废铁行动：四档固定进度决策
-  /// - 齿轮奔袭：四档「战力基础值 × 倍数」决策
-  /// - 24h锦标赛+黑市：本期不设活动（空列表，只有看广告）
+  /// - 废铁行动 / 齿轮奔袭 / 全明星：同一套四档「浅尝辄止…」
+  /// - GP：三档「高/中/低风险」
+  /// - 24h锦标赛+黑市 / 太空 / 酒馆 / 王牌：本期不设决策，只能看广告换紫票
   /// - 其他活动：通用 3 个 + 专属 1 个
   List<ActivityChoice> choicesFor(String activityId) {
     if (activityId == 'scrap') return kScrapChoices;
     if (activityId == 'gear') return kGearChoices;
     if (activityId == 'allstar') return kAllStarChoices;
     if (activityId == 'gp') return kGpChoices;
-    if (activityId == kChampActivityId) return const <ActivityChoice>[];
+    if (isAdOnlyActivity(activityId)) return const <ActivityChoice>[];
     return <ActivityChoice>[
       ...kCommonChoices,
       if (kSignatureChoices[activityId] != null) kSignatureChoices[activityId]!,
@@ -894,9 +909,9 @@ class LifeSimEngine {
   static MilestoneConfig? milestoneConfig(String activityId) =>
       kMilestoneActivities[activityId];
 
-  /// 是否可以看广告（24h锦标赛+黑市、里程碑活动、全明星与 GP）
+  /// 是否可以看广告（所有活动都可以；「仅看广告」的活动只给紫票）
   static bool canWatchAd(String activityId) =>
-      activityId == kChampActivityId ||
+      isAdOnlyActivity(activityId) ||
       isMilestoneActivity(activityId) ||
       isAllStarActivity(activityId) ||
       isGpActivity(activityId);
