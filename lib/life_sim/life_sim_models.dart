@@ -234,8 +234,16 @@ class LifeSimSave {
   int lifetimeCash;
   int lifetimeToken;
 
-  /// 已解锁部件 id（拥有即可自由装配）
+  /// 已解锁部件 id（获得过即可装配）
   final List<String> ownedParts;
+
+  /// 部件碎片库存：partId → 碎片数量
+  ///
+  /// **碎片 = 重复获得的同名部件**（与游戏一致）；升级部件时消耗。
+  final Map<String, int> partStock;
+
+  /// 部件等级：partId → 等级（缺省按 1 级；上限见 `PartData.maxLevel`）
+  final Map<String, int> partLevels;
 
   /// 玩家的车辆（最多 3 辆）
   final List<SimVehicle> vehicles;
@@ -295,6 +303,8 @@ class LifeSimSave {
     this.lifetimeCash = 0,
     this.lifetimeToken = 0,
     List<String>? ownedParts,
+    Map<String, int>? partStock,
+    Map<String, int>? partLevels,
     List<SimVehicle>? vehicles,
     this.gangName,
     this.gangOwned = false,
@@ -321,6 +331,8 @@ class LifeSimSave {
     List<String>? achievements,
     List<LogEntry>? logs,
   }) : ownedParts = ownedParts ?? <String>[],
+       partStock = partStock ?? <String, int>{},
+       partLevels = partLevels ?? <String, int>{},
        vehicles =
            vehicles ??
            List<SimVehicle>.generate(maxVehicles, (_) => SimVehicle()),
@@ -338,8 +350,8 @@ class LifeSimSave {
   static const int kInitialEnergy = 20;
 
   /// 初始紫票 / 代币
-  static const int kInitialCash = 200;
-  static const int kInitialToken = 100;
+  static const int kInitialCash = 10000;
+  static const int kInitialToken = 0;
 
   /// 每天恢复的精力
   static const int kDailyEnergy = 12;
@@ -353,6 +365,35 @@ class LifeSimSave {
   /// 待领取奖励数量
   int get unclaimedCount => pendingRewards.where((r) => !r.claimed).length;
 
+  /// 已解锁的部件 id（过滤掉已失效的旧数据）
+  List<String> get ownedPartIds => List<String>.unmodifiable(ownedParts);
+
+  /// 某个部件的碎片库存
+  int stockOf(String partId) => partStock[partId] ?? 0;
+
+  /// 某个部件的等级（缺省 1 级）
+  int levelOf(String partId) => partLevels[partId] ?? 1;
+
+  /// 发放部件：首次获得即解锁，重复获得累积为碎片
+  ///
+  /// 返回：partId → 本次获得的个数（保持传入顺序）
+  Map<String, int> grantParts(List<String> partIds) {
+    final gained = <String, int>{};
+    for (final id in partIds) {
+      if (id.isEmpty) continue;
+      if (!ownedParts.contains(id)) ownedParts.add(id);
+      partStock[id] = stockOf(id) + 1;
+      gained[id] = (gained[id] ?? 0) + 1;
+    }
+    return gained;
+  }
+
+  /// 直接设置碎片库存（默认值用）
+  void setStock(String partId, int count) {
+    if (count > 0 && !ownedParts.contains(partId)) ownedParts.add(partId);
+    partStock[partId] = count;
+  }
+
   Map<String, dynamic> toJson() => <String, dynamic>{
     'v': schemaVersion,
     'day': day,
@@ -363,6 +404,8 @@ class LifeSimSave {
     'lc': lifetimeCash,
     'lt': lifetimeToken,
     'owned': ownedParts,
+    'stock': partStock,
+    'lv': partLevels,
     'veh': [for (final v in vehicles) v.toJson()],
     'gang': gangName,
     'gangOwned': gangOwned,
@@ -413,6 +456,8 @@ class LifeSimSave {
       lifetimeCash: (json['lc'] as num?)?.toInt() ?? 0,
       lifetimeToken: (json['lt'] as num?)?.toInt() ?? 0,
       ownedParts: _strList(json['owned']),
+      partStock: _intMap(json['stock']),
+      partLevels: _intMap(json['lv']),
       vehicles: vehicles,
       gangName: json['gang'] as String?,
       gangOwned: json['gangOwned'] as bool? ?? false,
@@ -451,4 +496,14 @@ class LifeSimSave {
           .toList(),
     );
   }
+}
+
+/// 解析 `{String: int}` 形式的 JSON 字段
+Map<String, int> _intMap(dynamic v) {
+  if (v is! Map) return <String, int>{};
+  final out = <String, int>{};
+  v.forEach((k, value) {
+    if (value is num) out[k.toString()] = value.toInt();
+  });
+  return out;
 }

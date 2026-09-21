@@ -174,8 +174,9 @@ class LifeSimEngine {
     },
   );
 
-  /// 计算一辆车的数值（复用组车工具的公式，全部按满级）
-  CarValidation evaluate(SimVehicle sv) {
+  /// 计算一辆车的数值（复用组车工具的公式；部件按 [partLevels] 中的等级，
+  /// 缺省 1 级）
+  CarValidation evaluate(SimVehicle sv, [Map<String, int>? partLevels]) {
     final idx = partIndex;
     PartData? look(String? id) => id == null ? null : idx[id];
     final body = look(sv.bodyId);
@@ -194,7 +195,10 @@ class LifeSimEngine {
     ];
     final levels = <String, int>{};
     for (final p in <PartData?>[body, extra, ...weapons, ...wheels, ...gadgets]) {
-      if (p != null) levels[p.id] = p.maxLevel;
+      if (p == null) continue;
+      // 与组车工具一致：等级限制在 1 ~ maxLevel
+      final lv = partLevels?[p.id] ?? 1;
+      levels[p.id] = lv.clamp(1, p.maxLevel);
     }
     return CarValidation.compute(
       body,
@@ -208,15 +212,15 @@ class LifeSimEngine {
   }
 
   /// 单辆车的战力（HP+ATK，未组车返回 0）
-  int vehiclePower(SimVehicle sv) {
+  int vehiclePower(SimVehicle sv, [Map<String, int>? partLevels]) {
     if (sv.isEmpty) return 0;
-    final v = evaluate(sv);
+    final v = evaluate(sv, partLevels);
     return (v.hp + v.atk).round();
   }
 
   /// 每辆车的战力列表（含未组装的 0）
   List<int> vehiclePowers(LifeSimSave save) =>
-      [for (final v in save.vehicles) vehiclePower(v)];
+      [for (final v in save.vehicles) vehiclePower(v, save.partLevels)];
 
   /// 车队总战力
   int fleetPower(LifeSimSave save) =>
@@ -301,15 +305,22 @@ class LifeSimEngine {
 
   /// 创建新存档：
   /// 1. 第 1 天弹出欢迎语（日志第一条）；
-  /// 2. 随机发放 15 个部件（车身 3 / 武器 3 / 配件 3 / 车轮 6），稀有度以 R2 为主，
-  ///    并**保底 1 个 R6**；
+  /// 2. 发放「启程宝箱」：15 个部件（车身 3 / 武器 3 / 配件 3 / 车轮 6），
+  ///    稀有度以 R2 为主，并**保底 1 个 R6**；
   /// 3. 用这些部件自动配好第 1 辆车。
   LifeSimSave newSave() {
     final ids = _rollStarterParts();
-    final save = LifeSimSave(ownedParts: ids, progressPeriodStart: 1);
+    final save = LifeSimSave(progressPeriodStart: 1);
 
     _log(save, '🐱', 'system', kWelcomeZh, kWelcomeEn);
-    _logPartsByCategory(save, ids, starter: true);
+    _log(
+      save,
+      '🎁',
+      'reward',
+      '开启启程宝箱，获得 $kStarterPartTotal 个部件',
+      'Opened the Starter Chest: $kStarterPartTotal parts',
+    );
+    grantParts(save, ids);
     autoBuild(save, 0);
     _log(
       save,
@@ -322,40 +333,63 @@ class LifeSimEngine {
     return save;
   }
 
-  /// 把获得的部件按分类写进日志（列出具体名称，R6 带标记）
-  void _logPartsByCategory(
-    LifeSimSave save,
-    List<String> ids, {
-    bool starter = false,
-  }) {
-    final groups = <PartCategory, List<String>>{};
-    for (final id in ids) {
-      if (id.isEmpty) continue;
-      final p = partIndex[id];
-      if (p == null) continue;
-      groups.putIfAbsent(p.category, () => <String>[]).add(id);
-    }
+  /// 发放部件并写日志：首次获得即解锁，重复获得累积为碎片
+  ///
+  /// 日志格式（每个部件一行）：
+  /// `获得车身：甲壳虫[R2] 3个 库存/升级：3/1`
+  /// - 库存 = 当前持有的碎片数量
+  /// - 升级 = 升到下一级需要的碎片数量（满级显示「满级」）
+  Map<String, int> grantParts(LifeSimSave save, List<String> partIds) {
+    final gained = save.grantParts(partIds);
+    // 按 分类 → 部件 顺序输出，便于阅读
     const order = <PartCategory>[
       PartCategory.body,
       PartCategory.weapon,
       PartCategory.gadget,
       PartCategory.wheel,
     ];
+    final entries = gained.entries
+        .where((e) => partIndex[e.key] != null)
+        .toList();
     for (final c in order) {
-      final list = groups[c];
-      if (list == null || list.isEmpty) continue;
-      final zh = _catZh[c] ?? '';
-      final en = _catEn[c] ?? '';
-      _log(
-        save,
-        '🎒',
-        'reward',
-        '${starter ? '开局部件' : '获得'}·$zh（${list.length}）：'
-            '${_partLabels(list, true)}',
-        '${starter ? 'Starter ' : 'Gained '}$en ×${list.length}: '
-            '${_partLabels(list, false)}',
-      );
+      for (final e in entries) {
+        if (partIndex[e.key]!.category != c) continue;
+        final p = partIndex[e.key]!;
+        final stock = save.stockOf(e.key);
+        final level = save.levelOf(e.key);
+        final need = upgradePieceCost(p, level);
+        final needZh = need?.toString() ?? '满级';
+        final needEn = need?.toString() ?? 'MAX';
+        final zh = _catZh[c] ?? '';
+        final en = _catEn[c] ?? '';
+        _log(
+          save,
+          '🎒',
+          'reward',
+          '获得$zh：${_partLabel(e.key, true)} ${e.value}个 '
+              '库存/升级：$stock/$needZh',
+          'Gained $en: ${_partLabel(e.key, false)} ×${e.value} '
+              'Stock/Upg: $stock/$needEn',
+        );
+      }
     }
+    return gained;
+  }
+
+  /// 从 [level] 升到下一级需要的碎片数（满级返回 null）
+  static int? upgradePieceCost(PartData p, int level) {
+    if (level >= p.maxLevel) return null;
+    final table = upgradeCosts[p.rarity];
+    if (table == null || level + 1 >= table.length) return null;
+    return table[level + 1].pieces;
+  }
+
+  /// 从 [level] 升到下一级的完整消耗（满级返回 null）
+  static UpgradeCostEntry? upgradeCost(PartData p, int level) {
+    if (level >= p.maxLevel) return null;
+    final table = upgradeCosts[p.rarity];
+    if (table == null || level + 1 >= table.length) return null;
+    return table[level + 1];
   }
 
   /// 随机抽取 15 个开局部件（含 1 个 R6 保底）
@@ -442,7 +476,7 @@ class LifeSimEngine {
   // 自动配车（贪心）
   // ===================================================================
 
-  /// 用已解锁的最强部件自动配好第 [index] 辆车
+  /// 用已解锁的最强部件自动配好第 [index] 辆车（按部件当前等级计算）
   void autoBuild(LifeSimSave save, int index) {
     if (index < 0 || index >= save.vehicles.length) return;
     final idx = partIndex;
@@ -450,17 +484,20 @@ class LifeSimEngine {
       for (final id in save.ownedParts)
         if (idx[id] != null) idx[id]!,
     ];
+    // 部件实际数值随等级变化，排序也必须用等级后的值
+    double hpOf(PartData p) => p.hp(save.levelOf(p.id).clamp(1, p.maxLevel));
+
     final bodies = owned
         .where((p) => p.category == PartCategory.body)
         .toList()
-      ..sort((a, b) => b.hpMax.compareTo(a.hpMax));
+      ..sort((a, b) => hpOf(b).compareTo(hpOf(a)));
     if (bodies.isEmpty) return;
 
     SimVehicle? best;
     double bestPower = -1;
     for (final body in bodies) {
-      final cand = _greedyFill(body, owned);
-      final v = evaluate(cand);
+      final cand = _greedyFill(save, body, owned);
+      final v = evaluate(cand, save.partLevels);
       if (!v.ok) continue;
       final total = v.hp + v.atk;
       if (total > bestPower) {
@@ -483,19 +520,26 @@ class LifeSimEngine {
       ..addAll(best.gadgetIds);
   }
 
-  SimVehicle _greedyFill(PartData body, List<PartData> owned) {
+  SimVehicle _greedyFill(
+    LifeSimSave save,
+    PartData body,
+    List<PartData> owned,
+  ) {
     final slots = body.slots;
     final sv = SimVehicle(bodyId: body.id);
     if (slots == null) return sv;
 
+    double hpOf(PartData p) => p.hp(save.levelOf(p.id).clamp(1, p.maxLevel));
+    double atkOf(PartData p) => p.atk(save.levelOf(p.id).clamp(1, p.maxLevel));
+
     final weapons = owned.where((p) => p.category == PartCategory.weapon).toList()
-      ..sort((a, b) => b.atkMax.compareTo(a.atkMax));
+      ..sort((a, b) => atkOf(b).compareTo(atkOf(a)));
     final wheels = owned.where((p) => p.category == PartCategory.wheel).toList()
       ..sort(
-        (a, b) => (b.hpMax + b.atkMax).compareTo(a.hpMax + a.atkMax),
+        (a, b) => (hpOf(b) + atkOf(b)).compareTo(hpOf(a) + atkOf(a)),
       );
     final gadgets = owned.where((p) => p.category == PartCategory.gadget).toList()
-      ..sort((a, b) => b.hpMax.compareTo(a.hpMax));
+      ..sort((a, b) => hpOf(b).compareTo(hpOf(a)));
 
     sv.wheelIds.addAll(wheels.take(slots.wheel).map((p) => p.id));
     sv.gadgetIds.addAll(gadgets.take(slots.gadget).map((p) => p.id));
@@ -720,30 +764,18 @@ class LifeSimEngine {
       save.lifetimeCash += r.cash;
       save.token += r.token;
       save.lifetimeToken += r.token;
-      final fresh = <String>[];
-      for (final id in r.partIds) {
-        if (id.isEmpty) continue;
-        if (!save.ownedParts.contains(id)) {
-          save.ownedParts.add(id);
-          fresh.add(id);
-        }
-      }
-      save.partsGained += r.partIds.length;
       final actZh = activityName(r.activityId, 'zh');
       final actEn = activityName(r.activityId, 'en');
-      final zhParts = _partLabels(r.partIds, true);
-      final enParts = _partLabels(r.partIds, false);
       _log(
         save,
         '🎁',
         'reward',
-        '领取 $actZh 奖励：紫票 +${r.cash}、代币 +${r.token}'
-            '${zhParts.isEmpty ? '' : '、部件（${r.partIds.length}）：$zhParts'}'
-            '${fresh.isEmpty ? '' : '（${fresh.length} 个为新部件）'}',
-        'Claimed $actEn reward: +${r.cash} Cash, +${r.token} Tokens'
-            '${enParts.isEmpty ? '' : ', parts (${r.partIds.length}): $enParts'}'
-            '${fresh.isEmpty ? '' : ' (${fresh.length} new)'}',
+        '领取 $actZh 奖励：紫票 +${r.cash}、代币 +${r.token}',
+        'Claimed $actEn reward: +${r.cash} Cash, +${r.token} Tokens',
       );
+      // 部件（重复获得即累积为碎片）
+      save.partsGained += r.partIds.length;
+      grantParts(save, r.partIds);
       claimed.add(r);
     }
     save.pendingRewards.removeWhere((r) => r.claimed);
@@ -1144,12 +1176,11 @@ class LifeSimEngine {
       save.cityWins++;
       cash = 120 + save.cityOpponentPower ~/ 50000;
       token = 60;
-      if (_rng.nextInt(100) < 40) {
-        parts.add(rollPart('gp'));
-      }
-      parts.removeWhere((id) => id.isEmpty);
-      for (final id in parts) {
-        if (!save.ownedParts.contains(id)) save.ownedParts.add(id);
+      // 战利品部件（重复获得即累积为碎片）
+      final lootCount = 1 + (_rng.nextInt(100) < 60 ? 1 : 0);
+      for (var i = 0; i < lootCount; i++) {
+        final id = rollPart('gp');
+        if (id.isNotEmpty) parts.add(id);
       }
       save.partsGained += parts.length;
       save.cash += cash;
@@ -1169,8 +1200,6 @@ class LifeSimEngine {
     save.cityChallenged = true;
     save.gangRankHint = estimateGangRank(save);
 
-    final partLabelZh = _partLabels(parts, true);
-    final partLabelEn = _partLabels(parts, false);
     _log(
       save,
       won ? '🏆' : (draw ? '🤝' : '💢'),
@@ -1191,9 +1220,10 @@ class LifeSimEngine {
         save,
         '🔩',
         'city',
-        '战利品·部件（${parts.length}）：$partLabelZh',
-        'Looted parts (${parts.length}): $partLabelEn',
+        '城市之王战利品：${parts.length} 个部件',
+        'City King loot: ${parts.length} part(s)',
       );
+      grantParts(save, parts);
     }
     checkAchievements(save);
 
@@ -1210,6 +1240,101 @@ class LifeSimEngine {
       parts: parts,
       activityGained: activityGained,
     );
+  }
+
+  // ===================================================================
+  // 部件升级
+  // ===================================================================
+
+  /// 升级一个部件（消耗 碎片 + 紫票 + 代币，费用表与「碎片计算」一致）
+  ///
+  /// 碎片来自重复获得的同名部件。
+  ({bool ok, String errorZh, String errorEn, int fromLevel, int toLevel})
+  upgradePart(LifeSimSave save, String partId) {
+    final p = partIndex[partId];
+    if (p == null) {
+      return (
+        ok: false,
+        errorZh: '部件不存在',
+        errorEn: 'Unknown part',
+        fromLevel: 0,
+        toLevel: 0,
+      );
+    }
+    final from = save.levelOf(partId).clamp(1, p.maxLevel);
+    final cost = upgradeCost(p, from);
+    if (cost == null) {
+      return (
+        ok: false,
+        errorZh: '已经是满级（Lv.$from）',
+        errorEn: 'Already at max level (Lv.$from)',
+        fromLevel: from,
+        toLevel: from,
+      );
+    }
+    if (save.stockOf(partId) < cost.pieces) {
+      return (
+        ok: false,
+        errorZh: '碎片不足（需要 ${cost.pieces}，持有 ${save.stockOf(partId)}）',
+        errorEn:
+            'Not enough fragments (need ${cost.pieces}, have ${save.stockOf(partId)})',
+        fromLevel: from,
+        toLevel: from,
+      );
+    }
+    if (save.cash < cost.cash) {
+      return (
+        ok: false,
+        errorZh: '紫票不足（需要 ${cost.cash}）',
+        errorEn: 'Not enough Cash (need ${cost.cash})',
+        fromLevel: from,
+        toLevel: from,
+      );
+    }
+    if (save.token < cost.token) {
+      return (
+        ok: false,
+        errorZh: '代币不足（需要 ${cost.token}）',
+        errorEn: 'Not enough Tokens (need ${cost.token})',
+        fromLevel: from,
+        toLevel: from,
+      );
+    }
+    save.partStock[partId] = save.stockOf(partId) - cost.pieces;
+    save.cash -= cost.cash;
+    save.token -= cost.token;
+    save.partLevels[partId] = from + 1;
+
+    final nameZh = _partLabel(partId, true);
+    final nameEn = _partLabel(partId, false);
+    _log(
+      save,
+      '⬆️',
+      'garage',
+      '升级部件：$nameZh Lv.$from → Lv.${from + 1}'
+          '（碎片 -${cost.pieces}、紫票 -${cost.cash}、代币 -${cost.token}）',
+      'Upgraded $nameEn Lv.$from → Lv.${from + 1}'
+          ' (fragments -${cost.pieces}, Cash -${cost.cash}, Tokens -${cost.token})',
+    );
+    checkAchievements(save);
+    return (
+      ok: true,
+      errorZh: '',
+      errorEn: '',
+      fromLevel: from,
+      toLevel: from + 1,
+    );
+  }
+
+  /// 批量升级：尽量把 [partId] 升到 [targetLevel]（受资源限制）
+  int upgradePartTo(LifeSimSave save, String partId, int targetLevel) {
+    var count = 0;
+    while (save.levelOf(partId) < targetLevel) {
+      final r = upgradePart(save, partId);
+      if (!r.ok) break;
+      count++;
+    }
+    return count;
   }
 
   // ===================================================================
@@ -1283,19 +1408,22 @@ class LifeSimEngine {
     PartCategory.gadget: 'gadget',
   };
 
-  /// 单个部件的显示名（R6 额外标记，便于在日志里一眼看出好料）
+  /// 单个部件的显示名（带稀有度标记：`甲壳虫[R2]`）
   String _partLabel(String id, bool zh) {
     final p = partIndex[id];
     if (p == null) return id;
     final name = zh ? (p.nameZh.isEmpty ? p.name : p.nameZh) : p.name;
-    return p.rarity == Rarity.r6 ? '$name[R6]' : name;
+    return '$name[R${p.rarity.index + 1}]';
   }
 
   /// 多个部件的显示名（分隔符按语言区分）
-  String _partLabels(List<String> ids, bool zh) => ids
+  String partLabels(List<String> ids, bool zh) => ids
       .where((id) => id.isNotEmpty)
       .map((id) => _partLabel(id, zh))
       .join(zh ? '、' : ', ');
+
+  /// 单个部件的显示名（对外，供界面复用）
+  String partLabel(String id, bool zh) => _partLabel(id, zh);
 
   int _between(int lo, int hi) {
     if (hi <= lo) return lo;

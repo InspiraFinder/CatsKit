@@ -36,6 +36,9 @@ class _LifeSimScreenState extends State<LifeSimScreen> {
   LifeSimSave? _save;
   bool _loading = true;
 
+  /// 「部件」页的分类筛选
+  PartCategory? _partFilter;
+
   @override
   void initState() {
     super.initState();
@@ -478,8 +481,8 @@ class _LifeSimScreenState extends State<LifeSimScreen> {
       children: [
         Text(
           _t(
-            '用活动奖励拿到的部件组建最多 3 辆车；部件按满级计算，已解锁即可重复使用。',
-            'Build up to 3 cars with parts from rewards. Parts count at max level and can be reused once unlocked.',
+            '用活动奖励拿到的部件组建最多 3 辆车；部件数值随等级提升（等级在「部件」页升级），已解锁即可重复装配。',
+            'Build up to 3 cars from your parts. Stats scale with part level (upgrade on the Parts tab); unlocked parts can be reused freely.',
           ),
           style: TextStyle(fontSize: 12, color: Colors.grey[600]),
         ),
@@ -491,7 +494,7 @@ class _LifeSimScreenState extends State<LifeSimScreen> {
 
   Widget _vehicleCard(LifeSimSave s, int index) {
     final v = s.vehicles[index];
-    final val = _engine.evaluate(v);
+    final val = _engine.evaluate(v, s.partLevels);
     final body = v.bodyId == null ? null : _engine.partIndex[v.bodyId];
     final slots = body?.slots;
     return Card(
@@ -640,7 +643,9 @@ class _LifeSimScreenState extends State<LifeSimScreen> {
                 alignment: Alignment.centerLeft,
               ),
               child: Text(
-                part == null ? _t('空', 'Empty') : _pn(part),
+                part == null
+                    ? _t('空', 'Empty')
+                    : '${_pn(part)}  Lv.${s.levelOf(part.id)}',
                 style: const TextStyle(fontSize: 12),
                 overflow: TextOverflow.ellipsis,
               ),
@@ -693,7 +698,8 @@ class _LifeSimScreenState extends State<LifeSimScreen> {
                     ),
                     child: Text(
                       i < ids.length
-                          ? _pn(_engine.partIndex[ids[i]]!)
+                          ? '${_pn(_engine.partIndex[ids[i]]!)} '
+                                'Lv.${s.levelOf(ids[i])}'
                           : _t('空', 'Empty'),
                       style: const TextStyle(fontSize: 12),
                     ),
@@ -847,6 +853,183 @@ class _LifeSimScreenState extends State<LifeSimScreen> {
         ),
       ],
     );
+  }
+
+  // ===================================================================
+  // 部件（碎片库存 + 等级升级）
+  // ===================================================================
+
+  Widget _buildParts(LifeSimSave s) {
+    final ids = <String>[
+      for (final id in s.ownedParts)
+        if (_engine.partIndex[id] != null &&
+            (_partFilter == null ||
+                _engine.partIndex[id]!.category == _partFilter))
+          id,
+    ]..sort((a, b) {
+      final pa = _engine.partIndex[a]!;
+      final pb = _engine.partIndex[b]!;
+      // 按稀有度降序，再按碎片降序
+      final r = pb.rarity.index.compareTo(pa.rarity.index);
+      if (r != 0) return r;
+      return s.stockOf(b).compareTo(s.stockOf(a));
+    });
+
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(12, 10, 12, 6),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                _t(
+                  '碎片 = 重复获得的同名部件；升级消耗 碎片 + 紫票 + 代币（与游戏一致）。',
+                  'Fragments come from duplicate parts. Upgrading costs fragments + Cash + Tokens.',
+                ),
+                style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+              ),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 6,
+                runSpacing: 6,
+                children: [
+                  ChoiceChip(
+                    label: Text(_t('全部', 'All'),
+                        style: const TextStyle(fontSize: 12)),
+                    selected: _partFilter == null,
+                    onSelected: (_) => setState(() => _partFilter = null),
+                  ),
+                  for (final c in PartCategory.values)
+                    ChoiceChip(
+                      label: Text(
+                        _categoryName(c),
+                        style: const TextStyle(fontSize: 12),
+                      ),
+                      selected: _partFilter == c,
+                      onSelected: (_) => setState(() => _partFilter = c),
+                    ),
+                ],
+              ),
+            ],
+          ),
+        ),
+        Expanded(
+          child: ids.isEmpty
+              ? Center(
+                  child: Text(
+                    _t('还没有部件，去活动里赚吧', 'No parts yet'),
+                    style: TextStyle(color: Colors.grey[600]),
+                  ),
+                )
+              : ListView.builder(
+                  padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+                  itemCount: ids.length,
+                  itemBuilder: (context, i) => _partTile(s, ids[i]),
+                ),
+        ),
+      ],
+    );
+  }
+
+  Widget _partTile(LifeSimSave s, String id) {
+    final p = _engine.partIndex[id]!;
+    final level = s.levelOf(id).clamp(1, p.maxLevel);
+    final stock = s.stockOf(id);
+    final cost = LifeSimEngine.upgradeCost(p, level);
+    final need = cost?.pieces ?? 0;
+    final canUpgrade = cost != null &&
+        stock >= cost.pieces &&
+        s.cash >= cost.cash &&
+        s.token >= cost.token;
+    final hpNow = p.hp(level);
+    final atkNow = p.atk(level);
+    return Card(
+      margin: const EdgeInsets.only(bottom: 6),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(12, 8, 8, 8),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    _engine.partLabel(id, _locale == 'zh'),
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 13,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                Text(
+                  'Lv.$level/${p.maxLevel}',
+                  style: const TextStyle(fontSize: 12, color: Colors.blue),
+                ),
+              ],
+            ),
+            const SizedBox(height: 2),
+            Text(
+              'HP ${_fmt(hpNow)} · ATK ${_fmt(atkNow)}'
+              '${p.power != 0 ? ' · 电力 ${p.power > 0 ? '+' : ''}${p.power}' : ''}',
+              style: TextStyle(fontSize: 11, color: Colors.grey[600]),
+            ),
+            const SizedBox(height: 4),
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    cost == null
+                        ? _t('碎片 $stock · 已满级', 'Fragments $stock · MAX')
+                        : _t(
+                            '碎片 $stock/$need · 紫票 ${_fmt(cost.cash)} · 代币 ${_fmt(cost.token)}',
+                            'Frag $stock/$need · Cash ${_fmt(cost.cash)} · Token ${_fmt(cost.token)}',
+                          ),
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: cost != null && stock >= cost.pieces
+                          ? Colors.green
+                          : Colors.grey[600],
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                if (cost != null)
+                  TextButton.icon(
+                    onPressed:
+                        canUpgrade ? () => _upgradePart(s, id) : null,
+                    icon: const Icon(Icons.arrow_upward, size: 16),
+                    label: Text(
+                      _t('升级', 'Upgrade'),
+                      style: const TextStyle(fontSize: 12),
+                    ),
+                    style: TextButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                    ),
+                  ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _categoryName(PartCategory c) => switch (c) {
+    PartCategory.body => _t('车身', 'Body'),
+    PartCategory.weapon => _t('武器', 'Weapon'),
+    PartCategory.wheel => _t('车轮', 'Wheel'),
+    PartCategory.gadget => _t('配件', 'Gadget'),
+  };
+
+  void _upgradePart(LifeSimSave s, String id) {
+    final r = _engine.upgradePart(s, id);
+    if (!r.ok) {
+      _snack(_locale == 'zh' ? r.errorZh : r.errorEn);
+      return;
+    }
+    _run(() {});
   }
 
   // ===================================================================
@@ -1361,7 +1544,7 @@ class _LifeSimScreenState extends State<LifeSimScreen> {
     final s = _save;
     if (s == null) return _buildStart();
     return DefaultTabController(
-      length: 4,
+      length: 5,
       child: Scaffold(
         appBar: AppBar(
           title: Text(_t('猫生重开', 'Life Restart')),
@@ -1376,6 +1559,7 @@ class _LifeSimScreenState extends State<LifeSimScreen> {
             isScrollable: true,
             tabs: [
               Tab(text: _t('主界面', 'Home')),
+              Tab(text: _t('部件', 'Parts')),
               Tab(text: _t('车库', 'Garage')),
               Tab(text: _t('帮派', 'Gang')),
               Tab(text: _t('成就', 'Achievements')),
@@ -1389,6 +1573,7 @@ class _LifeSimScreenState extends State<LifeSimScreen> {
               child: TabBarView(
                 children: [
                   _buildMain(s),
+                  _buildParts(s),
                   _buildGarage(s),
                   _buildGang(s),
                   _buildAchievements(s),
@@ -1452,30 +1637,29 @@ class _LifeSimScreenState extends State<LifeSimScreen> {
     );
   }
 
-  /// 开局欢迎弹窗（与日志第一条一致）
+  /// 开局欢迎弹窗（宝箱；明细在日志里）
   void _showWelcome() {
     _dialog(
-      title: _t('欢迎', 'Welcome'),
+      title: _t('启程宝箱', 'Starter Chest'),
       children: [
         Text(
-          _locale == 'zh' ? kWelcomeZh : kWelcomeEn,
+          _t('你获得了启程宝箱', 'You received the Starter Chest'),
           style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 10),
         Text(
           _t(
-            '你获得了 $kStarterPartTotal 个开局部件（车身 $kStarterBodyCount / '
-            '武器 $kStarterWeaponCount / 配件 $kStarterGadgetCount / 车轮 $kStarterWheelCount，'
-            '其中保底 1 个 R6），已自动为你配好第 1 辆车。',
-            'You received $kStarterPartTotal starter parts (body $kStarterBodyCount / '
-            'weapon $kStarterWeaponCount / gadget $kStarterGadgetCount / wheel $kStarterWheelCount, '
-            'guaranteed 1 R6) and your first car was auto-built.',
+            '已自动为你配好第 1 辆车；获得的部件明细见日志。',
+            'Your first car was auto-built; part details are in the log.',
           ),
         ),
         const SizedBox(height: 10),
         Text(
-          _t('在活动期间消耗精力做决策，活动结束时按档位领奖。',
-              'Spend energy on choices while an activity runs, then claim rank rewards when it ends.'),
+          _t(
+            '在活动期间消耗精力做决策，活动结束时按档位领奖；'
+            '重复获得的部件会变成碎片，可以在「部件」页升级。',
+            'Spend energy on choices while an activity runs, then claim rank rewards when it ends. Duplicate parts become fragments you can spend to upgrade parts on the Parts tab.',
+          ),
           style: TextStyle(fontSize: 12, color: Colors.grey[600]),
         ),
       ],
