@@ -308,23 +308,8 @@ class LifeSimEngine {
     final ids = _rollStarterParts();
     final save = LifeSimSave(ownedParts: ids, progressPeriodStart: 1);
 
-    final r6Count = ids
-        .where((id) => partIndex[id]?.rarity == Rarity.r6)
-        .length;
     _log(save, '🐱', 'system', kWelcomeZh, kWelcomeEn);
-    _log(
-      save,
-      '🎒',
-      'reward',
-      '你获得了 $kStarterPartTotal 个开局部件'
-          '（车身 $kStarterBodyCount / 武器 $kStarterWeaponCount / '
-          '配件 $kStarterGadgetCount / 车轮 $kStarterWheelCount'
-          '${r6Count > 0 ? '，含 $r6Count 个 R6' : ''}）',
-      'You received $kStarterPartTotal starter parts '
-          '(body $kStarterBodyCount / weapon $kStarterWeaponCount / '
-          'gadget $kStarterGadgetCount / wheel $kStarterWheelCount'
-          '${r6Count > 0 ? ', including $r6Count R6' : ''})',
-    );
+    _logPartsByCategory(save, ids, starter: true);
     autoBuild(save, 0);
     _log(
       save,
@@ -335,6 +320,42 @@ class LifeSimEngine {
     );
     save.cityOpponentName = '——';
     return save;
+  }
+
+  /// 把获得的部件按分类写进日志（列出具体名称，R6 带标记）
+  void _logPartsByCategory(
+    LifeSimSave save,
+    List<String> ids, {
+    bool starter = false,
+  }) {
+    final groups = <PartCategory, List<String>>{};
+    for (final id in ids) {
+      if (id.isEmpty) continue;
+      final p = partIndex[id];
+      if (p == null) continue;
+      groups.putIfAbsent(p.category, () => <String>[]).add(id);
+    }
+    const order = <PartCategory>[
+      PartCategory.body,
+      PartCategory.weapon,
+      PartCategory.gadget,
+      PartCategory.wheel,
+    ];
+    for (final c in order) {
+      final list = groups[c];
+      if (list == null || list.isEmpty) continue;
+      final zh = _catZh[c] ?? '';
+      final en = _catEn[c] ?? '';
+      _log(
+        save,
+        '🎒',
+        'reward',
+        '${starter ? '开局部件' : '获得'}·$zh（${list.length}）：'
+            '${_partLabels(list, true)}',
+        '${starter ? 'Starter ' : 'Gained '}$en ×${list.length}: '
+            '${_partLabels(list, false)}',
+      );
+    }
   }
 
   /// 随机抽取 15 个开局部件（含 1 个 R6 保底）
@@ -699,24 +720,29 @@ class LifeSimEngine {
       save.lifetimeCash += r.cash;
       save.token += r.token;
       save.lifetimeToken += r.token;
-      final names = <String>[];
+      final fresh = <String>[];
       for (final id in r.partIds) {
-        final p = partIndex[id];
-        if (p == null) continue;
-        if (!save.ownedParts.contains(id)) save.ownedParts.add(id);
-        names.add(p.nameZh.isEmpty ? p.name : p.nameZh);
+        if (id.isEmpty) continue;
+        if (!save.ownedParts.contains(id)) {
+          save.ownedParts.add(id);
+          fresh.add(id);
+        }
       }
       save.partsGained += r.partIds.length;
       final actZh = activityName(r.activityId, 'zh');
       final actEn = activityName(r.activityId, 'en');
+      final zhParts = _partLabels(r.partIds, true);
+      final enParts = _partLabels(r.partIds, false);
       _log(
         save,
         '🎁',
         'reward',
         '领取 $actZh 奖励：紫票 +${r.cash}、代币 +${r.token}'
-            '${names.isEmpty ? '' : '、部件：${names.join('、')}'}',
+            '${zhParts.isEmpty ? '' : '、部件（${r.partIds.length}）：$zhParts'}'
+            '${fresh.isEmpty ? '' : '（${fresh.length} 个为新部件）'}',
         'Claimed $actEn reward: +${r.cash} Cash, +${r.token} Tokens'
-            '${names.isEmpty ? '' : ', parts: ${names.join(', ')}'}',
+            '${enParts.isEmpty ? '' : ', parts (${r.partIds.length}): $enParts'}'
+            '${fresh.isEmpty ? '' : ' (${fresh.length} new)'}',
       );
       claimed.add(r);
     }
@@ -1121,11 +1147,11 @@ class LifeSimEngine {
       if (_rng.nextInt(100) < 40) {
         parts.add(rollPart('gp'));
       }
+      parts.removeWhere((id) => id.isEmpty);
       for (final id in parts) {
-        if (id.isEmpty) continue;
         if (!save.ownedParts.contains(id)) save.ownedParts.add(id);
       }
-      save.partsGained += parts.where((p) => p.isNotEmpty).length;
+      save.partsGained += parts.length;
       save.cash += cash;
       save.lifetimeCash += cash;
       save.token += token;
@@ -1143,13 +1169,8 @@ class LifeSimEngine {
     save.cityChallenged = true;
     save.gangRankHint = estimateGangRank(save);
 
-    final partNames = <String>[
-      for (final id in parts)
-        if (partIndex[id] != null)
-          (partIndex[id]!.nameZh.isEmpty
-              ? partIndex[id]!.name
-              : partIndex[id]!.nameZh),
-    ];
+    final partLabelZh = _partLabels(parts, true);
+    final partLabelEn = _partLabels(parts, false);
     _log(
       save,
       won ? '🏆' : (draw ? '🤝' : '💢'),
@@ -1165,13 +1186,13 @@ class LifeSimEngine {
           ? 'City King: drew with "$opponentName" ($scoreTextEn)'
           : 'City King: lost to "$opponentName" ($scoreTextEn)',
     );
-    if (partNames.isNotEmpty) {
+    if (parts.isNotEmpty) {
       _log(
         save,
         '🔩',
         'city',
-        '战利品部件：${partNames.join('、')}',
-        'Looted parts: ${partNames.join(', ')}',
+        '战利品·部件（${parts.length}）：$partLabelZh',
+        'Looted parts (${parts.length}): $partLabelEn',
       );
     }
     checkAchievements(save);
@@ -1246,6 +1267,35 @@ class LifeSimEngine {
       save.logs.removeRange(LifeSimSave.maxLogs, save.logs.length);
     }
   }
+
+  /// 分类中文 / 英文名（日志用）
+  static const Map<PartCategory, String> _catZh = <PartCategory, String>{
+    PartCategory.body: '车身',
+    PartCategory.weapon: '武器',
+    PartCategory.wheel: '车轮',
+    PartCategory.gadget: '配件',
+  };
+
+  static const Map<PartCategory, String> _catEn = <PartCategory, String>{
+    PartCategory.body: 'body',
+    PartCategory.weapon: 'weapon',
+    PartCategory.wheel: 'wheel',
+    PartCategory.gadget: 'gadget',
+  };
+
+  /// 单个部件的显示名（R6 额外标记，便于在日志里一眼看出好料）
+  String _partLabel(String id, bool zh) {
+    final p = partIndex[id];
+    if (p == null) return id;
+    final name = zh ? (p.nameZh.isEmpty ? p.name : p.nameZh) : p.name;
+    return p.rarity == Rarity.r6 ? '$name[R6]' : name;
+  }
+
+  /// 多个部件的显示名（分隔符按语言区分）
+  String _partLabels(List<String> ids, bool zh) => ids
+      .where((id) => id.isNotEmpty)
+      .map((id) => _partLabel(id, zh))
+      .join(zh ? '、' : ', ');
 
   int _between(int lo, int hi) {
     if (hi <= lo) return lo;
