@@ -711,6 +711,7 @@ class LifeSimEngine {
   List<ActivityChoice> choicesFor(String activityId) {
     if (activityId == 'scrap') return kScrapChoices;
     if (activityId == 'gear') return kGearChoices;
+    if (activityId == 'allstar') return kAllStarChoices;
     if (activityId == kChampActivityId) return const <ActivityChoice>[];
     return <ActivityChoice>[
       ...kCommonChoices,
@@ -844,15 +845,18 @@ class LifeSimEngine {
   static MilestoneConfig? milestoneConfig(String activityId) =>
       kMilestoneActivities[activityId];
 
-  /// 是否可以看广告（24h锦标赛+黑市与里程碑活动）
+  /// 是否可以看广告（24h锦标赛+黑市、里程碑活动与全明星）
   static bool canWatchAd(String activityId) =>
-      activityId == kChampActivityId || isMilestoneActivity(activityId);
+      activityId == kChampActivityId ||
+      isMilestoneActivity(activityId) ||
+      isAllStarActivity(activityId);
 
   /// 里程碑活动一次决策的进度
   ///
   /// - 废铁行动：决策的固定点数 × 氪金倍率
-  /// - 齿轮奔袭：**单车最高战力**的阶梯基础值 × 精力倍数 × 氪金倍率
-  ///   （单车最高战力 < [kGearMinPower] 时基础值为 0，即进度 ×0）
+  /// - 齿轮奔袭 / 全明星：**单车最高战力**的阶梯基础值（进度 / 分数）
+  ///   × 精力倍数 × 氪金倍率
+  ///   （齿轮：单车最高战力 < [kGearMinPower] 时基础值为 0，即进度 ×0）
   int milestoneGain(
     LifeSimSave save,
     String activityId,
@@ -864,16 +868,54 @@ class LifeSimEngine {
       final energyMul = kGearEnergyMultipliers[choice.energyCost] ?? 1.0;
       return (base * energyMul * mul).round();
     }
+    if (activityId == 'allstar') {
+      final base = allStarScore(maxVehiclePower(save));
+      final energyMul = kAllStarEnergyMultipliers[choice.energyCost] ?? 1.0;
+      return (base * energyMul * mul).round();
+    }
     return (choice.fixedPoints ?? 0) * mul;
   }
 
+  /// 全明星：该活动是否为打榜活动
+  static bool isAllStarActivity(String activityId) => activityId == 'allstar';
+
+  static final Map<String, List<AllStarEntry>> _allStarBoardCache =
+      <String, List<AllStarEntry>>{};
+
+  /// 当天的全明星榜单（同一天同一服务器固定；换天会重新生成）
+  List<AllStarEntry> allStarBoard(LifeSimSave save) {
+    final period = periodForDay(save.day);
+    final key = '$server/${period.startDay}/${save.day}';
+    return _allStarBoardCache.putIfAbsent(key, () {
+      final seed =
+          server.hashCode * 31 +
+          period.startDay * 7919 +
+          save.day * 104729;
+      return buildAllStarBoard(seed: seed);
+    });
+  }
+
+  /// 玩家在当天榜单上的名次（1 起；分数越高名次越靠前）
+  int allStarRank(LifeSimSave save) {
+    final board = allStarBoard(save);
+    var better = 0;
+    for (final e in board) {
+      if (e.score > save.progress) better++;
+    }
+    return better + 1;
+  }
+
+  /// 玩家当前名次对应的档位
+  AllStarTier allStarTier(LifeSimSave save) =>
+      allStarTierFor(allStarRank(save));
   /// 齿轮奔袭：单车最高战力是否达标（不达标则进度 ×0）
   bool gearPowerReady(LifeSimSave save) =>
       maxVehiclePower(save) >= kGearMinPower;
 
-  /// 该活动的决策是否「带倍率、每天只能用一次」（齿轮奔袭）
+  /// 该活动的决策是否「带倍率、每天只能用一次」（齿轮奔袭 / 全明星）
   static bool isDailyLimitedChoice(String activityId) =>
-      milestoneConfig(activityId)?.oneChoicePerDay ?? false;
+      activityId == 'allstar' ||
+      (milestoneConfig(activityId)?.oneChoicePerDay ?? false);
 
   /// 今天是否还能选带倍率的决策
   bool canUseLimitedChoice(LifeSimSave save) {
@@ -946,6 +988,18 @@ class LifeSimEngine {
                   ' (${save.progress}/${config.total})'
             : '$actEn ad: Cash +$cash (top car power below $kGearMinPower, progress ×0)',
       );
+    } else if (isAllStarActivity(activityId)) {
+      // 全明星：紫票 + 少量分数（不占「带倍率决策」的每日次数）
+      base = kAllStarAdScoreTiers[_rng.nextInt(kAllStarAdScoreTiers.length)];
+      progress = (base * save.scrapMultiplier).round();
+      save.progress += progress;
+      _log(
+        save,
+        '📺',
+        'activity',
+        '$actZh看广告：紫票 +$cash、分数 +$progress（当前 ${save.progress} 分）',
+        '$actEn ad: Cash +$cash, score +$progress (now ${save.progress})',
+      );
     } else {
       _log(
         save,
@@ -980,10 +1034,11 @@ class LifeSimEngine {
       );
     }
     final period = periodForDay(save.day);
-    if (!isMilestoneActivity(period.activityId)) {
+    if (!isMilestoneActivity(period.activityId) &&
+        !isAllStarActivity(period.activityId)) {
       return (
         ok: false,
-        errorZh: '只有里程碑活动（废铁行动 / 齿轮奔袭）才能氪金',
+        errorZh: '只有里程碑活动（废铁行动 / 齿轮奔袭）与全明星才能氪金',
         errorEn: 'Top-up is only available during Scrap Run / Gear Run',
         multiplier: save.scrapMultiplier,
       );
@@ -1066,6 +1121,49 @@ class LifeSimEngine {
   /// 兼容旧接口
   List<ScrapNode> claimScrapNodes(LifeSimSave save) =>
       claimMilestoneNodes(save, 'scrap');
+
+  /// 全明星结算：按名次档位生成奖励（进待领取）
+  RewardBundle _settleAllStar(LifeSimSave save, int endedDay) {
+    final rank = allStarRank(save);
+    final tier = allStarTierFor(rank);
+    // 部件：随机抽不重复的 N 种 R6 部件，每种若干碎片
+    final pool = PartDatabase.partsForServer(
+      server,
+    ).where((p) => p.rarity == Rarity.r6).toList()..shuffle(_rng);
+    final kinds = <String>[
+      for (final p in pool.take(tier.partKinds)) p.id,
+    ];
+    final partIds = <String>[
+      for (final id in kinds) ...List<String>.filled(tier.partEach, id),
+    ];
+    final bundle = RewardBundle(
+      activityId: 'allstar',
+      rank: tier.labelZh,
+      day: save.day,
+      cash: tier.cash,
+      token: tier.token,
+      partIds: partIds,
+    );
+    save.pendingRewards.add(bundle);
+    _log(
+      save,
+      '🏆',
+      'reward',
+      '全明星结算：$rank 名（${tier.labelZh}，总分 ${save.progress}）'
+          '→ 部件 ${tier.partKinds} 种×${tier.partEach}、'
+          '代币 ${tier.token}、紫票 ${tier.cash}，奖励待领取',
+      'All-Star settled: rank $rank (${tier.labelEn}, score ${save.progress})'
+          ' → ${tier.partKinds} kinds ×${tier.partEach}, '
+          '${tier.token} tokens, ${tier.cash} cash (pending)',
+    );
+    save.progress = 0;
+    save.scrapClaimed = 0;
+    save.scrapMultiplier = 1;
+    save.activeActivityBonus = min(1.0, save.nextActivityBonus);
+    save.nextActivityBonus = 0;
+    save.progressPeriodStart = periodStartDay(endedDay + 1);
+    return bundle;
+  }
 
   /// 随机抽一个 R6 部件
   String rollR6Part() {
@@ -1159,6 +1257,11 @@ class LifeSimEngine {
     final period = periodOf(save.progressPeriodStart);
     final nameZh = activityName(period.activityId, 'zh');
     final nameEn = activityName(period.activityId, 'en');
+
+    if (isAllStarActivity(period.activityId)) {
+      // 全明星：打榜活动，按名次档位发奖
+      return _settleAllStar(save, endedDay);
+    }
 
     if (isMilestoneActivity(period.activityId)) {
       final nodes = milestoneNodes(period.activityId);

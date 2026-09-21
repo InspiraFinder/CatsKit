@@ -272,6 +272,9 @@ class _LifeSimScreenState extends State<LifeSimScreen> {
     final gearReady = !isGear || _engine.gearPowerReady(s);
     final limitedUsed = !_engine.canUseLimitedChoice(s);
     final isChamp = activityId == kChampActivityId;
+    final isAllStar = LifeSimEngine.isAllStarActivity(activityId);
+    final allStarRank = isAllStar ? _engine.allStarRank(s) : 0;
+    final allStarTier = isAllStar ? _engine.allStarTier(s) : null;
     final canAd = LifeSimEngine.canWatchAd(activityId);
     final tiers = LifeSimEngine.tiersFor(period.isMajor);
     final rank = LifeSimEngine.rankFor(s.progress, period.isMajor);
@@ -352,6 +355,39 @@ class _LifeSimScreenState extends State<LifeSimScreen> {
                       _t('本期无活动', 'No activity'),
                       style: const TextStyle(fontSize: 11),
                     ),
+                  )
+                else if (isAllStar)
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (s.scrapMultiplier > 1)
+                        Padding(
+                          padding: const EdgeInsets.only(right: 6),
+                          child: Chip(
+                            visualDensity: VisualDensity.compact,
+                            backgroundColor: Colors.amber.withValues(
+                              alpha: 0.25,
+                            ),
+                            label: Text(
+                              _t(
+                                '分数 ×${s.scrapMultiplier}',
+                                'Score ×${s.scrapMultiplier}',
+                              ),
+                              style: const TextStyle(fontSize: 11),
+                            ),
+                          ),
+                        ),
+                      TextButton(
+                        onPressed: () => _showAllStarBoardDialog(s),
+                        style: TextButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(horizontal: 8),
+                        ),
+                        child: Text(
+                          _t('查看榜单', 'Board'),
+                          style: const TextStyle(fontSize: 12),
+                        ),
+                      ),
+                    ],
                   )
                 else
                   _rankChip(rank),
@@ -445,7 +481,39 @@ class _LifeSimScreenState extends State<LifeSimScreen> {
                 ),
                 style: TextStyle(fontSize: 12, color: Colors.grey[600]),
               )
-            else
+            else if (isAllStar) ...[
+              Text(
+                _t(
+                  '分数 ${_fmt(s.progress)} · 当前名次 #$allStarRank · '
+                  '档位 ${allStarTier?.labelZh ?? ''}',
+                  'Score ${_fmt(s.progress)} · rank #$allStarRank · '
+                  '${allStarTier?.labelEn ?? ''}',
+                ),
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              Text(
+                _t(
+                  '榜单每天变化；单车最高战力 ${_fmt(_engine.maxVehiclePower(s))} '
+                  '→ 每次决策基础分 ${_fmt(allStarScore(_engine.maxVehiclePower(s)))}',
+                  'The board changes daily. Top car power ${_fmt(_engine.maxVehiclePower(s))} '
+                  '→ base score per choice ${_fmt(allStarScore(_engine.maxVehiclePower(s)))}',
+                ),
+                style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+              ),
+              if (allStarTier != null)
+                Text(
+                  _t(
+                    '本档奖励：部件 ${allStarTier.partKinds} 种×${allStarTier.partEach}、'
+                    '代币 ${allStarTier.token}、紫票 ${_fmt(allStarTier.cash)}',
+                    'Tier reward: ${allStarTier.partKinds} kinds ×${allStarTier.partEach}, '
+                    '${allStarTier.token} tokens, ${_fmt(allStarTier.cash)} cash',
+                  ),
+                  style: const TextStyle(fontSize: 12, color: Colors.teal),
+                ),
+            ] else
               Text(
                 next == null
                     ? _t(
@@ -468,7 +536,7 @@ class _LifeSimScreenState extends State<LifeSimScreen> {
                     avatar: const Icon(Icons.bolt, size: 14),
                     label: Text(
                       '${_locale == 'zh' ? c.nameZh : c.nameEn} '
-                      '${_milestoneChoiceBadge(activityId, c)}'
+                      '${_milestoneChoiceBadge(s, activityId, c)}'
                       '${c.energyCost}⚡',
                       style: const TextStyle(fontSize: 12),
                     ),
@@ -554,14 +622,113 @@ class _LifeSimScreenState extends State<LifeSimScreen> {
     );
   }
 
-  /// 里程碑活动决策按钮上的小标签（废铁：+50；齿轮：×0.25）
-  String _milestoneChoiceBadge(String activityId, ActivityChoice c) {
-    if (activityId == 'scrap') return '+${c.fixedPoints} · ';
-    if (activityId == 'gear') {
-      final mul = kGearEnergyMultipliers[c.energyCost] ?? 1.0;
-      return '×${mul.toString().replaceFirst(RegExp(r'\.0$'), '')} · ';
+  /// 里程碑活动决策按钮上的小标签（直接显示本次会拿到的进度结果）
+  String _milestoneChoiceBadge(
+    LifeSimSave s,
+    String activityId,
+    ActivityChoice c,
+  ) {
+    if (activityId == 'scrap' ||
+        activityId == 'gear' ||
+        activityId == 'allstar') {
+      final gain = _engine.milestoneGain(s, activityId, c);
+      return '+${_fmt(gain)} · ';
     }
     return '';
+  }
+
+  /// 全明星榜单（含玩家名次与档位奖励表）
+  void _showAllStarBoardDialog(LifeSimSave s) {
+    final board = _engine.allStarBoard(s);
+    final rank = _engine.allStarRank(s);
+    final tier = _engine.allStarTier(s);
+    _dialog(
+      title: _t('全明星榜单', 'All-Star Board'),
+      children: [
+        Text(
+          _t(
+            '分数 ${_fmt(s.progress)} · 名次 #$rank（${tier.labelZh}）',
+            'Score ${_fmt(s.progress)} · rank #$rank (${tier.labelEn})',
+          ),
+          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+        ),
+        Text(
+          _t(
+            '榜单每天重新生成，可能出现加了分名次反而后退的情况。',
+            'The board is regenerated daily — your rank can slip even after gaining score.',
+          ),
+          style: TextStyle(fontSize: 11, color: Colors.grey[600]),
+        ),
+        const SizedBox(height: 8),
+        // 玩家附近的名次
+        for (var i = 0; i < board.length; i++)
+          if ((i + 1 - rank).abs() <= 2 || i < 3)
+            _boardRow(i + 1, board[i], isPlayer: false),
+        _boardRow(rank, AllStarEntry(_t('你', 'You'), s.progress), isPlayer: true),
+        const SizedBox(height: 10),
+        Text(
+          _t('名次奖励', 'Rank rewards'),
+          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+        ),
+        for (final t in kAllStarTiers)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 2),
+            child: Text(
+              _t(
+                '${t.labelZh}：部件 ${t.partKinds} 种×${t.partEach}、'
+                '代币 ${t.token}、紫票 ${_fmt(t.cash)}',
+                '${t.labelEn}: ${t.partKinds} kinds ×${t.partEach}, '
+                '${t.token} tokens, ${_fmt(t.cash)} cash',
+              ),
+              style: TextStyle(
+                fontSize: 11,
+                color: t == tier ? Colors.teal : Colors.grey[700],
+                fontWeight: t == tier ? FontWeight.bold : FontWeight.normal,
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget _boardRow(int rank, AllStarEntry e, {required bool isPlayer}) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 1),
+      child: Row(
+        children: [
+          SizedBox(
+            width: 44,
+            child: Text(
+              '#$rank',
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: isPlayer ? FontWeight.bold : FontWeight.normal,
+                color: isPlayer ? Colors.teal : Colors.grey[600],
+              ),
+            ),
+          ),
+          Expanded(
+            child: Text(
+              e.id,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: isPlayer ? FontWeight.bold : FontWeight.normal,
+                color: isPlayer ? Colors.teal : null,
+              ),
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          Text(
+            _fmt(e.score),
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: isPlayer ? FontWeight.bold : FontWeight.normal,
+              color: isPlayer ? Colors.teal : null,
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   /// 里程碑活动的奖励节点列表

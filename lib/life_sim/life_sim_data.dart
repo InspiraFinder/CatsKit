@@ -354,7 +354,7 @@ int gearBasePoints(int maxCarPower) {
   return kGearPowerTiers.last.points;
 }
 
-/// 齿轮奔袭：精力 → 倍数
+/// 齿轮奔袭 / 全明星：精力 → 倍数（两活动共用同一套阶梯）
 const Map<int, double> kGearEnergyMultipliers = <int, double>{
   1: 0.25,
   2: 0.5,
@@ -362,41 +362,44 @@ const Map<int, double> kGearEnergyMultipliers = <int, double>{
   8: 1.0,
 };
 
-/// 齿轮奔袭的四档决策（进度 = 战力基础值 × 倍数）
+/// 全明星沿用齿轮的精力倍数
+const Map<int, double> kAllStarEnergyMultipliers = kGearEnergyMultipliers;
+
+/// 齿轮奔袭的四档决策（进度 = 单车最高战力基础值 × 精力倍数）
 const List<ActivityChoice> kGearChoices = <ActivityChoice>[
   ActivityChoice(
     id: 'gear1',
-    nameZh: '低速档',
-    nameEn: 'Low Gear',
-    descZh: '战力基础值 ×0.25',
-    descEn: 'Base ×0.25',
+    nameZh: '浅尝辄止',
+    nameEn: 'A Taste',
+    descZh: '投入最少，收益最少',
+    descEn: 'Least effort, least reward',
     energyCost: 1,
     coef: 0,
   ),
   ActivityChoice(
     id: 'gear2',
-    nameZh: '中速档',
-    nameEn: 'Mid Gear',
-    descZh: '战力基础值 ×0.5',
-    descEn: 'Base ×0.5',
+    nameZh: '投入精力',
+    nameEn: 'Put In Effort',
+    descZh: '投入一般',
+    descEn: 'Moderate effort',
     energyCost: 2,
     coef: 0,
   ),
   ActivityChoice(
     id: 'gear3',
-    nameZh: '高速档',
-    nameEn: 'High Gear',
-    descZh: '战力基础值 ×0.75',
-    descEn: 'Base ×0.75',
+    nameZh: '全神贯注',
+    nameEn: 'Full Focus',
+    descZh: '投入较多',
+    descEn: 'High effort',
     energyCost: 4,
     coef: 0,
   ),
   ActivityChoice(
     id: 'gear4',
-    nameZh: '超频档',
-    nameEn: 'Overdrive',
-    descZh: '战力基础值 ×1',
-    descEn: 'Base ×1',
+    nameZh: '我爱上班',
+    nameEn: 'Love the Grind',
+    descZh: '全力投入',
+    descEn: 'All in',
     energyCost: 8,
     coef: 0,
   ),
@@ -453,6 +456,226 @@ const Map<String, MilestoneConfig> kMilestoneActivities =
 
 /// 24h锦标赛+黑市：本期不设活动，只保留「看广告」按钮（只给紫票）
 const String kChampActivityId = 'champ';
+
+// =====================================================================
+// 三之三、全明星（打榜活动：随机榜单 + 名次奖励）
+// =====================================================================
+
+/// 全明星：单车最高战力 → 分数（阶梯，从高到低匹配；低于最低档取最低档）
+const List<({int power, int score})> kAllStarScoreTiers =
+    <({int power, int score})>[
+      (power: 2500000, score: 60000),
+      (power: 1500000, score: 40000),
+      (power: 600000, score: 20000),
+      (power: 150000, score: 10000),
+    ];
+
+int allStarScore(int maxCarPower) {
+  for (final t in kAllStarScoreTiers) {
+    if (maxCarPower >= t.power) return t.score;
+  }
+  return kAllStarScoreTiers.last.score;
+}
+
+/// 全明星的四档决策（分数 = 单车最高战力分数 × 精力倍数）
+const List<ActivityChoice> kAllStarChoices = <ActivityChoice>[
+  ActivityChoice(
+    id: 'allstar1',
+    nameZh: '浅尝辄止',
+    nameEn: 'A Taste',
+    descZh: '投入最少，收益最少',
+    descEn: 'Least effort, least reward',
+    energyCost: 1,
+    coef: 0,
+  ),
+  ActivityChoice(
+    id: 'allstar2',
+    nameZh: '投入精力',
+    nameEn: 'Put In Effort',
+    descZh: '投入一般',
+    descEn: 'Moderate effort',
+    energyCost: 2,
+    coef: 0,
+  ),
+  ActivityChoice(
+    id: 'allstar3',
+    nameZh: '全神贯注',
+    nameEn: 'Full Focus',
+    descZh: '投入较多',
+    descEn: 'High effort',
+    energyCost: 4,
+    coef: 0,
+  ),
+  ActivityChoice(
+    id: 'allstar4',
+    nameZh: '我爱上班',
+    nameEn: 'Love the Grind',
+    descZh: '全力投入',
+    descEn: 'All in',
+    energyCost: 8,
+    coef: 0,
+  ),
+];
+
+/// 全明星看广告的分数档位（随机取一档，再乘氪金倍率）
+const List<int> kAllStarAdScoreTiers = <int>[200, 500, 1000];
+
+/// 全明星榜单人数
+const int kAllStarBoardSize = 400;
+
+/// 榜单分数按名次幂律分布：score = A / rank^B（+ 每日抖动）
+///
+/// 实测标定（全明星周期 4 天，每次决策基础分见 [kAllStarScoreTiers]）：
+/// - 15 万战力（10,000/次）×1 → 40,000 分 → 第 151-300 名档
+/// - 60 万战力（20,000/次）×1 → 80,000 分 → 第 31-70 名档
+/// - 60 万战力 ×3 → 240,000 分 → 第 4-10 名档
+/// - 250 万战力（60,000/次）×1 → 240,000 分 → 第 4-10 名档
+/// - 250 万战力 ×3（180,000/天）→ 720,000 分 → **第 1 名**
+///
+/// 即「车越大 + 投入越多 → 名次越前」，第 1 名需要顶级战车 + 全程氪金。
+const double kAllStarBoardA = 600000.0;
+const double kAllStarBoardB = 0.5405;
+
+/// 每日榜单抖动幅度（±）
+const double kAllStarBoardJitter = 0.15;
+
+/// 全明星名次档位（8 档；名次越前奖励越多）
+class AllStarTier {
+  /// 该档覆盖到第几名（含）
+  final int maxRank;
+  final String labelZh;
+  final String labelEn;
+
+  /// 部件种类数 / 每种数量
+  final int partKinds;
+  final int partEach;
+
+  /// 代币 / 紫票
+  final int token;
+  final int cash;
+
+  const AllStarTier({
+    required this.maxRank,
+    required this.labelZh,
+    required this.labelEn,
+    required this.partKinds,
+    required this.partEach,
+    required this.token,
+    required this.cash,
+  });
+}
+
+const List<AllStarTier> kAllStarTiers = <AllStarTier>[
+  AllStarTier(
+    maxRank: 1,
+    labelZh: '第 1 名',
+    labelEn: 'Rank 1',
+    partKinds: 12,
+    partEach: 20,
+    token: 225,
+    cash: 3000000,
+  ),
+  AllStarTier(
+    maxRank: 3,
+    labelZh: '第 2-3 名',
+    labelEn: 'Rank 2-3',
+    partKinds: 11,
+    partEach: 18,
+    token: 200,
+    cash: 2600000,
+  ),
+  AllStarTier(
+    maxRank: 10,
+    labelZh: '第 4-10 名',
+    labelEn: 'Rank 4-10',
+    partKinds: 10,
+    partEach: 16,
+    token: 175,
+    cash: 2200000,
+  ),
+  AllStarTier(
+    maxRank: 30,
+    labelZh: '第 11-30 名',
+    labelEn: 'Rank 11-30',
+    partKinds: 9,
+    partEach: 14,
+    token: 150,
+    cash: 1800000,
+  ),
+  AllStarTier(
+    maxRank: 70,
+    labelZh: '第 31-70 名',
+    labelEn: 'Rank 31-70',
+    partKinds: 8,
+    partEach: 12,
+    token: 125,
+    cash: 1400000,
+  ),
+  AllStarTier(
+    maxRank: 150,
+    labelZh: '第 71-150 名',
+    labelEn: 'Rank 71-150',
+    partKinds: 7,
+    partEach: 10,
+    token: 100,
+    cash: 1000000,
+  ),
+  AllStarTier(
+    maxRank: 300,
+    labelZh: '第 151-300 名',
+    labelEn: 'Rank 151-300',
+    partKinds: 6,
+    partEach: 8,
+    token: 75,
+    cash: 600000,
+  ),
+  AllStarTier(
+    maxRank: 1 << 30,
+    labelZh: '第 301 名及以后',
+    labelEn: 'Rank 301+',
+    partKinds: 5,
+    partEach: 6,
+    token: 50,
+    cash: 200000,
+  ),
+];
+
+/// 名次 → 档位
+AllStarTier allStarTierFor(int rank) {
+  for (final t in kAllStarTiers) {
+    if (rank <= t.maxRank) return t;
+  }
+  return kAllStarTiers.last;
+}
+
+/// 榜单上的一个玩家
+class AllStarEntry {
+  final String id;
+  final int score;
+  const AllStarEntry(this.id, this.score);
+}
+
+/// 生成某一天的全明星榜单（人数固定，分数按名次幂律分布 + 抖动）
+///
+/// 同一天同一服务器返回同一份榜单；换天/换周期会重新生成，
+/// 因此可能出现「加了分名次反而后退」的情况。
+List<AllStarEntry> buildAllStarBoard({required int seed}) {
+  final rng = Random(seed);
+  final entries = <AllStarEntry>[];
+  for (var rank = 1; rank <= kAllStarBoardSize; rank++) {
+    final base = kAllStarBoardA / pow(rank, kAllStarBoardB);
+    final jitter =
+        1 - kAllStarBoardJitter + rng.nextDouble() * kAllStarBoardJitter * 2;
+    entries.add(
+      AllStarEntry(
+        '${100000 + rng.nextInt(8999999)}',
+        (base * jitter).round(),
+      ),
+    );
+  }
+  entries.sort((a, b) => b.score.compareTo(a.score));
+  return entries;
+}
 
 /// 废铁行动的四档决策：进度 +50/100/150/200，精力 1/2/4/8
 ///
@@ -1164,4 +1387,3 @@ final List<Achievement> kAchievements = <Achievement>[
     test: (s, p) => s.day >= 365,
   ),
 ];
-
