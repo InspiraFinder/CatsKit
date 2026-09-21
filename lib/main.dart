@@ -22,6 +22,7 @@ import 'gang_stats_screen.dart';
 import 'my_gang_screen.dart';
 import 'balance_history_screen.dart';
 import 'max_stats_screen.dart';
+import 'life_sim/life_sim_screen.dart';
 
 const String appVersion = '1.9.0';
 
@@ -885,6 +886,20 @@ class _MainMenuScreenState extends State<MainMenuScreen> {
                 color: Colors.amber,
                 onTap: () => _navigateAndAwaitLocale(
                   MaxStatsScreen(locale: _locale, server: _server),
+                ),
+              ),
+              const SizedBox(height: 16),
+              _buildMenuItem(
+                context,
+                icon: Icons.videogame_asset,
+                label: _t('猫生重开', 'Life Restart'),
+                color: Colors.pink,
+                onTap: () => _navigateAndAwaitLocale(
+                  LifeSimScreen(
+                    locale: _locale,
+                    server: _server,
+                    darkMode: _darkMode,
+                  ),
                 ),
               ),
               const SizedBox(height: 16),
