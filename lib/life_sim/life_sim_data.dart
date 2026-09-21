@@ -744,6 +744,15 @@ const List<TopUpTier> kTopUpTiers = <TopUpTier>[
   TopUpTier(150, 3),
 ];
 
+/// 全明星「买分」氪金项：消耗 1 精力 + 10 钱，获得 15000 分
+///
+/// 与 [kTopUpTiers] 的区别：这项**没有次数限制**（只受精力限制），
+/// 且得到的分数会被当前的氪金倍率 [LifeSimSave.scrapMultiplier] 放大。
+/// 只在全明星（打榜）周期可用。
+const int kAllStarBuyEnergyCost = 1;
+const int kAllStarBuyMoneyCost = 10;
+const int kAllStarBuyScore = 15000;
+
 /// 节点位置取整步长（节点位置都是 5 的倍数）
 const int kScrapNodeStep = 5;
 

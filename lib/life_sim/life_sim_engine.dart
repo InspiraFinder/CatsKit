@@ -1074,6 +1074,50 @@ class LifeSimEngine {
     );
   }
 
+  /// 全明星「买分」：消耗 1 精力 + 10 钱，获得 15000 分
+  ///
+  /// 与 [topUp] 的区别：这项**没有次数限制**（只受精力限制），
+  /// 拿到的分数会被当前氪金倍率 [LifeSimSave.scrapMultiplier] 放大。
+  /// 只在全明星（打榜）周期可用；钱可以扣至负值。
+  ({bool ok, String errorZh, String errorEn, int gain}) buyAllStarScore(
+    LifeSimSave save,
+  ) {
+    final period = periodForDay(save.day);
+    if (!isAllStarActivity(period.activityId)) {
+      return (
+        ok: false,
+        errorZh: '只有在全明星周期才能买分',
+        errorEn: 'Score purchase is only available during All-Star',
+        gain: 0,
+      );
+    }
+    if (save.energy < kAllStarBuyEnergyCost) {
+      return (
+        ok: false,
+        errorZh: '精力不足（需要 $kAllStarBuyEnergyCost 点）',
+        errorEn: 'Not enough energy (need $kAllStarBuyEnergyCost)',
+        gain: 0,
+      );
+    }
+    save.energy -= kAllStarBuyEnergyCost;
+    save.money -= kAllStarBuyMoneyCost;
+    final gain = kAllStarBuyScore * save.scrapMultiplier;
+    save.progress += gain;
+    _log(
+      save,
+      '💎',
+      'activity',
+      '氪金买分：花费 $kAllStarBuyEnergyCost 精力 + $kAllStarBuyMoneyCost 钱，'
+          '分数 +$gain（$kAllStarBuyScore × ${save.scrapMultiplier} 倍），'
+          '当前 ${save.progress} 分（钱余额 ${save.money}）',
+      'Score top-up: $kAllStarBuyEnergyCost energy + '
+          '$kAllStarBuyMoneyCost money → score +$gain '
+          '($kAllStarBuyScore × ${save.scrapMultiplier}), '
+          'now ${save.progress} (money ${save.money})',
+    );
+    return (ok: true, errorZh: '', errorEn: '', gain: gain);
+  }
+
   static final Map<String, List<ScrapNode>> _milestoneNodesCache =
       <String, List<ScrapNode>>{};
 

@@ -556,7 +556,7 @@ class _LifeSimScreenState extends State<LifeSimScreen> {
                     ),
                     onPressed: s.energy >= kAdEnergyCost ? _watchAd : null,
                   ),
-                  if (milestone)
+                  if (milestone || isAllStar)
                     ActionChip(
                       avatar: const Icon(Icons.diamond, size: 14),
                       label: Text(
@@ -859,54 +859,119 @@ class _LifeSimScreenState extends State<LifeSimScreen> {
     );
   }
 
-  /// 氪金（废铁行动）：消耗「钱」换进度倍率
+  /// 氪金：里程碑活动消耗「钱」换进度倍率；全明星另有「买分」（次数不限）
   void _showTopUpDialog(LifeSimSave s) {
-    _dialog(
-      title: _t('氪金', 'Top-up'),
-      children: [
-        Text(
-          _t(
-            '消耗「钱」获得本次废铁行动的进度倍率（周期结束时失效）。'
-            '钱可以为负。当前余额：${_fmt(s.money)}',
-            'Spend money for a progress multiplier in this Scrap Run cycle (expires at cycle end). Money may go negative. Balance: ${_fmt(s.money)}',
-          ),
-          style: TextStyle(fontSize: 12, color: Colors.grey[600]),
-        ),
-        const SizedBox(height: 8),
-        for (var i = 0; i < kTopUpTiers.length; i++)
-          Card(
-            margin: const EdgeInsets.only(bottom: 6),
-            child: ListTile(
-              dense: true,
-              title: Text(
-                _t(
-                  '花费 ${kTopUpTiers[i].cost} 钱 → 进度 ×${kTopUpTiers[i].multiplier}',
-                  'Spend ${kTopUpTiers[i].cost} money → progress ×${kTopUpTiers[i].multiplier}',
-                ),
-                style: const TextStyle(fontSize: 13),
-              ),
-              trailing: s.scrapMultiplier >= kTopUpTiers[i].multiplier
-                  ? const Icon(Icons.check, color: Colors.green)
-                  : const Icon(Icons.chevron_right),
-              enabled: s.scrapMultiplier < kTopUpTiers[i].multiplier,
-              onTap: () {
-                final r = _engine.topUp(s, i);
-                if (!r.ok) {
-                  _snack(_locale == 'zh' ? r.errorZh : r.errorEn);
-                  return;
-                }
-                Navigator.pop(context);
-                _run(() {});
-                _snack(
+    final period = _engine.periodForDay(s.day);
+    final isAllStar = LifeSimEngine.isAllStarActivity(period.activityId);
+    final unitZh = isAllStar ? '分数' : '进度';
+    final unitEn = isAllStar ? 'score' : 'progress';
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setState) => AlertDialog(
+          title: Text(_t('氪金', 'Top-up')),
+          content: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
                   _t(
-                    '本次废铁行动进度 ×${r.multiplier}',
-                    'Scrap Run progress ×${r.multiplier}',
+                    '消耗「钱」获得本次活动的$unitZh倍率（周期结束时失效）。'
+                    '钱可以为负。当前余额：${_fmt(s.money)}',
+                    'Spend money for a $unitEn multiplier in this event cycle '
+                    '(expires at cycle end). Money may go negative. '
+                    'Balance: ${_fmt(s.money)}',
                   ),
-                );
-              },
+                  style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                ),
+                const SizedBox(height: 8),
+                for (var i = 0; i < kTopUpTiers.length; i++)
+                  Card(
+                    margin: const EdgeInsets.only(bottom: 6),
+                    child: ListTile(
+                      dense: true,
+                      title: Text(
+                        _t(
+                          '花费 ${kTopUpTiers[i].cost} 钱 → $unitZh ×${kTopUpTiers[i].multiplier}',
+                          'Spend ${kTopUpTiers[i].cost} money → $unitEn ×${kTopUpTiers[i].multiplier}',
+                        ),
+                        style: const TextStyle(fontSize: 13),
+                      ),
+                      trailing: s.scrapMultiplier >= kTopUpTiers[i].multiplier
+                          ? const Icon(Icons.check, color: Colors.green)
+                          : const Icon(Icons.chevron_right),
+                      enabled: s.scrapMultiplier < kTopUpTiers[i].multiplier,
+                      onTap: () {
+                        final r = _engine.topUp(s, i);
+                        if (!r.ok) {
+                          _snack(_locale == 'zh' ? r.errorZh : r.errorEn);
+                          return;
+                        }
+                        Navigator.pop(ctx);
+                        _run(() {});
+                        _snack(
+                          _t(
+                            '本次活动$unitZh ×${r.multiplier}',
+                            'Event $unitEn ×${r.multiplier}',
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                if (isAllStar)
+                  Card(
+                    margin: const EdgeInsets.only(bottom: 6),
+                    color: Colors.purple.withValues(alpha: 0.10),
+                    child: ListTile(
+                      dense: true,
+                      leading: const Icon(
+                        Icons.add_circle_outline,
+                        size: 18,
+                      ),
+                      title: Text(
+                        _t(
+                          '买分：$kAllStarBuyEnergyCost⚡ + $kAllStarBuyMoneyCost 钱'
+                              ' → 分数 +${kAllStarBuyScore * s.scrapMultiplier}',
+                          'Buy score: $kAllStarBuyEnergyCost⚡ + '
+                              '$kAllStarBuyMoneyCost money → score '
+                              '+${kAllStarBuyScore * s.scrapMultiplier}',
+                        ),
+                        style: const TextStyle(fontSize: 13),
+                      ),
+                      subtitle: Text(
+                        _t(
+                          '次数不限 · 当前 ×${s.scrapMultiplier} 倍'
+                              ' · 精力 ${s.energy}',
+                          'Unlimited · current ×${s.scrapMultiplier}'
+                              ' · energy ${s.energy}',
+                        ),
+                        style: const TextStyle(fontSize: 11),
+                      ),
+                      enabled: s.energy >= kAllStarBuyEnergyCost,
+                      onTap: () {
+                        final r = _engine.buyAllStarScore(s);
+                        if (!r.ok) {
+                          _snack(_locale == 'zh' ? r.errorZh : r.errorEn);
+                          return;
+                        }
+                        setState(() {});
+                        _run(() {});
+                        _snack(_t('分数 +${r.gain}', 'Score +${r.gain}'));
+                      },
+                    ),
+                  ),
+              ],
             ),
           ),
-      ],
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: Text(_t('关闭', 'Close')),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
