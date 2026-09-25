@@ -1630,23 +1630,195 @@ const Map<GangDivision, ({int min, int max})> kGangDivisionPower =
       GangDivision.gold: (min: 120000000, max: 300000000),
     };
 
-/// 每组帮派活跃度的区间
-const Map<GangDivision, ({int min, int max})> kGangDivisionActivity =
-    <GangDivision, ({int min, int max})>{
-      GangDivision.wood: (min: 15, max: 55),
-      GangDivision.bronze: (min: 30, max: 70),
-      GangDivision.silver: (min: 45, max: 88),
-      GangDivision.gold: (min: 60, max: 99),
-    };
+/// 帮派成员上限（满员）
+const int kGangMaxMembers = 50;
 
-/// 每组帮派成员数的区间（名次越前成员越多）
-const Map<GangDivision, ({int min, int max})> kGangDivisionMembers =
-    <GangDivision, ({int min, int max})>{
-      GangDivision.wood: (min: 3, max: 10),
-      GangDivision.bronze: (min: 5, max: 14),
-      GangDivision.silver: (min: 8, max: 20),
-      GangDivision.gold: (min: 12, max: 24),
-    };
+/// 帮派成员数随**帮派总战力**变化的锚点（对数插值，[power] 由大到小）
+///
+/// 帮派越强成员越多：金组顶级帮派长期满员（锚点可以高过
+/// [kGangMaxMembers]，插值后统一 clamp 到上限），木组末尾的帮派只剩两三个人。
+const List<({int power, int members})> kGangMemberAnchors =
+    <({int power, int members})>[
+      (power: 500000000, members: 53),
+      (power: 150000000, members: 51),
+      (power: 120000000, members: 49),
+      (power: 60000000, members: 43),
+      (power: 40000000, members: 37),
+      (power: 20000000, members: 30),
+      (power: 10000000, members: 23),
+      (power: 4000000, members: 13),
+      (power: 1000000, members: 5),
+      (power: 300000, members: 2),
+    ];
+
+/// 帮派活跃度（%）随**帮派总战力**变化的锚点（对数插值）
+///
+/// 越强的帮派越活跃（高组别几乎每天都在打城市之王），
+/// 末尾的帮派基本半死不活。
+const List<({int power, int activity})> kGangActivityAnchors =
+    <({int power, int activity})>[
+      (power: 500000000, activity: 97),
+      (power: 150000000, activity: 93),
+      (power: 120000000, activity: 90),
+      (power: 60000000, activity: 85),
+      (power: 40000000, activity: 80),
+      (power: 20000000, activity: 72),
+      (power: 10000000, activity: 63),
+      (power: 4000000, activity: 49),
+      (power: 1000000, activity: 30),
+      (power: 300000, activity: 12),
+    ];
+
+/// 按总战力取帮派成员数
+int gangMembersForPower(int power) => _interpLog(
+  power,
+  <int>[for (final a in kGangMemberAnchors) a.power],
+  <int>[for (final a in kGangMemberAnchors) a.members],
+);
+
+/// 按总战力取帮派活跃度（%）
+int gangActivityForPower(int power) => _interpLog(
+  power,
+  <int>[for (final a in kGangActivityAnchors) a.power],
+  <int>[for (final a in kGangActivityAnchors) a.activity],
+);
+
+/// 在 log(战力) 刻度上按锚点线性插值（[powers] 由大到小）
+int _interpLog(int power, List<int> powers, List<int> values) {
+  final p = max(1, power);
+  if (p >= powers.first) return values.first;
+  if (p <= powers.last) return values.last;
+  for (var i = 0; i < powers.length - 1; i++) {
+    final hi = powers[i];
+    final lo = powers[i + 1];
+    if (p <= hi && p >= lo) {
+      final t =
+          (log(hi.toDouble()) - log(p.toDouble())) /
+          (log(hi.toDouble()) - log(lo.toDouble()));
+      return (values[i] + (values[i + 1] - values[i]) * t).round();
+    }
+  }
+  return values.last;
+}
+
+/// 名次分段（前 20 是晋级区、81 及之后是退级区）
+const List<({int min, int max})> kGangRankBands = <({int min, int max})>[
+  (min: 1, max: 20),
+  (min: 21, max: 40),
+  (min: 41, max: 60),
+  (min: 61, max: 80),
+  (min: 81, max: 100),
+];
+
+/// 某个名次区间上帮派数据的大致范围（由真实榜单统计得出）
+class GangBandStat {
+  final int rankMin;
+  final int rankMax;
+  final int powerMin;
+  final int powerMax;
+  final int powerAvg;
+  final int membersMin;
+  final int membersMax;
+  final int activityMin;
+  final int activityMax;
+
+  /// 成员单辆车的平均战力（= 帮派战力 ÷ 成员数 ÷ 3）
+  ///
+  /// 城市之王对手上场的最强 3 辆车大致就是这个水平。
+  final int carPowerMin;
+  final int carPowerMax;
+
+  const GangBandStat({
+    required this.rankMin,
+    required this.rankMax,
+    required this.powerMin,
+    required this.powerMax,
+    required this.powerAvg,
+    required this.membersMin,
+    required this.membersMax,
+    required this.activityMin,
+    required this.activityMax,
+    required this.carPowerMin,
+    required this.carPowerMax,
+  });
+
+  String get labelZh =>
+      rankMin == rankMax ? '第 $rankMin 名' : '第 $rankMin-$rankMax 名';
+  String get labelEn =>
+      rankMin == rankMax ? '#$rankMin' : '#$rankMin-$rankMax';
+}
+
+/// 统计某组别各名次区间的战力 / 成员数 / 活跃度 / 单车战力（取真实榜单）
+List<GangBandStat> gangDivisionBandStats({
+  required GangDivision division,
+  required int seed,
+  required int seasonIndex,
+}) {
+  final board = buildGangDivisionBoard(
+    division: division,
+    seed: seed,
+    seasonIndex: seasonIndex,
+  );
+  return <GangBandStat>[
+    for (final b in kGangRankBands) _bandStat(board, b.min, b.max),
+  ];
+}
+
+GangBandStat _bandStat(List<GangLeagueRow> board, int rankMin, int rankMax) {
+  final slice = <GangLeagueRow>[
+    for (final r in board)
+      if (r.rank >= rankMin && r.rank <= rankMax) r,
+  ];
+  if (slice.isEmpty) {
+    return GangBandStat(
+      rankMin: rankMin,
+      rankMax: rankMax,
+      powerMin: 0,
+      powerMax: 0,
+      powerAvg: 0,
+      membersMin: 0,
+      membersMax: 0,
+      activityMin: 0,
+      activityMax: 0,
+      carPowerMin: 0,
+      carPowerMax: 0,
+    );
+  }
+  var pMin = slice.first.power;
+  var pMax = slice.first.power;
+  var pSum = 0;
+  var mMin = slice.first.members;
+  var mMax = slice.first.members;
+  var aMin = slice.first.activity;
+  var aMax = slice.first.activity;
+  var cMin = 1 << 62;
+  var cMax = 0;
+  for (final r in slice) {
+    pMin = min(pMin, r.power);
+    pMax = max(pMax, r.power);
+    pSum += r.power;
+    mMin = min(mMin, r.members);
+    mMax = max(mMax, r.members);
+    aMin = min(aMin, r.activity);
+    aMax = max(aMax, r.activity);
+    final perCar = r.power ~/ max(1, r.members) ~/ 3;
+    cMin = min(cMin, perCar);
+    cMax = max(cMax, perCar);
+  }
+  return GangBandStat(
+    rankMin: rankMin,
+    rankMax: rankMax,
+    powerMin: pMin,
+    powerMax: pMax,
+    powerAvg: pSum ~/ slice.length,
+    membersMin: mMin,
+    membersMax: mMax,
+    activityMin: aMin,
+    activityMax: aMax,
+    carPowerMin: cMin == 1 << 62 ? 0 : cMin,
+    carPowerMax: cMax,
+  );
+}
 
 /// 导入的真实帮派名单
 ///
@@ -1778,6 +1950,34 @@ String randomGangName(Random rng) =>
     '${kGangNamePrefix[rng.nextInt(kGangNamePrefix.length)]}'
     '${kGangNameSuffix[rng.nextInt(kGangNameSuffix.length)]}';
 
+/// 一个可加入的帮派候选（来自联赛榜单的某一行）
+///
+/// 加入后玩家帮派就归到 [division] 组别；[members] 已满（满员）时不能加入。
+class GangCandidate {
+  final GangInstance gang;
+
+  /// 该帮派所在的联赛组别
+  final GangDivision division;
+
+  /// 组内名次（1 起）
+  final int rank;
+  final int power;
+  final int members;
+  final int activity;
+
+  const GangCandidate({
+    required this.gang,
+    required this.division,
+    required this.rank,
+    required this.power,
+    required this.members,
+    required this.activity,
+  });
+
+  /// 是否已满员（[kGangMaxMembers] 人）
+  bool get full => members >= kGangMaxMembers;
+}
+
 /// 生成某组别在第 [seasonIndex] 个赛季的榜单（[kGangDivisionSize] 席，按战力降序）
 ///
 /// - 名次越前战力越高（在对数刻度上从组别上限铺到下限，再加抖动）
@@ -1790,8 +1990,6 @@ List<GangLeagueRow> buildGangDivisionBoard({
   // 赛季也混进随机种子，保证「同组别 + 同 seed + 同赛季」稳定、换赛季会重排
   final rng = Random(seed + seasonIndex * 7919);
   final band = kGangDivisionPower[division]!;
-  final act = kGangDivisionActivity[division]!;
-  final mem = kGangDivisionMembers[division]!;
   final logHi = log(band.max.toDouble());
   final logLo = log(band.min.toDouble());
   final usedNames = <String>{};
@@ -1808,19 +2006,39 @@ List<GangLeagueRow> buildGangDivisionBoard({
       guard++;
     }
     usedNames.add(name);
+    // 成员数 / 活跃度由**帮派总战力**决定（顶级帮派满员且最活跃），
+    // 再叠一点抖动，让战力相近的帮派之间也有差别
+    final basePower = base.round();
+    final members = (gangMembersForPower(basePower) * (0.96 + rng.nextDouble() * 0.04))
+        .round()
+        .clamp(1, kGangMaxMembers);
+    final activity = (gangActivityForPower(basePower) + rng.nextInt(7) - 3).clamp(
+      1,
+      99,
+    );
     rows.add(
       GangLeagueRow(
         rank: 0,
         name: name,
         power: max(1, (base * jitter).round()),
-        members: (mem.max - (mem.max - mem.min) * t).round(),
-        activity: (act.max - (act.max - act.min) * t).round(),
+        members: members,
+        activity: activity,
       ),
     );
   }
   rows.sort((a, b) => b.power.compareTo(a.power));
+  // 名次越前成员越多：成员数单调不增（顶级帮派满员，末尾只剩几个人）
+  var prevMembers = kGangMaxMembers;
   for (var i = 0; i < rows.length; i++) {
-    rows[i] = rows[i].withRank(i + 1);
+    final members = min(prevMembers, rows[i].members);
+    prevMembers = members;
+    rows[i] = GangLeagueRow(
+      rank: i + 1,
+      name: rows[i].name,
+      power: rows[i].power,
+      members: members,
+      activity: rows[i].activity,
+    );
   }
 
   // 固定帮派占用对应名次（继承该名次的战力 / 成员数 / 活跃度）

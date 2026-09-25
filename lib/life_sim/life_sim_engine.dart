@@ -1908,21 +1908,15 @@ class LifeSimEngine {
     return total;
   }
 
-  int _archetypePower(GangArchetype a) {
-    final members = (a.memberMin + a.memberMax) / 2;
-    final carPower = (a.carPowerMin + a.carPowerMax) / 2;
-    return (members * 3 * carPower).round();
-  }
-
-  /// 玩家帮派的「大致排名」（与固定帮派库对照；1 = 最强）
+  /// 玩家帮派的「大致排名」（全服 [kGangDivisionSize] × 4 个帮派里的位置；1 = 最强）
+  ///
+  /// 由联赛组别 + 组内名次推导：金组 = 1-100、银组 = 101-200、
+  /// 铜组 = 201-300、木组 = 301-400。
   int estimateGangRank(LifeSimSave save) {
-    final mine = gangPower(save);
-    final sorted = [...kGangLibrary]
-      ..sort((a, b) => a.rankHint.compareTo(b.rankHint));
-    for (final a in sorted) {
-      if (_archetypePower(a) > mine) return a.rankHint;
-    }
-    return 1;
+    if (!save.inGang) return 0;
+    final div = gangDivision(save);
+    final fromTop = GangDivision.values.length - 1 - div.index;
+    return fromTop * kGangDivisionSize + gangLeagueRank(save);
   }
 
   /// 生成一个帮派实例
@@ -1970,16 +1964,40 @@ class LifeSimEngine {
     );
   }
 
-  /// 可加入的帮派候选（固定帮派库 + 2 个随机帮派）
-  List<GangInstance> gangCandidates(LifeSimSave save, {int libraryCount = 6}) {
-    final list = <GangInstance>[];
-    final lib = [...kGangLibrary]..shuffle(_rng);
-    for (final a in lib.take(libraryCount)) {
-      list.add(generateGang(save, archetype: a));
+  /// 可加入的帮派候选：**四个组别都能看到**，每组取几个
+  ///
+  /// 每组会给：组内第 1 名（顶级帮派，基本已满员 → 只是展示）+ 几个
+  /// 还有空位的帮派；满员的帮派 [GangCandidate.full] 为 true，不能加入。
+  List<GangCandidate> gangCandidates(LifeSimSave save, {int perDivision = 2}) {
+    final out = <GangCandidate>[];
+    for (final d in GangDivision.values.reversed) {
+      final board = _npcBoard(d, save.day);
+      if (board.isEmpty) continue;
+      final picked = <GangLeagueRow>[board.first];
+      final joinable = board
+          .where((r) => r.members < kGangMaxMembers)
+          .toList()
+        ..sort((a, b) => a.rank.compareTo(b.rank));
+      final pool = joinable.take(perDivision * 3).toList()..shuffle(_rng);
+      for (final r in pool) {
+        if (picked.length > perDivision) break;
+        if (picked.any((x) => x.name == r.name)) continue;
+        picked.add(r);
+      }
+      for (final r in picked) {
+        out.add(
+          GangCandidate(
+            gang: gangFromRow(r),
+            division: d,
+            rank: r.rank,
+            power: r.power,
+            members: r.members,
+            activity: r.activity,
+          ),
+        );
+      }
     }
-    list.add(generateGang(save));
-    list.add(generateGang(save));
-    return list;
+    return out;
   }
 
   /// 组建自己的帮派
@@ -2010,24 +2028,30 @@ class LifeSimEngine {
     save.gangOwned = true;
     save.gangMembers.clear();
     save.gangActivity = 20;
+    // 新建的帮派必须从最低组别（木组）起步，之后靠联赛升降级往上爬
+    save.gangDivisionIndex = GangDivision.wood.index;
     save.gangsJoined++;
     save.gangRankHint = estimateGangRank(save);
     _log(
       save,
       '🏛️',
       'gang',
-      '你组建了帮派「$trimmed」，花费 $kFoundGangCashCost 紫票',
-      'You founded the gang "$trimmed" for $kFoundGangCashCost Cash',
+      '你组建了帮派「$trimmed」（花费 $kFoundGangCashCost 紫票），'
+          '新帮派从${GangDivision.wood.leagueZh}起步',
+      'You founded the gang "$trimmed" for $kFoundGangCashCost Cash; '
+          'new gangs start in the ${GangDivision.wood.leagueEn}',
     );
     rollCityOpponent(save);
     checkAchievements(save);
     return (ok: true, errorZh: '', errorEn: '');
   }
 
-  /// 加入一个已有帮派
+  /// 加入一个已有帮派（[candidate] 来自 [gangCandidates]）
+  ///
+  /// 加入哪个组别的帮派，玩家就属于哪个组别（可以一步加入金组）。
   ({bool ok, String errorZh, String errorEn}) joinGang(
     LifeSimSave save,
-    GangInstance gang,
+    GangCandidate candidate,
   ) {
     if (save.inGang) {
       return (
@@ -2036,20 +2060,33 @@ class LifeSimEngine {
         errorEn: 'You are already in a gang',
       );
     }
+    if (candidate.full) {
+      return (
+        ok: false,
+        errorZh: '该帮派已满员（${candidate.members}/$kGangMaxMembers）',
+        errorEn: 'That gang is full (${candidate.members}/$kGangMaxMembers)',
+      );
+    }
+    final gang = candidate.gang;
     save.gangName = gang.name;
     save.gangOwned = false;
     save.gangMembers
       ..clear()
       ..addAll(gang.members);
     save.gangActivity = gang.activity;
+    save.gangDivisionIndex = candidate.division.index;
     save.gangsJoined++;
     save.gangRankHint = estimateGangRank(save);
     _log(
       save,
       '🤝',
       'gang',
-      '你加入了帮派「${gang.name}」（${gang.memberCount} 名成员）',
-      'You joined the gang "${gang.name}" (${gang.memberCount} members)',
+      '你加入了帮派「${gang.name}」'
+          '（${candidate.division.leagueZh} 第 ${candidate.rank} 名，'
+          '${candidate.members} 名成员）',
+      'You joined the gang "${gang.name}" '
+          '(${candidate.division.leagueEn} #${candidate.rank}, '
+          '${candidate.members} members)',
     );
     rollCityOpponent(save);
     checkAchievements(save);
@@ -2085,6 +2122,14 @@ class LifeSimEngine {
         ok: false,
         errorZh: '需要先加入或组建帮派',
         errorEn: 'Join or found a gang first',
+        member: null,
+      );
+    }
+    if (1 + save.gangMembers.length >= kGangMaxMembers) {
+      return (
+        ok: false,
+        errorZh: '帮派已满员（$kGangMaxMembers/$kGangMaxMembers）',
+        errorEn: 'Your gang is full ($kGangMaxMembers/$kGangMaxMembers)',
         member: null,
       );
     }
@@ -2151,15 +2196,11 @@ class LifeSimEngine {
   static final Map<String, List<GangLeagueRow>> _gangBoardCache =
       <String, List<GangLeagueRow>>{};
 
-  /// 玩家所在组别的联赛榜单（[kGangDivisionSize] 个对手 + 玩家自己，按战力降序）
-  ///
-  /// 一个赛季内榜单固定（按服务器 + 组别 + 赛季序号做种子），
-  /// 只有玩家自己的战力变化时名次才会动。
-  List<GangLeagueRow> gangBoard(LifeSimSave save) {
-    final div = gangDivision(save);
-    final season = seasonIndexOf(save.day);
+  /// 某组别在第 [day] 天所在赛季的对手榜单（不含玩家，按组别 + 赛季缓存）
+  List<GangLeagueRow> _npcBoard(GangDivision div, int day) {
+    final season = seasonIndexOf(day);
     final key = '$server/${div.name}/$season';
-    final npc = _gangBoardCache.putIfAbsent(
+    return _gangBoardCache.putIfAbsent(
       key,
       () => buildGangDivisionBoard(
         division: div,
@@ -2167,6 +2208,15 @@ class LifeSimEngine {
         seasonIndex: season,
       ),
     );
+  }
+
+  /// 玩家所在组别的联赛榜单（[kGangDivisionSize] 个对手 + 玩家自己，按战力降序）
+  ///
+  /// 一个赛季内榜单固定（按服务器 + 组别 + 赛季序号做种子），
+  /// 只有玩家自己的战力变化时名次才会动。
+  List<GangLeagueRow> gangBoard(LifeSimSave save) {
+    final div = gangDivision(save);
+    final npc = _npcBoard(div, save.day);
     if (!save.inGang) return npc;
     final rows = <GangLeagueRow>[
       ...npc,
@@ -2174,14 +2224,31 @@ class LifeSimEngine {
         rank: 0,
         name: save.gangName!,
         power: gangPower(save),
-        members: 1 + save.gangMembers.length,
+        members: min(kGangMaxMembers, 1 + save.gangMembers.length),
         activity: save.gangActivity,
         isPlayer: true,
       ),
     ]..sort((a, b) => b.power.compareTo(a.power));
+    // 玩家也占组内一个席位（原 100 席，被挤掉的是最弱的那个对手）
+    if (rows.length > kGangDivisionSize) {
+      final weakest = rows.lastIndexWhere((r) => !r.isPlayer);
+      if (weakest >= 0) rows.removeAt(weakest);
+    }
     return <GangLeagueRow>[
       for (var i = 0; i < rows.length; i++) rows[i].withRank(i + 1),
     ];
+  }
+
+  /// 某组别第 [day] 天所在赛季的各名次区间数据参考
+  ///
+  /// （战力 / 成员数 / 活跃度 / 单车战力，用于界面展示与平衡校验）
+  List<GangBandStat> divisionBandStats(LifeSimSave save, GangDivision div) {
+    final season = seasonIndexOf(save.day);
+    return gangDivisionBandStats(
+      division: div,
+      seed: server.hashCode * 131 + div.index * 7717 + season * 104729,
+      seasonIndex: season,
+    );
   }
 
   /// 玩家在所在组别的名次（1 起；不在帮派时返回榜单末位）
@@ -2278,6 +2345,7 @@ class LifeSimEngine {
         'Gang league season ended: ${div.leagueEn} #$rank/$size (stayed)',
       );
     }
+    save.gangRankHint = estimateGangRank(save);
   }
 
   /// 城市之王赛季的结束天

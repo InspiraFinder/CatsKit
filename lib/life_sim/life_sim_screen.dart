@@ -1255,6 +1255,37 @@ class _LifeSimScreenState extends State<LifeSimScreen> {
             ),
           ),
         const SizedBox(height: 6),
+        const Divider(height: 16),
+        Text(
+          _t(
+            '本组各名次区间参考（战力 / 成员 / 活跃度 / 单车战力）',
+            'This division by rank band (power / members / activity / per-car)',
+          ),
+          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+        ),
+        for (final st in _engine.divisionBandStats(s, div))
+          Text(
+            _t(
+              '${st.labelZh}：战力 ${_fmt(st.powerMin)}~${_fmt(st.powerMax)}'
+                  ' · 成员 ${st.membersMin}-${st.membersMax}/$kGangMaxMembers'
+                  ' · 活跃度 ${st.activityMin}-${st.activityMax}%'
+                  ' · 单车 ${_fmt(st.carPowerMin)}~${_fmt(st.carPowerMax)}',
+              '${st.labelEn}: power ${_fmt(st.powerMin)}~${_fmt(st.powerMax)}'
+                  ' · members ${st.membersMin}-${st.membersMax}/$kGangMaxMembers'
+                  ' · activity ${st.activityMin}-${st.activityMax}%'
+                  ' · per-car ${_fmt(st.carPowerMin)}~${_fmt(st.carPowerMax)}',
+            ),
+            style: TextStyle(
+              fontSize: 11,
+              color: rank >= st.rankMin && rank <= st.rankMax
+                  ? Colors.teal
+                  : Colors.grey[700],
+              fontWeight: rank >= st.rankMin && rank <= st.rankMax
+                  ? FontWeight.bold
+                  : FontWeight.normal,
+            ),
+          ),
+        const SizedBox(height: 6),
         Text(
           _t(
             '注：有些帮派会**故意升降级轮换**——上面的组实力太强，升上去拿到的奖励'
@@ -1798,8 +1829,9 @@ class _LifeSimScreenState extends State<LifeSimScreen> {
           Text(
             _t(
               '加入一个帮派可以每天开启「城市之王」，并让帮派活跃度提升你的战力；'
-              '也可以自己组建帮派，慢慢招募成员。',
-              'Join a gang to unlock daily City King battles and let gang activity boost your power — or found your own and recruit members.',
+              '加入哪个组别的帮派就属于哪个组别。'
+              '也可以自建帮派：从木组起步，慢慢往上打。',
+              'Join a gang to unlock daily City King battles and let gang activity boost your power — you join the division the gang belongs to. Or build your own: it starts in the Wood League.',
             ),
             style: TextStyle(fontSize: 12, color: Colors.grey[600]),
           ),
@@ -1849,8 +1881,17 @@ class _LifeSimScreenState extends State<LifeSimScreen> {
               ),
               const SizedBox(height: 4),
               Text(
-                _t('大致排名：第 $rank 位', 'Estimated rank: #$rank'),
+                _t('大致排名：全服第 $rank 位（共 ${kGangDivisionSize * 4} 个帮派）',
+                    'Estimated rank: #$rank globally (${kGangDivisionSize * 4} gangs)'),
                 style: const TextStyle(fontSize: 12, color: Colors.orange),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                _t(
+                  '成员 ${1 + s.gangMembers.length}/$kGangMaxMembers',
+                  'Members ${1 + s.gangMembers.length}/$kGangMaxMembers',
+                ),
+                style: const TextStyle(fontSize: 12),
               ),
               const SizedBox(height: 4),
               // 帮派联赛：组别 + 组内名次 + 榜单
@@ -1884,11 +1925,11 @@ class _LifeSimScreenState extends State<LifeSimScreen> {
               ),
               Text(
                 _t(
-                  '赛季结束时：前 $kGangPromoteRank 名晋级、'
+                  '赛季与城市之王共用 $kCitySeasonDays 天：结束时前 $kGangPromoteRank 名晋级、'
                   '$kGangDemoteRank 名及之后退级；城市之王只匹配同组别的帮派',
-                  'At season end the top $kGangPromoteRank promote and '
-                      '#$kGangDemoteRank+ relegate. City King only matches '
-                      'gangs in your own division.',
+                  'Shared with City King seasons ($kCitySeasonDays days): the top '
+                      '$kGangPromoteRank promote and #$kGangDemoteRank+ relegate. '
+                      'City King only matches gangs in your own division.',
                 ),
                 style: TextStyle(fontSize: 11, color: Colors.grey[600]),
               ),
@@ -1980,7 +2021,9 @@ class _LifeSimScreenState extends State<LifeSimScreen> {
         SizedBox(
           width: double.infinity,
           child: FilledButton.icon(
-            onPressed: () => _recruit(s),
+            onPressed: 1 + s.gangMembers.length >= kGangMaxMembers
+                ? null
+                : () => _recruit(s),
             icon: const Icon(Icons.person_add),
             label: Text(
               _t(
@@ -2603,6 +2646,17 @@ class _LifeSimScreenState extends State<LifeSimScreen> {
       children: [
         Text(_t('花费 ${LifeSimEngine.kFoundGangCashCost} 紫票创建帮派：',
             'Create a gang for ${LifeSimEngine.kFoundGangCashCost} Cash:')),
+        const SizedBox(height: 4),
+        Text(
+          _t(
+            '新建帮派从${GangDivision.wood.leagueZh}起步，赛季结束时打进前 '
+                '$kGangPromoteRank 名才能晋级；想直接打高组别可以加入已有帮派。',
+            'New gangs start in the ${GangDivision.wood.leagueEn} and must finish '
+                'top $kGangPromoteRank to promote. Join an existing gang to '
+                'start higher.',
+          ),
+          style: TextStyle(fontSize: 11, color: Colors.grey[600]),
+        ),
         const SizedBox(height: 8),
         TextField(
           controller: controller,
@@ -2638,26 +2692,48 @@ class _LifeSimScreenState extends State<LifeSimScreen> {
   void _showGangCandidates(LifeSimSave s) {
     final list = _engine.gangCandidates(s);
     _dialog(
-      title: _t('选择帮派', 'Choose a gang'),
+      title: _t('选择帮派（四个组别）', 'Choose a gang (4 divisions)'),
       children: [
-        for (final g in list)
+        Text(
+          _t(
+            '加入哪个组别的帮派就属于哪个组别。顶级帮派几乎都满员了'
+                '（$kGangMaxMembers/$kGangMaxMembers），只能加入还有空位的帮派。',
+            'The division you join is the division you play in. Top gangs are '
+                'almost always full ($kGangMaxMembers/$kGangMaxMembers), so only '
+                'gangs with free slots can be joined.',
+          ),
+          style: TextStyle(fontSize: 11, color: Colors.grey[600]),
+        ),
+        const SizedBox(height: 6),
+        for (final c in list)
           Card(
             margin: const EdgeInsets.only(bottom: 6),
             child: ListTile(
+              enabled: !c.full,
               title: Text(
-                g.name + (g.rankHint != null ? '  #${g.rankHint}' : ''),
-                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                '${c.division.leagueZh} 第 ${c.rank} 名 · ${c.gang.name}',
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 14,
+                ),
               ),
               subtitle: Text(
                 _t(
-                  '${g.memberCount} 名成员 · 战力 ${_fmt(g.totalPower)} · 活跃度 ${g.activity}%',
-                  '${g.memberCount} members · power ${_fmt(g.totalPower)} · activity ${g.activity}%',
+                  '${c.members}/$kGangMaxMembers 名成员 · 战力 ${_fmt(c.power)}'
+                      ' · 活跃度 ${c.activity}%',
+                  '${c.members}/$kGangMaxMembers members · power ${_fmt(c.power)}'
+                      ' · activity ${c.activity}%',
                 ),
                 style: const TextStyle(fontSize: 12),
               ),
-              trailing: const Icon(Icons.chevron_right),
+              trailing: c.full
+                  ? Text(
+                      _t('满员', 'Full'),
+                      style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                    )
+                  : const Icon(Icons.chevron_right),
               onTap: () {
-                final r = _engine.joinGang(s, g);
+                final r = _engine.joinGang(s, c);
                 if (!r.ok) {
                   _snack(_locale == 'zh' ? r.errorZh : r.errorEn);
                   return;
