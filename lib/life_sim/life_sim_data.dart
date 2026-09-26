@@ -1613,7 +1613,148 @@ extension GangDivisionInfo on GangDivision {
 }
 
 /// 每组席位数（前 [kGangPromoteRank] 名晋级、[kGangDemoteRank] 名及之后退级）
+///
+/// 这是金/银/铜三组的容量；木组是新手池，容量更大，见 [kGangDivisionCapacity]。
 const int kGangDivisionSize = 100;
+
+/// 木组（新手池）的榜单容量
+const int kGangWoodCapacity = 200;
+
+/// 每组的**榜单容量**（木组是新手池，容量 200：名次梯度到 80 之后
+/// 再分成 80-120 与 120+ 两段）
+const Map<GangDivision, int> kGangDivisionCapacity =
+    <GangDivision, int>{
+      GangDivision.wood: kGangWoodCapacity,
+      GangDivision.bronze: kGangDivisionSize,
+      GangDivision.silver: kGangDivisionSize,
+      GangDivision.gold: kGangDivisionSize,
+    };
+
+/// 全服席位总数（金/银/铜各 100 + 木 200）
+const int kGangTotalCapacity = kGangDivisionSize * 3 + kGangWoodCapacity;
+
+/// 每赛季「封存」（整季不参战）的帮派比例区间（%）
+///
+/// 封存＝把帮派设为「禁止加入」并把成员保持在 5 人以下：
+/// 打不了城市之王、不上排行榜、也就不会被判 80+ 而掉级。
+/// 低组别封存得最多（冲上去也是软柿子，不如锁住拿保底）。
+const Map<GangDivision, ({int min, int max})> kGangDivisionSealedPct =
+    <GangDivision, ({int min, int max})>{
+      GangDivision.wood: (min: 30, max: 45),
+      GangDivision.bronze: (min: 12, max: 24),
+      GangDivision.silver: (min: 8, max: 18),
+      GangDivision.gold: (min: 2, max: 8),
+    };
+
+/// 封存线：帮派成员**不足 5 人**无法参加城市之王（也会因此不上排行榜）
+const int kGangSealMinMembers = 5;
+
+/// 城市之王胜场超过这个数后，每多赢一场额外给一个工具箱
+const int kCityToolboxAfterWins = 25;
+
+/// 工具箱给对应部件增加的百分比（生命工具箱 → HP，攻击工具箱 → ATK）
+const int kToolboxBonusPct = 40;
+
+/// 同一个部件最多叠几个工具箱（+200%）
+const int kToolboxMaxStack = 5;
+
+/// 赛季结算奖励的档位（按**组内名次**，宝箱 = 随机一个该稀有度部件）
+const List<
+  ({
+    int minRank,
+    int maxRank,
+    int chests,
+    int chestRarityIndex,
+    int token,
+    int cash,
+  })
+>
+kGangLeagueRewardTiers =
+    <
+      ({
+        int minRank,
+        int maxRank,
+        int chests,
+        int chestRarityIndex,
+        int token,
+        int cash,
+      })
+    >[
+      (
+        minRank: 1,
+        maxRank: kGangPromoteRank,
+        chests: 3,
+        chestRarityIndex: 5,
+        token: 120,
+        cash: 900000,
+      ),
+      (
+        minRank: 21,
+        maxRank: 60,
+        chests: 2,
+        chestRarityIndex: 5,
+        token: 80,
+        cash: 500000,
+      ),
+      (
+        minRank: 61,
+        maxRank: 80,
+        chests: 1,
+        chestRarityIndex: 4,
+        token: 40,
+        cash: 200000,
+      ),
+      (
+        minRank: kGangDemoteRank,
+        maxRank: 1 << 30,
+        chests: 0,
+        chestRarityIndex: 4,
+        token: 10,
+        cash: 50000,
+      ),
+    ];
+
+/// 赛季结算奖励的**组别系数**：高组别奖励明显更好
+/// （金 4× / 银 3× / 铜 2× / 木 1×）
+const Map<GangDivision, int> kGangLeagueRewardMul = <GangDivision, int>{
+  GangDivision.gold: 4,
+  GangDivision.silver: 3,
+  GangDivision.bronze: 2,
+  GangDivision.wood: 1,
+};
+
+/// 某组别某个名次的赛季结算奖励（已乘组别系数）
+({int chests, int chestRarityIndex, int token, int cash}) gangLeagueReward(
+  GangDivision division,
+  int rank,
+) {
+  final mul = kGangLeagueRewardMul[division]!;
+  for (final t in kGangLeagueRewardTiers) {
+    if (rank >= t.minRank && rank <= t.maxRank) {
+      return (
+        chests: t.chests * mul,
+        chestRarityIndex: t.chestRarityIndex,
+        token: t.token * mul,
+        cash: t.cash * mul,
+      );
+    }
+  }
+  return (chests: 0, chestRarityIndex: 4, token: 0, cash: 0);
+}
+
+/// 某组别的名次分段（木组席位更多，尾部拆成 80-120 与 120+）
+List<({int min, int max})> gangRankBands(GangDivision division) {
+  final cap = kGangDivisionCapacity[division]!;
+  if (cap <= kGangDivisionSize) return kGangRankBands;
+  return <({int min, int max})>[
+    (min: 1, max: kGangPromoteRank),
+    (min: 21, max: 40),
+    (min: 41, max: 60),
+    (min: 61, max: 80),
+    (min: kGangDemoteRank, max: 120),
+    (min: 121, max: cap),
+  ];
+}
 
 /// 晋级线：组内第 1 ~ 20 名晋级
 const int kGangPromoteRank = 20;
@@ -1764,6 +1905,8 @@ class GangBandStat {
 }
 
 /// 统计某组别各名次区间的战力 / 成员数 / 活跃度 / 单车战力（取真实榜单）
+///
+/// 空的分段（该段还没有上榜帮派，例如木组的 121+）不会返回。
 List<GangBandStat> gangDivisionBandStats({
   required GangDivision division,
   required int seed,
@@ -1775,8 +1918,9 @@ List<GangBandStat> gangDivisionBandStats({
     seasonIndex: seasonIndex,
   );
   return <GangBandStat>[
-    for (final b in kGangRankBands) _bandStat(board, b.min, b.max),
-  ];
+    for (final b in gangRankBands(division))
+      _bandStat(board.rows, b.min, b.max),
+  ].where((s) => s.powerMax > 0).toList();
 }
 
 GangBandStat _bandStat(List<GangLeagueRow> board, int rankMin, int rankMax) {
@@ -1993,11 +2137,41 @@ class GangCandidate {
   bool get full => members >= kGangMaxMembers;
 }
 
-/// 生成某组别在第 [seasonIndex] 个赛季的榜单（[kGangDivisionSize] 席，按战力降序）
+/// 某组别某赛季的联赛榜单
+///
+/// 一个组别有 [capacity] 个席位，但**整季没打过城市之王的帮派（封存）不上榜**，
+/// 所以 [rows] 只包含参战过的帮派（[activeCount] 家），名次从 1 开始。
+class GangDivisionBoard {
+  final GangDivision division;
+
+  /// 榜单容量（木组 200，其余 100）
+  final int capacity;
+
+  /// 本季封存（未参战、不上榜）的帮派数
+  final int sealedCount;
+
+  /// 上榜帮派（按战力降序，[GangLeagueRow.rank] 从 1 开始）
+  final List<GangLeagueRow> rows;
+
+  const GangDivisionBoard({
+    required this.division,
+    required this.capacity,
+    required this.sealedCount,
+    required this.rows,
+  });
+
+  int get activeCount => rows.length;
+
+  /// 上榜帮派不足 [kGangDemoteRank]-1（不足 80 家）时**不判退级**
+  bool get canDemote => activeCount >= kGangDemoteRank - 1;
+}
+
+/// 生成某组别在第 [seasonIndex] 个赛季的榜单
 ///
 /// - 名次越前战力越高（在对数刻度上从组别上限铺到下限，再加抖动）
+/// - 一部分帮派本季**封存**（成员不满 5 人、不参战）→ 不上榜
 /// - [kGangLeagueRoster] 里的固定帮派占用它们对应的名次
-List<GangLeagueRow> buildGangDivisionBoard({
+GangDivisionBoard buildGangDivisionBoard({
   required GangDivision division,
   required int seed,
   required int seasonIndex,
@@ -2008,10 +2182,21 @@ List<GangLeagueRow> buildGangDivisionBoard({
   final logHi = log(band.max.toDouble());
   final logLo = log(band.min.toDouble());
   final usedNames = <String>{};
+  final capacity = kGangDivisionCapacity[division]!;
+  // 封存：把一部分席位标记为「本季未参战」，它们不上榜
+  final sealBand = kGangDivisionSealedPct[division]!;
+  final sealPct =
+      sealBand.min + rng.nextInt(sealBand.max - sealBand.min + 1);
+  final sealedCount = (capacity * sealPct / 100).round();
+  // 固定名单的帮派总是参战（它们就是靠升降级轮换的）
+  final activeCount = max(
+    kGangPromoteRank,
+    capacity - sealedCount,
+  );
 
   final rows = <GangLeagueRow>[];
-  for (var i = 0; i < kGangDivisionSize; i++) {
-    final t = kGangDivisionSize == 1 ? 0.0 : i / (kGangDivisionSize - 1);
+  for (var i = 0; i < activeCount; i++) {
+    final t = activeCount == 1 ? 0.0 : i / (activeCount - 1);
     final base = exp(logHi - (logHi - logLo) * t);
     final jitter = 0.94 + rng.nextDouble() * 0.12;
     var name = randomGangName(rng);
@@ -2071,7 +2256,12 @@ List<GangLeagueRow> buildGangDivisionBoard({
       activity: rows[idx].activity,
     );
   }
-  return rows;
+  return GangDivisionBoard(
+    division: division,
+    capacity: capacity,
+    sealedCount: sealedCount,
+    rows: rows,
+  );
 }
 
 // =====================================================================

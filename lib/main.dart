@@ -2694,8 +2694,10 @@ class CarValidation {
     List<PartData> gadgets,
     PartData? extraWeapon,
     Map<String, int> levels,
-    Map<String, int> extraBonuses,
-  ) {
+    Map<String, int> extraBonuses, {
+    Map<String, int> hpBoxPct = const <String, int> {},
+    Map<String, int> atkBoxPct = const <String, int> {},
+  }) {
     // allParts：参与 HP/ATK/加成/赞助计算（含额外武器）
     // powerParts：参与电力计算（不含额外武器，额外武器不耗电）
     final allParts = <PartData>[];
@@ -2774,24 +2776,27 @@ class CarValidation {
 
     // HP/ATK：分类加成与额外加成为独立乘区，逐部件相乘
     // HP = Σ hp*(1+分类加成/100)*(1+额外加成/100)，ATK 同理
+    // 生命/攻击工具箱（城市之王 25 胜后掉落）是又一个独立乘区，只作用于对应数值
     double hp = 0, atk = 0;
     for (final p in allParts) {
       final hpV = p.hp(lv(p));
       final atkV = p.atk(lv(p));
       final xm = 1 + xb(p) / 100.0;
+      final hm = 1 + (hpBoxPct[p.id] ?? 0) / 100.0;
+      final am = 1 + (atkBoxPct[p.id] ?? 0) / 100.0;
       switch (p.category) {
         case PartCategory.body:
-          hp += hpV * (1 + bodyBonusPct / 100.0) * xm;
+          hp += hpV * (1 + bodyBonusPct / 100.0) * xm * hm;
           break;
         case PartCategory.weapon:
-          atk += atkV * (1 + weaponBonusPct / 100.0) * xm;
+          atk += atkV * (1 + weaponBonusPct / 100.0) * xm * am;
           break;
         case PartCategory.wheel:
-          hp += hpV * (1 + wheelBonusPct / 100.0) * xm;
-          atk += atkV * (1 + wheelBonusPct / 100.0) * xm;
+          hp += hpV * (1 + wheelBonusPct / 100.0) * xm * hm;
+          atk += atkV * (1 + wheelBonusPct / 100.0) * xm * am;
           break;
         case PartCategory.gadget:
-          hp += hpV * (1 + gadgetBonusPct / 100.0) * xm;
+          hp += hpV * (1 + gadgetBonusPct / 100.0) * xm * hm;
           break;
       }
     }

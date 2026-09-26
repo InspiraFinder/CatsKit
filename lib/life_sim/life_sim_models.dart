@@ -248,6 +248,14 @@ class LifeSimSave {
   /// 部件等级：partId → 等级（缺省按 1 级；上限见 `PartData.maxLevel`）
   final Map<String, int> partLevels;
 
+  /// 库存工具箱（城市之王 25 胜之后每胜一场给一个）
+  int hpToolbox;
+  int atkToolbox;
+
+  /// 部件已叠加的工具箱层数：partId → 层数（每层 +[kToolboxBonusPct]%）
+  final Map<String, int> partHpBoxes;
+  final Map<String, int> partAtkBoxes;
+
   /// 玩家的车辆（最多 3 辆）
   final List<SimVehicle> vehicles;
 
@@ -257,6 +265,9 @@ class LifeSimSave {
   int gangActivity;
   final List<SimGangMember> gangMembers;
   int gangRankHint;
+
+  /// 「禁止加入」：封存帮派（不再招募，人少了就打不了城市之王）
+  bool gangRecruitLocked;
 
   /// 帮派联赛组别（`GangDivision.index`：0 木 / 1 铜 / 2 银 / 3 金）
   int gangDivisionIndex;
@@ -328,6 +339,9 @@ class LifeSimSave {
   /// 城市之王本赛季累计结算分数（跨赛季清零）
   int citySeasonScore;
 
+  /// 本赛季是否打过城市之王（**没打过就不进排行榜**，也不参与升降级）
+  bool citySeasonFought;
+
   /// 城市之王本赛季已领取的胜场里程碑序号（跨赛季清零）
   int citySeasonClaimed;
 
@@ -358,10 +372,15 @@ class LifeSimSave {
     List<String>? ownedParts,
     Map<String, int>? partStock,
     Map<String, int>? partLevels,
+    this.hpToolbox = 0,
+    this.atkToolbox = 0,
+    Map<String, int>? partHpBoxes,
+    Map<String, int>? partAtkBoxes,
     List<SimVehicle>? vehicles,
     this.gangName,
     this.gangOwned = false,
     this.gangActivity = 0,
+    this.gangRecruitLocked = false,
     List<SimGangMember>? gangMembers,
     this.gangRankHint = 0,
     this.gangDivisionIndex = 0,
@@ -390,6 +409,7 @@ class LifeSimSave {
     this.citySeasonWins = 0,
     this.citySeasonScore = 0,
     this.citySeasonClaimed = 0,
+    this.citySeasonFought = false,
     this.totalChoices = 0,
     this.rankSCount = 0,
     this.rankACount = 0,
@@ -400,6 +420,8 @@ class LifeSimSave {
   }) : ownedParts = ownedParts ?? <String>[],
        partStock = partStock ?? <String, int>{},
        partLevels = partLevels ?? <String, int>{},
+       partHpBoxes = partHpBoxes ?? <String, int>{},
+       partAtkBoxes = partAtkBoxes ?? <String, int>{},
        vehicles =
            vehicles ??
            List<SimVehicle>.generate(maxVehicles, (_) => SimVehicle()),
@@ -478,10 +500,15 @@ class LifeSimSave {
     'owned': ownedParts,
     'stock': partStock,
     'lv': partLevels,
+    'hpBox': hpToolbox,
+    'atkBox': atkToolbox,
+    'pHP': partHpBoxes,
+    'pATK': partAtkBoxes,
     'veh': [for (final v in vehicles) v.toJson()],
     'gang': gangName,
     'gangOwned': gangOwned,
     'gangAct': gangActivity,
+    'gangLock': gangRecruitLocked,
     'gangMem': [for (final m in gangMembers) m.toJson()],
     'gangRank': gangRankHint,
     'gangDiv': gangDivisionIndex,
@@ -510,6 +537,7 @@ class LifeSimSave {
     'cSWins': citySeasonWins,
     'cSScore': citySeasonScore,
     'cSClaim': citySeasonClaimed,
+    'cSFought': citySeasonFought,
     'choices': totalChoices,
     'sCount': rankSCount,
     'aCount': rankACount,
@@ -545,6 +573,11 @@ class LifeSimSave {
       ownedParts: _strList(json['owned']),
       partStock: _intMap(json['stock']),
       partLevels: _intMap(json['lv']),
+      hpToolbox: (json['hpBox'] as num?)?.toInt() ?? 0,
+      atkToolbox: (json['atkBox'] as num?)?.toInt() ?? 0,
+      partHpBoxes: _intMap(json['pHP']),
+      partAtkBoxes: _intMap(json['pATK']),
+      gangRecruitLocked: json['gangLock'] as bool? ?? false,
       vehicles: vehicles,
       gangName: json['gang'] as String?,
       gangOwned: json['gangOwned'] as bool? ?? false,
@@ -588,6 +621,7 @@ class LifeSimSave {
       citySeasonWins: (json['cSWins'] as num?)?.toInt() ?? 0,
       citySeasonScore: (json['cSScore'] as num?)?.toInt() ?? 0,
       citySeasonClaimed: (json['cSClaim'] as num?)?.toInt() ?? 0,
+      citySeasonFought: json['cSFought'] as bool? ?? false,
       totalChoices: (json['choices'] as num?)?.toInt() ?? 0,
       rankSCount: (json['sCount'] as num?)?.toInt() ?? 0,
       rankACount: (json['aCount'] as num?)?.toInt() ?? 0,

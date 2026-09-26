@@ -1204,16 +1204,42 @@ class _LifeSimScreenState extends State<LifeSimScreen> {
     final rank = _engine.gangLeagueRank(s);
     final next = div.promoted;
     final prev = div.demoted;
+    final status = _engine.divisionStatus(s, div);
+    final sealed = _engine.isGangSealed(s);
     _dialog(
       title: _t('帮派联赛 · ${div.leagueZh}', 'Gang League · ${div.leagueEn}'),
       children: [
         Text(
-          _t(
-            '${s.gangName ?? ''} 第 $rank/${board.length} 名',
-            '${s.gangName ?? ''} rank #$rank/${board.length}',
-          ),
+          rank > 0
+              ? _t(
+                  '${s.gangName ?? ''} 第 $rank/${status.active} 名',
+                  '${s.gangName ?? ''} rank #$rank/${status.active}',
+                )
+              : _t(
+                  '${s.gangName ?? ''}：本季未上榜'
+                      '${sealed ? '（帮派已封存：成员不足 $kGangSealMinMembers 人）' : '（本季还没打过城市之王）'}',
+                  '${s.gangName ?? ''}: unranked this season',
+                ),
           style: const TextStyle(fontWeight: FontWeight.bold),
         ),
+        Text(
+          _t(
+            '本组 ${status.capacity} 席，本季上榜 ${status.active} 家、'
+                '封存 ${status.sealed} 家（封存＝整季不参战，不上榜也不退级）',
+            '${status.capacity} slots · ${status.active} ranked · '
+                '${status.sealed} sealed (no battles → not ranked, not relegated)',
+          ),
+          style: TextStyle(fontSize: 11, color: Colors.grey[600]),
+        ),
+        if (!status.canDemote)
+          Text(
+            _t(
+              '⚠️ 本季上榜不足 ${kGangDemoteRank - 1} 家 → 本季不判退级',
+              '⚠️ Fewer than ${kGangDemoteRank - 1} ranked gangs → '
+                  'nobody is relegated this season',
+            ),
+            style: TextStyle(fontSize: 11, color: Colors.orange[800]),
+          ),
         Text(
           _t(
             '赛季结束：前 $kGangPromoteRank 名'
@@ -1230,22 +1256,33 @@ class _LifeSimScreenState extends State<LifeSimScreen> {
         const SizedBox(height: 8),
         // 前 3 名 + 玩家附近的名次
         for (final r in board)
-          if (r.isPlayer || r.rank <= 3 || (r.rank - rank).abs() <= 3)
+          if (r.isPlayer ||
+              r.rank <= 3 ||
+              (rank > 0 && (r.rank - rank).abs() <= 3))
             _gangBoardRow(r),
         const Divider(height: 16),
         Text(
-          _t('四个组别（每组 $kGangDivisionSize 席）',
-              'Four divisions ($kGangDivisionSize slots each)'),
+          _t(
+            '四个组别（金/银/铜各 $kGangDivisionSize 席，木组 $kGangWoodCapacity 席 —— '
+                '名次梯度到 80 之后又分成 80-120 与 120+）',
+            'Four divisions (gold/silver/bronze: $kGangDivisionSize slots each; '
+                'wood: $kGangWoodCapacity slots, its tail splits into 80-120 and '
+                '120+)',
+          ),
           style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
         ),
         for (final d in GangDivision.values.reversed)
           Text(
             _t(
-              '${d.leagueZh}：帮派战力 ${_fmt(kGangDivisionPower[d]!.min)}'
+              '${d.leagueZh}（${kGangDivisionCapacity[d]} 席）：帮派战力 '
+                  '${_fmt(kGangDivisionPower[d]!.min)}'
                   '~${_fmt(kGangDivisionPower[d]!.max)}'
+                  '　赛季奖励 ×${kGangLeagueRewardMul[d]}'
                   '${d == div ? '　← 你在这里' : ''}',
-              '${d.leagueEn}: power ${_fmt(kGangDivisionPower[d]!.min)}'
+              '${d.leagueEn} (${kGangDivisionCapacity[d]} slots): power '
+                  '${_fmt(kGangDivisionPower[d]!.min)}'
                   '~${_fmt(kGangDivisionPower[d]!.max)}'
+                  '  season reward ×${kGangLeagueRewardMul[d]}'
                   '${d == div ? '  ← you are here' : ''}',
             ),
             style: TextStyle(
@@ -1370,8 +1407,10 @@ class _LifeSimScreenState extends State<LifeSimScreen> {
       return;
     }
     final opp = s.cityOpponentCars;
+    final sealed = _engine.isGangSealed(s);
+    final ranked = _engine.isGangRanked(s);
     final canFight =
-        !s.cityChallenged && s.energy >= LifeSimEngine.kCityEnergyCost;
+        !sealed && !s.cityChallenged && s.energy >= LifeSimEngine.kCityEnergyCost;
     final scores = _engine.cityBaseScores(s);
     final mul = _engine.cityScoreMul(s);
     final myStrength = _engine.myCityStrength(s);
@@ -1379,6 +1418,35 @@ class _LifeSimScreenState extends State<LifeSimScreen> {
     _dialog(
       title: _t('城市之王', 'City King'),
       children: [
+        if (sealed)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 6),
+            child: Text(
+              _t(
+                '⚠️ 帮派已封存：成员不足 $kGangSealMinMembers 人，无法参加城市之王'
+                    '（也不会进入排行榜，因此不会被判 80+ 掉级）。'
+                    '招募成员后即可恢复参战。',
+                '⚠️ Gang sealed: fewer than $kGangSealMinMembers members, so no '
+                    'City King battles (and no ranking → no relegation). '
+                    'Recruit members to unseal.',
+              ),
+              style: TextStyle(fontSize: 12, color: Colors.red[700]),
+            ),
+          )
+        else if (!ranked)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 6),
+            child: Text(
+              _t(
+                '本季还未参战：帮派**打完一场城市之王才会上榜**；'
+                    '一整季没参战就不会进入排行榜，也不会被判 80+ 掉级。',
+                'Not ranked yet this season: a gang enters the league board only '
+                    'after its first battle. A gang that skips the whole season '
+                    'never gets ranked — and is never relegated.',
+              ),
+              style: TextStyle(fontSize: 12, color: Colors.orange[800]),
+            ),
+          ),
         Text(
           _t('对手：${s.cityOpponentName ?? '——'}',
               'Opponent: ${s.cityOpponentName ?? '——'}'),
@@ -1519,6 +1587,28 @@ class _LifeSimScreenState extends State<LifeSimScreen> {
             },
           ),
         const SizedBox(height: 6),
+        Text(
+          _t(
+            '从第 ${kCityToolboxAfterWins + 1} 场胜利开始，每多赢一场额外掉一个'
+                '「生命/攻击工具箱」（对应部件 +$kToolboxBonusPct%，同一部件最多叠 '
+                '$kToolboxMaxStack 层）——胜场奖励本身就带正反馈。',
+            'From win #${kCityToolboxAfterWins + 1} every extra win drops an HP/ATK '
+                'toolbox (+$kToolboxBonusPct% on a matching part, up to '
+                '$kToolboxMaxStack stacks) — winning keeps paying off.',
+          ),
+          style: TextStyle(fontSize: 11, color: Colors.brown[600]),
+        ),
+        if (s.hpToolbox > 0 || s.atkToolbox > 0)
+          Text(
+            _t(
+              '库存工具箱：生命 ×${s.hpToolbox} · 攻击 ×${s.atkToolbox}'
+                  '（到「部件」页使用）',
+              'Toolboxes in stock: HP ×${s.hpToolbox} · ATK ×${s.atkToolbox} '
+                  '(use them on the Parts tab)',
+            ),
+            style: const TextStyle(fontSize: 11, color: Colors.brown),
+          ),
+        const SizedBox(height: 6),
         if (canFight)
           SizedBox(
             width: double.infinity,
@@ -1536,7 +1626,10 @@ class _LifeSimScreenState extends State<LifeSimScreen> {
           )
         else
           Text(
-            s.cityChallenged
+            sealed
+                ? _t('已封存，无法参战（先招募成员）',
+                    'Sealed — recruit members first')
+                : s.cityChallenged
                 ? _t('今日已挑战，明天再来。', 'Already challenged today.')
                 : _t('精力不足，先结束这一天恢复精力。',
                     'Not enough energy. End the day to recover.'),
@@ -1882,6 +1975,11 @@ class _LifeSimScreenState extends State<LifeSimScreen> {
       );
     }
     final rank = _engine.estimateGangRank(s);
+    final sealed = _engine.isGangSealed(s);
+    final ranked = _engine.isGangRanked(s);
+    final memberCount = 1 + s.gangMembers.length;
+    final div = _engine.gangDivision(s);
+    final status = _engine.divisionStatus(s, div);
     return ListView(
       padding: const EdgeInsets.all(12),
       children: [
@@ -1903,29 +2001,53 @@ class _LifeSimScreenState extends State<LifeSimScreen> {
               ),
               const SizedBox(height: 4),
               Text(
-                _t('大致排名：全服第 $rank 位（共 ${kGangDivisionSize * 4} 个帮派）',
-                    'Estimated rank: #$rank globally (${kGangDivisionSize * 4} gangs)'),
+                rank > 0
+                    ? _t('大致排名：全服第 $rank 位（共 $kGangTotalCapacity 个帮派）',
+                        'Estimated rank: #$rank globally ($kGangTotalCapacity gangs)')
+                    : _t('大致排名：本季未上榜', 'Estimated rank: unranked this season'),
                 style: const TextStyle(fontSize: 12, color: Colors.orange),
               ),
               const SizedBox(height: 4),
               Text(
                 _t(
-                  '成员 ${1 + s.gangMembers.length}/$kGangMaxMembers',
-                  'Members ${1 + s.gangMembers.length}/$kGangMaxMembers',
+                  '成员 $memberCount/$kGangMaxMembers'
+                      '${sealed ? '　🧊 已封存（不足 $kGangSealMinMembers 人，无法参战）' : ''}',
+                  'Members $memberCount/$kGangMaxMembers'
+                      '${sealed ? '  🧊 sealed (< $kGangSealMinMembers, cannot fight)' : ''}',
                 ),
-                style: const TextStyle(fontSize: 12),
+                style: TextStyle(
+                  fontSize: 12,
+                  color: sealed ? Colors.blueGrey : null,
+                  fontWeight: sealed ? FontWeight.bold : FontWeight.normal,
+                ),
               ),
+              if (s.hpToolbox > 0 || s.atkToolbox > 0)
+                Text(
+                  _t(
+                    '🧰 工具箱：生命 ×${s.hpToolbox} · 攻击 ×${s.atkToolbox}'
+                        '（每个 +$kToolboxBonusPct%，在「部件」页使用）',
+                    '🧰 Toolboxes: HP ×${s.hpToolbox} · ATK ×${s.atkToolbox} '
+                        '(each +$kToolboxBonusPct%, use on the Parts tab)',
+                  ),
+                  style: TextStyle(fontSize: 12, color: Colors.brown[600]),
+                ),
               const SizedBox(height: 4),
               // 帮派联赛：组别 + 组内名次 + 榜单
               Row(
                 children: [
                   Text(
-                    _t(
-                      '帮派联赛：${_engine.gangDivision(s).leagueZh} 第 '
-                          '${_engine.gangLeagueRank(s)} 名',
-                      'Gang league: ${_engine.gangDivision(s).leagueEn} '
-                          '#${_engine.gangLeagueRank(s)}',
-                    ),
+                    !ranked
+                        ? _t(
+                            '帮派联赛：${div.leagueZh} 未上榜'
+                                '${sealed ? '（封存）' : '（本季还没打过）'}',
+                            'Gang league: ${div.leagueEn} unranked',
+                          )
+                        : _t(
+                            '帮派联赛：${div.leagueZh} 第 '
+                                '${_engine.gangLeagueRank(s)} 名',
+                            'Gang league: ${div.leagueEn} '
+                                '#${_engine.gangLeagueRank(s)}',
+                          ),
                     style: const TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.bold,
@@ -1947,13 +2069,25 @@ class _LifeSimScreenState extends State<LifeSimScreen> {
               ),
               Text(
                 _t(
+                  '本赛季${div.leagueZh}上榜 ${status.active} 家 / 共 ${status.capacity} 席'
+                      '（封存 ${status.sealed} 家，不上榜）',
+                  'Ranked ${status.active}/${status.capacity} in the '
+                      '${div.leagueEn} (${status.sealed} sealed gangs are not ranked)',
+                ),
+                style: TextStyle(fontSize: 11, color: Colors.grey[600]),
+              ),
+              Text(
+                _t(
                   '赛季与城市之王共用 $kCitySeasonDays 天：结束时前 $kGangPromoteRank 名晋级、'
-                  '$kGangDemoteRank 名及之后退级；城市之王只匹配同组别的帮派；'
-                  '失利会拖低活跃度（连败更明显）',
+                      '$kGangDemoteRank 名及之后退级；城市之王只匹配同组别的帮派；'
+                      '失利会拖低活跃度（连败更明显）；'
+                      '成员不足 $kGangSealMinMembers 人或整季未参战 → 不上榜，不判退级',
                   'Shared with City King seasons ($kCitySeasonDays days): the top '
                       '$kGangPromoteRank promote and #$kGangDemoteRank+ relegate. '
                       'City King only matches gangs in your own division; losses '
-                      'lower activity (worse on a losing streak).',
+                      'lower activity (worse on a losing streak). Gangs with fewer '
+                      'than $kGangSealMinMembers members, or that skip the whole '
+                      'season, are never ranked and never relegated.',
                 ),
                 style: TextStyle(fontSize: 11, color: Colors.grey[600]),
               ),
@@ -2042,10 +2176,36 @@ class _LifeSimScreenState extends State<LifeSimScreen> {
           ),
         ),
         const SizedBox(height: 12),
+        if (s.gangOwned)
+          SwitchListTile(
+            dense: true,
+            contentPadding: EdgeInsets.zero,
+            value: s.gangRecruitLocked,
+            onChanged: (v) {
+              _engine.setGangRecruitLocked(s, v);
+              _run(() {});
+            },
+            title: Text(
+              _t('禁止加入（封存帮派）', 'Block joins (seal the gang)'),
+              style: const TextStyle(fontSize: 13),
+            ),
+            subtitle: Text(
+              _t(
+                '开启后不能再招募；把成员压到 $kGangSealMinMembers 人以下即可封存：'
+                    '打不了城市之王、不上排行榜、也不会被判 80+ 掉级',
+                'When on you cannot recruit. Keep fewer than '
+                    '$kGangSealMinMembers members to seal: no City King, no '
+                    'ranking, no relegation.',
+              ),
+              style: const TextStyle(fontSize: 11),
+            ),
+          ),
         SizedBox(
           width: double.infinity,
           child: FilledButton.icon(
-            onPressed: 1 + s.gangMembers.length >= kGangMaxMembers
+            onPressed:
+                1 + s.gangMembers.length >= kGangMaxMembers ||
+                    s.gangRecruitLocked
                 ? null
                 : () => _recruit(s),
             icon: const Icon(Icons.person_add),
@@ -2057,6 +2217,37 @@ class _LifeSimScreenState extends State<LifeSimScreen> {
             ),
           ),
         ),
+        if (s.gangOwned) ...<Widget>[
+          const SizedBox(height: 8),
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: s.gangMembers.isEmpty
+                  ? null
+                  : () {
+                      final r = _engine.kickMember(s);
+                      if (!r.ok) {
+                        _snack(_locale == 'zh' ? r.errorZh : r.errorEn);
+                        return;
+                      }
+                      _run(() {});
+                      _snack(
+                        _t(
+                          '已踢出「${r.member?.name}」'
+                              '${_engine.isGangSealed(s) ? '（帮派已封存）' : ''}',
+                          'Kicked "${r.member?.name}"'
+                              '${_engine.isGangSealed(s) ? ' (gang is now sealed)' : ''}',
+                        ),
+                      );
+                    },
+              icon: const Icon(Icons.person_remove),
+              label: Text(
+                _t('踢出成员（人数 < $kGangSealMinMembers 即封存）',
+                    'Kick a member (< $kGangSealMinMembers members = sealed)'),
+              ),
+            ),
+          ),
+        ],
         const SizedBox(height: 8),
         TextButton.icon(
           onPressed: () => _confirmLeaveGang(s),
@@ -2112,6 +2303,19 @@ class _LifeSimScreenState extends State<LifeSimScreen> {
                 ),
                 style: TextStyle(fontSize: 12, color: Colors.grey[600]),
               ),
+              if (s.hpToolbox > 0 || s.atkToolbox > 0) ...<Widget>[
+                const SizedBox(height: 4),
+                Text(
+                  _t(
+                    '🧰 工具箱：生命 ×${s.hpToolbox} · 攻击 ×${s.atkToolbox}'
+                        '（每个 +$kToolboxBonusPct%，同一部件最多叠 $kToolboxMaxStack 层；'
+                        '在上面对应部件上使用）',
+                    '🧰 Toolboxes: HP ×${s.hpToolbox} · ATK ×${s.atkToolbox} '
+                        '(each +$kToolboxBonusPct%, up to $kToolboxMaxStack per part)',
+                  ),
+                  style: TextStyle(fontSize: 12, color: Colors.brown[600]),
+                ),
+              ],
               const SizedBox(height: 8),
               Wrap(
                 spacing: 6,
@@ -2175,6 +2379,14 @@ class _LifeSimScreenState extends State<LifeSimScreen> {
         s.token >= cost.token;
     final hpNow = p.hp(level);
     final atkNow = p.atk(level);
+    final hpStack = s.partHpBoxes[id] ?? 0;
+    final atkStack = s.partAtkBoxes[id] ?? 0;
+    final canUseHp = p.hp(1) > 0 &&
+        s.hpToolbox > 0 &&
+        hpStack < kToolboxMaxStack;
+    final canUseAtk = p.atk(1) > 0 &&
+        s.atkToolbox > 0 &&
+        atkStack < kToolboxMaxStack;
     return Card(
       margin: const EdgeInsets.only(bottom: 6),
       child: Padding(
@@ -2216,10 +2428,51 @@ class _LifeSimScreenState extends State<LifeSimScreen> {
             ),
             const SizedBox(height: 2),
             Text(
-              'HP ${_fmt(hpNow)} · ATK ${_fmt(atkNow)}'
+              'HP ${_fmt(hpNow)}'
+              '${hpStack > 0 ? '（工具箱 +${hpStack * kToolboxBonusPct}%）' : ''}'
+              ' · ATK ${_fmt(atkNow)}'
+              '${atkStack > 0 ? '（工具箱 +${atkStack * kToolboxBonusPct}%）' : ''}'
               '${p.power != 0 ? ' · 电力 ${p.power > 0 ? '+' : ''}${p.power}' : ''}',
-              style: TextStyle(fontSize: 11, color: Colors.grey[600]),
+              style: TextStyle(
+                fontSize: 11,
+                color: hpStack > 0 || atkStack > 0
+                    ? Colors.brown[700]
+                    : Colors.grey[600],
+              ),
             ),
+            if (canUseHp || canUseAtk)
+              Row(
+                children: [
+                  if (canUseHp)
+                    TextButton.icon(
+                      onPressed: () => _useToolbox(s, id, true),
+                      icon: const Icon(Icons.favorite, size: 15),
+                      label: Text(
+                        _t('生命箱 (+$kToolboxBonusPct%)',
+                            'HP box (+$kToolboxBonusPct%)'),
+                        style: const TextStyle(fontSize: 11),
+                      ),
+                      style: TextButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(horizontal: 6),
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      ),
+                    ),
+                  if (canUseAtk)
+                    TextButton.icon(
+                      onPressed: () => _useToolbox(s, id, false),
+                      icon: const Icon(Icons.bolt, size: 15),
+                      label: Text(
+                        _t('攻击箱 (+$kToolboxBonusPct%)',
+                            'ATK box (+$kToolboxBonusPct%)'),
+                        style: const TextStyle(fontSize: 11),
+                      ),
+                      style: TextButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(horizontal: 6),
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      ),
+                    ),
+                ],
+              ),
             const SizedBox(height: 4),
             Row(
               children: [
@@ -2275,6 +2528,23 @@ class _LifeSimScreenState extends State<LifeSimScreen> {
       return;
     }
     _run(() {});
+  }
+
+  void _useToolbox(LifeSimSave s, String id, bool hp) {
+    final r = _engine.useToolbox(s, id, hp: hp);
+    if (!r.ok) {
+      _snack(_locale == 'zh' ? r.errorZh : r.errorEn);
+      return;
+    }
+    _run(() {});
+    _snack(
+      _t(
+        '${hp ? '生命' : '攻击'}工具箱已使用：对应数值 +$kToolboxBonusPct%'
+            '（已叠 ${r.stacks}/$kToolboxMaxStack 层）',
+        '${hp ? 'HP' : 'ATK'} toolbox used: +$kToolboxBonusPct% '
+            '(stack ${r.stacks}/$kToolboxMaxStack)',
+      ),
+    );
   }
 
   // ===================================================================
@@ -2564,6 +2834,20 @@ class _LifeSimScreenState extends State<LifeSimScreen> {
               'Parts: ${r.parts.map((id) => _engine.partIndex[id] == null ? id : _pn(_engine.partIndex[id]!)).join(', ')}',
             ),
           ),
+        if (r.hpToolboxGained > 0 || r.atkToolboxGained > 0)
+          Text(
+            _t(
+              '🧰 额外奖励：${r.hpToolboxGained > 0 ? '生命' : '攻击'}工具箱 ×1'
+                  '（可用在对应部件上 +$kToolboxBonusPct%）',
+              '🧰 Bonus: ${r.hpToolboxGained > 0 ? 'HP' : 'ATK'} toolbox ×1 '
+                  '(+$kToolboxBonusPct% on a matching part)',
+            ),
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.bold,
+              color: Colors.brown[700],
+            ),
+          ),
         const Divider(height: 16),
         Text(
           _t('双方强度：我方 ${_fmt(r.myStrength)} vs 对手 ${_fmt(r.oppStrength)}',
@@ -2744,9 +3028,11 @@ class _LifeSimScreenState extends State<LifeSimScreen> {
               subtitle: Text(
                 _t(
                   '${c.members}/$kGangMaxMembers 名成员 · 战力 ${_fmt(c.power)}'
-                      ' · 活跃度 ${c.activity}%',
+                      ' · 活跃度 ${c.activity}%'
+                      '${c.members + 1 < kGangSealMinMembers ? '　⚠️ 加入后不足 $kGangSealMinMembers 人（封存，无法参战）' : ''}',
                   '${c.members}/$kGangMaxMembers members · power ${_fmt(c.power)}'
-                      ' · activity ${c.activity}%',
+                      ' · activity ${c.activity}%'
+                      '${c.members + 1 < kGangSealMinMembers ? '  ⚠️ fewer than $kGangSealMinMembers members after joining (sealed)' : ''}',
                 ),
                 style: const TextStyle(fontSize: 12),
               ),

@@ -154,6 +154,10 @@ class CityKingResult {
   final List<String> chestParts;
   final int chestToken;
 
+  /// 本次胜利额外掉落的工具箱（25 胜之后每胜一场给一个）
+  final int hpToolboxGained;
+  final int atkToolboxGained;
+
   const CityKingResult({
     required this.ok,
     this.errorZh = '',
@@ -179,6 +183,8 @@ class CityKingResult {
     this.seasonScore = 0,
     this.chestParts = const <String>[],
     this.chestToken = 0,
+    this.hpToolboxGained = 0,
+    this.atkToolboxGained = 0,
   });
 
   int get myWins => rounds.where((r) => r == true).length;
@@ -222,7 +228,15 @@ class LifeSimEngine {
 
   /// 计算一辆车的数值（复用组车工具的公式；部件按 [partLevels] 中的等级，
   /// 缺省 1 级）
-  CarValidation evaluate(SimVehicle sv, [Map<String, int>? partLevels]) {
+  ///
+  /// [hpBoxes] / [atkBoxes] 是「生命/攻击工具箱」在每个部件上叠的层数
+  /// （每层 +[kToolboxBonusPct]%，独立乘区）。
+  CarValidation evaluate(
+    SimVehicle sv, [
+    Map<String, int>? partLevels,
+    Map<String, int>? hpBoxes,
+    Map<String, int>? atkBoxes,
+  ]) {
     final idx = partIndex;
     PartData? look(String? id) => id == null ? null : idx[id];
     final body = look(sv.bodyId);
@@ -254,19 +268,37 @@ class LifeSimEngine {
       extra,
       levels,
       const <String, int>{},
+      hpBoxPct: boxPct(hpBoxes),
+      atkBoxPct: boxPct(atkBoxes),
     );
   }
 
+  /// 工具箱层数 → 加成百分比（层数 × [kToolboxBonusPct]）
+  static Map<String, int> boxPct(Map<String, int>? boxes) {
+    if (boxes == null || boxes.isEmpty) return const <String, int>{};
+    return <String, int>{
+      for (final e in boxes.entries)
+        if (e.value > 0) e.key: e.value * kToolboxBonusPct,
+    };
+  }
+
   /// 单辆车的战力（HP+ATK，未组车返回 0）
-  int vehiclePower(SimVehicle sv, [Map<String, int>? partLevels]) {
+  int vehiclePower(
+    SimVehicle sv, [
+    Map<String, int>? partLevels,
+    Map<String, int>? hpBoxes,
+    Map<String, int>? atkBoxes,
+  ]) {
     if (sv.isEmpty) return 0;
-    final v = evaluate(sv, partLevels);
+    final v = evaluate(sv, partLevels, hpBoxes, atkBoxes);
     return (v.hp + v.atk).round();
   }
 
-  /// 每辆车的战力列表（含未组装的 0）
-  List<int> vehiclePowers(LifeSimSave save) =>
-      [for (final v in save.vehicles) vehiclePower(v, save.partLevels)];
+  /// 每辆车的战力列表（含未组装的 0；含工具箱加成）
+  List<int> vehiclePowers(LifeSimSave save) => [
+    for (final v in save.vehicles)
+      vehiclePower(v, save.partLevels, save.partHpBoxes, save.partAtkBoxes),
+  ];
 
   /// 车队中**单车最高战力**（齿轮奔袭按此判定；未组车返回 0）
   int maxVehiclePower(LifeSimSave save) {
@@ -1863,6 +1895,9 @@ class LifeSimEngine {
       save.citySeasonWins = 0;
       save.citySeasonScore = 0;
       save.citySeasonClaimed = 0;
+      // 帮派联赛：同一个赛季结束时结算晋级 / 退级（要在清零「本季参战」前）
+      settleGangLeague(save);
+      save.citySeasonFought = false;
       _log(
         save,
         '🏁',
@@ -1871,8 +1906,6 @@ class LifeSimEngine {
         'A new City King season begins '
             '(day ${citySeasonDay(save.day)}/$kCitySeasonDays)',
       );
-      // 帮派联赛：同一个赛季结束时结算晋级 / 退级
-      settleGangLeague(save);
     }
 
     // 城市之王：每天刷新对手
@@ -1908,15 +1941,18 @@ class LifeSimEngine {
     return total;
   }
 
-  /// 玩家帮派的「大致排名」（全服 [kGangDivisionSize] × 4 个帮派里的位置；1 = 最强）
+  /// 玩家帮派的「大致排名」（全服 [kGangTotalCapacity] 个帮派里的位置；1 = 最强）
   ///
   /// 由联赛组别 + 组内名次推导：金组 = 1-100、银组 = 101-200、
-  /// 铜组 = 201-300、木组 = 301-400。
+  /// 铜组 = 201-300、木组 = 301-500。
+  /// **0 = 本季未上榜**（没打过城市之王或已封存）。
   int estimateGangRank(LifeSimSave save) {
     if (!save.inGang) return 0;
+    final rank = gangLeagueRank(save);
+    if (rank <= 0) return 0;
     final div = gangDivision(save);
     final fromTop = GangDivision.values.length - 1 - div.index;
-    return fromTop * kGangDivisionSize + gangLeagueRank(save);
+    return fromTop * kGangDivisionSize + rank;
   }
 
   /// 生成一个帮派实例
@@ -2031,6 +2067,7 @@ class LifeSimEngine {
     // 新建的帮派必须从最低组别（木组）起步，之后靠联赛升降级往上爬
     save.gangDivisionIndex = GangDivision.wood.index;
     save.cityLossStreak = 0;
+    save.citySeasonFought = false;
     save.gangsJoined++;
     save.gangRankHint = estimateGangRank(save);
     _log(
@@ -2077,6 +2114,7 @@ class LifeSimEngine {
     save.gangActivity = gang.activity;
     save.gangDivisionIndex = candidate.division.index;
     save.cityLossStreak = 0;
+    save.citySeasonFought = false;
     save.gangsJoined++;
     save.gangRankHint = estimateGangRank(save);
     _log(
@@ -2136,6 +2174,14 @@ class LifeSimEngine {
         member: null,
       );
     }
+    if (save.gangRecruitLocked) {
+      return (
+        ok: false,
+        errorZh: '帮派已设为「禁止加入」（封存中），先关闭该设置才能招募',
+        errorEn: 'Recruiting is disabled (the gang is sealed)',
+        member: null,
+      );
+    }
     final cost =
         kRecruitCashBase + kRecruitCashStep * save.gangMembers.length;
     if (save.energy < kRecruitEnergyCost) {
@@ -2177,6 +2223,127 @@ class LifeSimEngine {
     return (ok: true, errorZh: '', errorEn: '', member: member);
   }
 
+  /// 踢出一名成员（只有自己组建的帮派才能踢）
+  ///
+  /// 把人数压到 [kGangSealMinMembers] 以下就是「封存」：
+  /// 打不了城市之王、不上排行榜，也就不会被判 80+ 掉级。
+  ({bool ok, String errorZh, String errorEn, SimGangMember? member})
+  kickMember(LifeSimSave save) {
+    if (!save.inGang || !save.gangOwned) {
+      return (
+        ok: false,
+        errorZh: '只有自己组建的帮派才能踢人',
+        errorEn: 'You can only kick members from your own gang',
+        member: null,
+      );
+    }
+    if (save.gangMembers.isEmpty) {
+      return (
+        ok: false,
+        errorZh: '帮派里没有可踢出的成员',
+        errorEn: 'There is nobody to kick',
+        member: null,
+      );
+    }
+    final m = save.gangMembers.removeAt(save.gangMembers.length - 1);
+    save.gangRankHint = estimateGangRank(save);
+    _log(
+      save,
+      '👋',
+      'gang',
+      '踢出了成员「${m.name}」（现剩 ${save.gangMembers.length} 名成员）',
+      'Kicked "${m.name}" (${save.gangMembers.length} members left)',
+    );
+    return (ok: true, errorZh: '', errorEn: '', member: m);
+  }
+
+  /// 设置「禁止加入」（封存开关）：开启后无法招募新成员
+  void setGangRecruitLocked(LifeSimSave save, bool locked) {
+    save.gangRecruitLocked = locked;
+    _log(
+      save,
+      locked ? '🧊' : '🔓',
+      'gang',
+      locked
+          ? '帮派已设为「禁止加入」：无法招募新成员'
+              '${isGangSealed(save) ? '（当前已封存，不上排行榜）' : ''}'
+          : '帮派已取消「禁止加入」，可以继续招募',
+      locked
+          ? 'Recruiting disabled: the gang accepts no new members'
+          : 'Recruiting re-enabled',
+    );
+  }
+
+  /// 使用一个工具箱（生命 / 攻击）→ 对应部件 +[kToolboxBonusPct]%
+  ({bool ok, String errorZh, String errorEn, int stacks}) useToolbox(
+    LifeSimSave save,
+    String partId, {
+    required bool hp,
+  }) {
+    final p = partIndex[partId];
+    if (p == null) {
+      return (
+        ok: false,
+        errorZh: '部件不存在',
+        errorEn: 'Unknown part',
+        stacks: 0,
+      );
+    }
+    final have = hp ? save.hpToolbox : save.atkToolbox;
+    if (have <= 0) {
+      return (
+        ok: false,
+        errorZh: hp ? '没有生命工具箱' : '没有攻击力工具箱',
+        errorEn: hp ? 'No HP toolbox' : 'No ATK toolbox',
+        stacks: 0,
+      );
+    }
+    if (hp && p.hp(1) <= 0) {
+      return (
+        ok: false,
+        errorZh: '该部件没有生命值，用不了生命工具箱',
+        errorEn: 'That part has no HP',
+        stacks: 0,
+      );
+    }
+    if (!hp && p.atk(1) <= 0) {
+      return (
+        ok: false,
+        errorZh: '该部件没有攻击力，用不了攻击工具箱',
+        errorEn: 'That part has no ATK',
+        stacks: 0,
+      );
+    }
+    final map = hp ? save.partHpBoxes : save.partAtkBoxes;
+    final applied = map[partId] ?? 0;
+    if (applied >= kToolboxMaxStack) {
+      return (
+        ok: false,
+        errorZh:
+            '该部件的工具箱已叠满（+${kToolboxMaxStack * kToolboxBonusPct}%）',
+        errorEn: 'This part is already at max toolbox stacks',
+        stacks: applied,
+      );
+    }
+    if (hp) {
+      save.hpToolbox--;
+    } else {
+      save.atkToolbox--;
+    }
+    map[partId] = applied + 1;
+    _log(
+      save,
+      '🧰',
+      'part',
+      '对「${_partLabel(partId, true)}」使用${hp ? '生命' : '攻击'}工具箱：'
+          '+$kToolboxBonusPct% ${hp ? '生命值' : '伤害'}'
+          '（已叠 ${applied + 1}/$kToolboxMaxStack 层）',
+      'Used a ${hp ? 'HP' : 'ATK'} toolbox on "${p.id}": '
+          '+$kToolboxBonusPct% (stack ${applied + 1}/$kToolboxMaxStack)',
+    );
+    return (ok: true, errorZh: '', errorEn: '', stacks: applied + 1);
+  }
+
   // ===================================================================
   // 城市之王（3v3 逐车对位）
   // ===================================================================
@@ -2196,11 +2363,11 @@ class LifeSimEngine {
   GangDivision gangDivision(LifeSimSave save) => GangDivision
       .values[save.gangDivisionIndex.clamp(0, GangDivision.values.length - 1)];
 
-  static final Map<String, List<GangLeagueRow>> _gangBoardCache =
-      <String, List<GangLeagueRow>>{};
+  static final Map<String, GangDivisionBoard> _gangBoardCache =
+      <String, GangDivisionBoard>{};
 
-  /// 某组别在第 [day] 天所在赛季的对手榜单（不含玩家，按组别 + 赛季缓存）
-  List<GangLeagueRow> _npcBoard(GangDivision div, int day) {
+  /// 某组别在第 [day] 天所在赛季的榜单（不含玩家，按组别 + 赛季缓存）
+  GangDivisionBoard _npcBoardFull(GangDivision div, int day) {
     final season = seasonIndexOf(day);
     final key = '$server/${div.name}/$season';
     return _gangBoardCache.putIfAbsent(
@@ -2213,14 +2380,30 @@ class LifeSimEngine {
     );
   }
 
-  /// 玩家所在组别的联赛榜单（[kGangDivisionSize] 个对手 + 玩家自己，按战力降序）
+  /// 某组别本季上榜的对手
+  List<GangLeagueRow> _npcBoard(GangDivision div, int day) =>
+      _npcBoardFull(div, day).rows;
+
+  /// 玩家帮派是否处于**封存**状态（成员不足 [kGangSealMinMembers] 人）
   ///
-  /// 一个赛季内榜单固定（按服务器 + 组别 + 赛季序号做种子），
-  /// 只有玩家自己的战力变化时名次才会动。
+  /// 封存的帮派打不了城市之王，因此整季不上排行榜，也就不会被判 80+ 掉级。
+  bool isGangSealed(LifeSimSave save) =>
+      save.inGang && 1 + save.gangMembers.length < kGangSealMinMembers;
+
+  /// 玩家帮派是否已在本赛季上榜（打过至少一场城市之王）
+  bool isGangRanked(LifeSimSave save) =>
+      save.inGang && !isGangSealed(save) && save.citySeasonFought;
+
+  /// 玩家所在组别的联赛榜单（本季上榜的对手 + 玩家自己，按战力降序）
+  ///
+  /// - 一个赛季内榜单固定（按服务器 + 组别 + 赛季序号做种子）
+  /// - **整季没打过城市之王的帮派不上榜**：玩家必须先打一场才会出现在榜单上
+  /// - 封存的帮派（成员不足 5 人）永远不上榜
   List<GangLeagueRow> gangBoard(LifeSimSave save) {
     final div = gangDivision(save);
-    final npc = _npcBoard(div, save.day);
-    if (!save.inGang) return npc;
+    final board = _npcBoardFull(div, save.day);
+    final npc = board.rows;
+    if (!isGangRanked(save)) return npc;
     final rows = <GangLeagueRow>[
       ...npc,
       GangLeagueRow(
@@ -2232,14 +2415,32 @@ class LifeSimEngine {
         isPlayer: true,
       ),
     ]..sort((a, b) => b.power.compareTo(a.power));
-    // 玩家也占组内一个席位（原 100 席，被挤掉的是最弱的那个对手）
-    if (rows.length > kGangDivisionSize) {
+    // 玩家也占组内一个席位（超过容量时挤掉最弱的那个对手）
+    final capacity = kGangDivisionCapacity[div]!;
+    while (rows.length > capacity) {
       final weakest = rows.lastIndexWhere((r) => !r.isPlayer);
-      if (weakest >= 0) rows.removeAt(weakest);
+      if (weakest < 0) break;
+      rows.removeAt(weakest);
     }
     return <GangLeagueRow>[
       for (var i = 0; i < rows.length; i++) rows[i].withRank(i + 1),
     ];
+  }
+
+  /// 本季该组别上榜 / 封存的帮派数（用于界面与「不足 80 家不退级」判定）
+  ({int active, int sealed, int capacity, bool canDemote}) divisionStatus(
+    LifeSimSave save,
+    GangDivision div,
+  ) {
+    final board = _npcBoardFull(div, save.day);
+    final extra = isGangRanked(save) && gangDivision(save) == div ? 1 : 0;
+    final active = board.activeCount + extra;
+    return (
+      active: active,
+      sealed: board.sealedCount,
+      capacity: board.capacity,
+      canDemote: active >= kGangDemoteRank - 1,
+    );
   }
 
   /// 某组别第 [day] 天所在赛季的各名次区间数据参考
@@ -2254,13 +2455,16 @@ class LifeSimEngine {
     );
   }
 
-  /// 玩家在所在组别的名次（1 起；不在帮派时返回榜单末位）
+  /// 玩家在所在组别的名次（1 起）
+  ///
+  /// **0 = 本季还没上榜**（没打过城市之王或帮派已封存）。
   int gangLeagueRank(LifeSimSave save) {
+    if (!isGangRanked(save)) return 0;
     final board = gangBoard(save);
     for (final r in board) {
       if (r.isPlayer) return r.rank;
     }
-    return board.length;
+    return 0;
   }
 
   /// 按榜单一行生成一个帮派实例（成员战力由总战力与成员数反推）
@@ -2284,14 +2488,106 @@ class LifeSimEngine {
     );
   }
 
-  /// 帮派联赛赛季结算：组内前 [kGangPromoteRank] 名晋级，
-  /// [kGangDemoteRank] 名及之后退级（金组不再晋级 / 木组不再退级）
+  /// 帮派联赛赛季结算
+  ///
+  /// - 组内前 [kGangPromoteRank] 名晋级、[kGangDemoteRank] 名及之后退级
+  ///   （金组不再晋级 / 木组不再退级）
+  /// - **整季没打过城市之王（封存/未参战）→ 不上榜、不参与升降级**
+  /// - **本组上榜帮派不足 80 家 → 本季不判退级**
+  /// - 结算时发放赛季奖励（名次越前越高，组别越高越多）
   void settleGangLeague(LifeSimSave save) {
     if (!save.inGang) return;
     final div = gangDivision(save);
+    final board = _npcBoardFull(div, save.day);
+    if (isGangSealed(save)) {
+      _log(
+        save,
+        '🧊',
+        'gang',
+        '帮派联赛赛季结束：成员不足 $kGangSealMinMembers 人（已封存），'
+            '本季未上榜，不参与升降级',
+        'Gang league season ended: sealed (fewer than $kGangSealMinMembers '
+            'members), not ranked this season — no promotion or relegation',
+      );
+      save.gangRankHint = estimateGangRank(save);
+      return;
+    }
+    if (!save.citySeasonFought) {
+      _log(
+        save,
+        '💤',
+        'gang',
+        '帮派联赛赛季结束：本季一场城市之王都没打，未进入排行榜，'
+            '不参与升降级（打过一场才会进榜）',
+        'Gang league season ended: no City King battle this season, so the '
+            'gang was never ranked — no promotion or relegation',
+      );
+      save.gangRankHint = estimateGangRank(save);
+      return;
+    }
     final rank = gangLeagueRank(save);
-    final size = gangBoard(save).length;
-    if (rank <= kGangPromoteRank) {
+    final size = board.activeCount + 1;
+    // 赛季奖励：名次越前越高、组别越高越多
+    final reward = gangLeagueReward(div, rank);
+    if (reward.cash > 0 || reward.token > 0 || reward.chests > 0) {
+      save.cash += reward.cash;
+      save.lifetimeCash += reward.cash;
+      save.token += reward.token;
+      save.lifetimeToken += reward.token;
+      final parts = <String>[
+        for (var i = 0; i < reward.chests; i++) _rollPartOfRarity(reward.chestRarityIndex),
+      ].where((id) => id.isNotEmpty).toList();
+      if (parts.isNotEmpty) {
+        grantParts(save, parts);
+        save.partsGained += parts.length;
+      }
+      _log(
+        save,
+        '🎁',
+        'gang',
+        '帮派联赛赛季奖励（${div.leagueZh} 第 $rank 名，组别系数 '
+            '×${kGangLeagueRewardMul[div]}）：紫票 +${reward.cash}'
+            '、代币 +${reward.token}'
+            '${parts.isEmpty ? '' : '、${parts.length} 个宝箱部件'}',
+        'Gang league season reward (${div.leagueEn} #$rank, '
+            '×${kGangLeagueRewardMul[div]}): +${reward.cash} Cash, '
+            '+${reward.token} tokens'
+            '${parts.isEmpty ? '' : ', ${parts.length} chest part(s)'}',
+      );
+    }
+    if (!board.canDemote) {
+      // 上榜帮派不足 80 家 → 本季不判退级
+      if (rank <= kGangPromoteRank) {
+        final next = div.promoted;
+        if (next != null) {
+          save.gangDivisionIndex = next.index;
+          _log(
+            save,
+            '🏅',
+            'gang',
+            '帮派联赛赛季结束：${div.leagueZh} 第 $rank/$size 名 → '
+                '**晋级 ${next.leagueZh}**',
+            'Gang league season ended: ${div.leagueEn} #$rank/$size → '
+                '**promoted to ${next.leagueEn}**',
+          );
+        }
+      } else {
+        _log(
+          save,
+          '🏅',
+          'gang',
+          '帮派联赛赛季结束：${div.leagueZh} 第 $rank/$size 名（保级）'
+              '——本组本季上榜帮派只有 ${board.activeCount} 家（不足 '
+              '${kGangDemoteRank - 1} 家），不判退级',
+          'Gang league season ended: ${div.leagueEn} #$rank/$size (stayed) — '
+              'only ${board.activeCount} ranked gangs this season '
+              '(< ${kGangDemoteRank - 1}), so nobody is relegated',
+        );
+      }
+      save.gangRankHint = estimateGangRank(save);
+      return;
+    }
+    if (rank > 0 && rank <= kGangPromoteRank) {
       final next = div.promoted;
       if (next == null) {
         _log(
@@ -2549,6 +2845,15 @@ class LifeSimEngine {
         errorEn: 'Join or found a gang first',
       );
     }
+    if (isGangSealed(save)) {
+      return CityKingResult(
+        ok: false,
+        errorZh: '帮派成员不足 $kGangSealMinMembers 人（已封存），'
+            '无法参加城市之王',
+        errorEn: 'Sealed gang: fewer than $kGangSealMinMembers members, '
+            'cannot fight City King',
+      );
+    }
     if (save.cityChallenged) {
       return const CityKingResult(
         ok: false,
@@ -2621,7 +2926,11 @@ class LifeSimEngine {
     var cash = 0;
     var token = 0;
     var activityGained = 0;
+    var hpTools = 0;
+    var atkTools = 0;
     final parts = <String>[];
+    // 打过一场就算参战 → 本季进入排行榜
+    save.citySeasonFought = true;
     if (won) {
       save.cityWins++;
       save.citySeasonWins++;
@@ -2642,6 +2951,26 @@ class LifeSimEngine {
       save.cityLossStreak = 0;
       activityGained = 5;
       save.gangActivity = min(100, save.gangActivity + activityGained);
+      // 本赛季超过 [kCityToolboxAfterWins] 胜后，每多赢一场额外给一个工具箱
+      if (save.citySeasonWins > kCityToolboxAfterWins) {
+        if (_rng.nextBool()) {
+          save.hpToolbox++;
+          hpTools = 1;
+        } else {
+          save.atkToolbox++;
+          atkTools = 1;
+        }
+        _log(
+          save,
+          '🧰',
+          'city',
+          '本赛季第 ${save.citySeasonWins} 胜：额外获得'
+              '「${hpTools > 0 ? '生命' : '攻击'}工具箱」×1'
+              '（可用于给对应部件 +$kToolboxBonusPct%，最多叠 $kToolboxMaxStack 层）',
+          'Season win #${save.citySeasonWins}: gained a '
+              '${hpTools > 0 ? 'HP' : 'ATK'} toolbox (+$kToolboxBonusPct%)',
+        );
+      }
     } else {
       save.cityLosses++;
       token = 20;
@@ -2756,6 +3085,8 @@ class LifeSimEngine {
       chestParts: chest.parts,
       chestToken: chestToken,
       activityGained: activityGained,
+      hpToolboxGained: hpTools,
+      atkToolboxGained: atkTools,
     );
   }
 
