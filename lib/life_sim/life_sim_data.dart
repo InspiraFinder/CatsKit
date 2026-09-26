@@ -1631,24 +1631,24 @@ const Map<GangDivision, ({int min, int max})> kGangDivisionPower =
     };
 
 /// 帮派成员上限（满员）
-const int kGangMaxMembers = 50;
+const int kGangMaxMembers = 25;
 
 /// 帮派成员数随**帮派总战力**变化的锚点（对数插值，[power] 由大到小）
 ///
 /// 帮派越强成员越多：金组顶级帮派长期满员（锚点可以高过
-/// [kGangMaxMembers]，插值后统一 clamp 到上限），木组末尾的帮派只剩两三个人。
+/// [kGangMaxMembers]，插值后统一 clamp 到上限），木组末尾的帮派只剩一两个人。
 const List<({int power, int members})> kGangMemberAnchors =
     <({int power, int members})>[
-      (power: 500000000, members: 53),
-      (power: 150000000, members: 51),
-      (power: 120000000, members: 49),
-      (power: 60000000, members: 43),
-      (power: 40000000, members: 37),
-      (power: 20000000, members: 30),
-      (power: 10000000, members: 23),
-      (power: 4000000, members: 13),
-      (power: 1000000, members: 5),
-      (power: 300000, members: 2),
+      (power: 500000000, members: 27),
+      (power: 150000000, members: 26),
+      (power: 120000000, members: 24),
+      (power: 60000000, members: 21),
+      (power: 40000000, members: 18),
+      (power: 20000000, members: 14),
+      (power: 10000000, members: 11),
+      (power: 4000000, members: 6),
+      (power: 1000000, members: 3),
+      (power: 300000, members: 1),
     ];
 
 /// 帮派活跃度（%）随**帮派总战力**变化的锚点（对数插值）
