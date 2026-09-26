@@ -2030,6 +2030,7 @@ class LifeSimEngine {
     save.gangActivity = 20;
     // 新建的帮派必须从最低组别（木组）起步，之后靠联赛升降级往上爬
     save.gangDivisionIndex = GangDivision.wood.index;
+    save.cityLossStreak = 0;
     save.gangsJoined++;
     save.gangRankHint = estimateGangRank(save);
     _log(
@@ -2075,6 +2076,7 @@ class LifeSimEngine {
       ..addAll(gang.members);
     save.gangActivity = gang.activity;
     save.gangDivisionIndex = candidate.division.index;
+    save.cityLossStreak = 0;
     save.gangsJoined++;
     save.gangRankHint = estimateGangRank(save);
     _log(
@@ -2102,6 +2104,7 @@ class LifeSimEngine {
     save.gangMembers.clear();
     save.gangActivity = 0;
     save.gangRankHint = 0;
+    save.cityLossStreak = 0;
     save.cityOpponentName = null;
     save.cityOpponentCars = <int>[];
     save.cityOpponentPower = 0;
@@ -2429,6 +2432,11 @@ class LifeSimEngine {
   int cityScoreMul(LifeSimSave save) =>
       cityScoreMultiplier(save.citySeasonWins);
 
+  /// 下一场失利会扣除的帮派活跃度（连败越久扣得越多）
+  int nextCityLossPenalty(LifeSimSave save) =>
+      kCityLossActivityPenalty +
+      min(kCityLossStreakMaxExtra, save.cityLossStreak) * kCityLossStreakExtra;
+
   /// 下一个未达成的胜场里程碑（全部达成返回 null）
   CityWinMilestone? nextCityMilestone(LifeSimSave save) {
     for (final m in kCityWinMilestones) {
@@ -2630,6 +2638,8 @@ class LifeSimEngine {
       save.lifetimeCash += cash;
       save.token += token;
       save.lifetimeToken += token;
+      // 打赢一场士气就回来了
+      save.cityLossStreak = 0;
       activityGained = 5;
       save.gangActivity = min(100, save.gangActivity + activityGained);
     } else {
@@ -2637,8 +2647,22 @@ class LifeSimEngine {
       token = 20;
       save.token += token;
       save.lifetimeToken += token;
-      activityGained = 1;
-      save.gangActivity = min(100, save.gangActivity + activityGained);
+      if (draw) {
+        activityGained = 0;
+      } else {
+        // 失利打击士气：活跃度下降，连败每多一场多扣一点
+        save.cityLossStreak++;
+        final penalty =
+            kCityLossActivityPenalty +
+            min(
+              kCityLossStreakMaxExtra,
+              save.cityLossStreak - 1,
+            ) *
+                kCityLossStreakExtra;
+        final before = save.gangActivity;
+        save.gangActivity = max(0, save.gangActivity - penalty);
+        activityGained = save.gangActivity - before;
+      }
     }
     save.cityChallenged = true;
     save.gangRankHint = estimateGangRank(save);
@@ -2678,6 +2702,18 @@ class LifeSimEngine {
         'City King loot: ${parts.length} part(s)',
       );
       grantParts(save, parts);
+    }
+    if (activityGained < 0) {
+      _log(
+        save,
+        '😞',
+        'city',
+        '连续第 ${save.cityLossStreak} 场失利，帮派士气受挫：'
+            '活跃度 $activityGained（当前 ${save.gangActivity}%）——'
+            '活跃度会同时拖低帮派战力与结算分数',
+        'Loss streak ${save.cityLossStreak}: gang morale hit, activity '
+            '$activityGained (now ${save.gangActivity}%)',
+      );
     }
     if (chest.parts.isNotEmpty) {
       grantParts(save, chest.parts);

@@ -319,6 +319,9 @@ class LifeSimSave {
   int cityWins;
   int cityLosses;
 
+  /// 城市之王当前连败场数（胜利清零）——连败会额外拖低帮派活跃度
+  int cityLossStreak;
+
   /// 城市之王**本赛季**胜场（40 天一赛季，跨赛季清零）
   int citySeasonWins;
 
@@ -383,6 +386,7 @@ class LifeSimSave {
     this.cityChallenged = false,
     this.cityWins = 0,
     this.cityLosses = 0,
+    this.cityLossStreak = 0,
     this.citySeasonWins = 0,
     this.citySeasonScore = 0,
     this.citySeasonClaimed = 0,
@@ -502,6 +506,7 @@ class LifeSimSave {
     'cDone': cityChallenged,
     'cWin': cityWins,
     'cLose': cityLosses,
+    'cStreak': cityLossStreak,
     'cSWins': citySeasonWins,
     'cSScore': citySeasonScore,
     'cSClaim': citySeasonClaimed,
@@ -579,6 +584,7 @@ class LifeSimSave {
       cityChallenged: json['cDone'] as bool? ?? false,
       cityWins: (json['cWin'] as num?)?.toInt() ?? 0,
       cityLosses: (json['cLose'] as num?)?.toInt() ?? 0,
+      cityLossStreak: (json['cStreak'] as num?)?.toInt() ?? 0,
       citySeasonWins: (json['cSWins'] as num?)?.toInt() ?? 0,
       citySeasonScore: (json['cSScore'] as num?)?.toInt() ?? 0,
       citySeasonClaimed: (json['cSClaim'] as num?)?.toInt() ?? 0,

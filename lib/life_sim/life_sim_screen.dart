@@ -1288,12 +1288,17 @@ class _LifeSimScreenState extends State<LifeSimScreen> {
         const SizedBox(height: 6),
         Text(
           _t(
-            '注：有些帮派会**故意升降级轮换**——上面的组实力太强，升上去拿到的奖励'
+            '组内差距很大：前列（尤其晋级区）比靠后强得多，靠后的帮派又弱又不活跃'
+                '（连败会持续拖低活跃度）。因为胜场梯度奖励的存在，有些帮派会'
+                '**故意升降级轮换**——上面的组实力太强，升上去拿到的奖励'
                 '还不如留在下面，于是两个帮派相互轮换、成员在两个帮派之间迁徙'
                 '（如「风起撼花铃」与「风动护花铃」在 银组 与 金组 之间来回）。',
-            'Note: some gangs deliberately rotate between divisions — the higher '
-                'division is too strong, so staying lower pays better. Two gangs '
-                'swap and their members migrate between them.',
+            'The gap inside a division is wide: the front (promotion zone) is far '
+                'stronger, and the back is weak and inactive (losing streaks keep '
+                'draining activity). Because rewards are win-milestone based, some '
+                'gangs deliberately rotate between divisions — the higher division '
+                'is too strong, so staying lower pays better. Two gangs swap and '
+                'their members migrate between them.',
           ),
           style: TextStyle(fontSize: 11, color: Colors.grey[600]),
         ),
@@ -1404,6 +1409,23 @@ class _LifeSimScreenState extends State<LifeSimScreen> {
           _t('战绩 ${s.cityWins} 胜 ${s.cityLosses} 负',
               'Record ${s.cityWins}W ${s.cityLosses}L'),
           style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+        ),
+        Text(
+          _t(
+            s.cityLossStreak > 0
+                ? '连败 ${s.cityLossStreak} 场：再输一场活跃度 -${_engine.nextCityLossPenalty(s)}'
+                    '（胜利会清零连败）'
+                : '失利会打击士气，降低帮派活跃度（连败扣得更多，胜利清零）',
+            s.cityLossStreak > 0
+                ? 'Loss streak ${s.cityLossStreak}: another loss costs '
+                    '-${_engine.nextCityLossPenalty(s)} activity (a win resets it)'
+                : 'Losing hurts gang morale and lowers activity '
+                    '(worse on a streak, reset by a win)',
+          ),
+          style: TextStyle(
+            fontSize: 11,
+            color: s.cityLossStreak > 0 ? Colors.red[700] : Colors.grey[600],
+          ),
         ),
         const Divider(height: 16),
         // ---- 赛季（40 天）----
@@ -1926,10 +1948,12 @@ class _LifeSimScreenState extends State<LifeSimScreen> {
               Text(
                 _t(
                   '赛季与城市之王共用 $kCitySeasonDays 天：结束时前 $kGangPromoteRank 名晋级、'
-                  '$kGangDemoteRank 名及之后退级；城市之王只匹配同组别的帮派',
+                  '$kGangDemoteRank 名及之后退级；城市之王只匹配同组别的帮派；'
+                  '失利会拖低活跃度（连败更明显）',
                   'Shared with City King seasons ($kCitySeasonDays days): the top '
                       '$kGangPromoteRank promote and #$kGangDemoteRank+ relegate. '
-                      'City King only matches gangs in your own division.',
+                      'City King only matches gangs in your own division; losses '
+                      'lower activity (worse on a losing streak).',
                 ),
                 style: TextStyle(fontSize: 11, color: Colors.grey[600]),
               ),

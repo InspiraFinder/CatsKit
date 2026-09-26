@@ -1622,12 +1622,18 @@ const int kGangPromoteRank = 20;
 const int kGangDemoteRank = 81;
 
 /// 每组帮派总战力的区间（木最弱、金最强）
+///
+/// 组内梯度很大：**前列（尤其 1-20 名）明显更强、靠后（81-100 名）明显更弱**。
+/// 因为胜场梯度奖励的存在，帮派会故意掉到低组别前列「刷胜场」，
+/// 而连续失败又会拖低士气（活跃度），所以前列必须真的硬、靠后必须真的软。
+/// 相邻组别的区间**故意重叠**：一个组的头部和下一个组的尾部实力相当，
+/// 升降级之后不会立刻被退掉（也让「两个帮派互相轮换」看上去合理）。
 const Map<GangDivision, ({int min, int max})> kGangDivisionPower =
     <GangDivision, ({int min, int max})>{
-      GangDivision.wood: (min: 500000, max: 10000000),
-      GangDivision.bronze: (min: 10000000, max: 40000000),
-      GangDivision.silver: (min: 40000000, max: 120000000),
-      GangDivision.gold: (min: 120000000, max: 300000000),
+      GangDivision.wood: (min: 280000, max: 18000000),
+      GangDivision.bronze: (min: 5500000, max: 73000000),
+      GangDivision.silver: (min: 22000000, max: 220000000),
+      GangDivision.gold: (min: 65000000, max: 550000000),
     };
 
 /// 帮派成员上限（满员）
@@ -1647,9 +1653,18 @@ const List<({int power, int members})> kGangMemberAnchors =
       (power: 20000000, members: 14),
       (power: 10000000, members: 11),
       (power: 4000000, members: 6),
-      (power: 1000000, members: 3),
-      (power: 300000, members: 1),
+      (power: 1000000, members: 4),
+      (power: 100000, members: 2),
     ];
+
+/// 城市之王失利对士气的打击（帮派活跃度会下降）
+///
+/// 第 1 场失败扣 [kCityLossActivityPenalty]，之后每多连败一场额外多扣
+/// [kCityLossStreakExtra]，最多额外扣 [kCityLossStreakMaxExtra]
+/// （即最多一场扣 2+3=5）；胜利会重置连败计数。
+const int kCityLossActivityPenalty = 2;
+const int kCityLossStreakExtra = 1;
+const int kCityLossStreakMaxExtra = 3;
 
 /// 帮派活跃度（%）随**帮派总战力**变化的锚点（对数插值）
 ///
