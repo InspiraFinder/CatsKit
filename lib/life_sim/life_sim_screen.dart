@@ -1224,10 +1224,12 @@ class _LifeSimScreenState extends State<LifeSimScreen> {
         ),
         Text(
           _t(
-            '本组 ${status.capacity} 席，本季上榜 ${status.active} 家、'
-                '封存 ${status.sealed} 家（封存＝整季不参战，不上榜也不退级）',
-            '${status.capacity} slots · ${status.active} ranked · '
-                '${status.sealed} sealed (no battles → not ranked, not relegated)',
+            '本季本组共 ${status.total} 个帮派：上榜 ${status.active} 家、'
+                '主动封存 ${status.sealed} 家（可解封复活）、'
+                '缺人 ${status.shortHanded} 家（不足 $kGangSealMinMembers 人，参不了战）',
+            '${status.total} gangs this season · ${status.active} ranked · '
+                '${status.sealed} deliberately sealed (can be revived) · '
+                '${status.shortHanded} short-handed (< $kGangSealMinMembers members)',
           ),
           style: TextStyle(fontSize: 11, color: Colors.grey[600]),
         ),
@@ -1263,23 +1265,22 @@ class _LifeSimScreenState extends State<LifeSimScreen> {
         const Divider(height: 16),
         Text(
           _t(
-            '四个组别（金/银/铜各 $kGangDivisionSize 席，木组 $kGangWoodCapacity 席 —— '
-                '名次梯度到 80 之后又分成 80-120 与 120+）',
-            'Four divisions (gold/silver/bronze: $kGangDivisionSize slots each; '
-                'wood: $kGangWoodCapacity slots, its tail splits into 80-120 and '
-                '120+)',
+            '四个组别（组别**没有容量**，每赛季数量本身就会浮动：'
+                '木组帮派最多，名次一路排到 120 之后）',
+            'Four divisions (no fixed capacity: the number of gangs floats every '
+                'season. Wood has the most gangs and its ranking runs past #120)',
           ),
           style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
         ),
         for (final d in GangDivision.values.reversed)
           Text(
             _t(
-              '${d.leagueZh}（${kGangDivisionCapacity[d]} 席）：帮派战力 '
+              '${d.leagueZh}（本季 ${_engine.divisionStatus(s, d).total} 家）：帮派战力 '
                   '${_fmt(kGangDivisionPower[d]!.min)}'
                   '~${_fmt(kGangDivisionPower[d]!.max)}'
                   '　赛季奖励 ×${kGangLeagueRewardMul[d]}'
                   '${d == div ? '　← 你在这里' : ''}',
-              '${d.leagueEn} (${kGangDivisionCapacity[d]} slots): power '
+              '${d.leagueEn} (${_engine.divisionStatus(s, d).total} gangs): power '
                   '${_fmt(kGangDivisionPower[d]!.min)}'
                   '~${_fmt(kGangDivisionPower[d]!.max)}'
                   '  season reward ×${kGangLeagueRewardMul[d]}'
@@ -1306,10 +1307,12 @@ class _LifeSimScreenState extends State<LifeSimScreen> {
               '${st.labelZh}：战力 ${_fmt(st.powerMin)}~${_fmt(st.powerMax)}'
                   ' · 成员 ${st.membersMin}-${st.membersMax}/$kGangMaxMembers'
                   ' · 活跃度 ${st.activityMin}-${st.activityMax}%'
+                  ' · 工具包 ${st.toolkitsMin}-${st.toolkitsMax}'
                   ' · 单车 ${_fmt(st.carPowerMin)}~${_fmt(st.carPowerMax)}',
               '${st.labelEn}: power ${_fmt(st.powerMin)}~${_fmt(st.powerMax)}'
                   ' · members ${st.membersMin}-${st.membersMax}/$kGangMaxMembers'
                   ' · activity ${st.activityMin}-${st.activityMax}%'
+                  ' · toolkits ${st.toolkitsMin}-${st.toolkitsMax}'
                   ' · per-car ${_fmt(st.carPowerMin)}~${_fmt(st.carPowerMax)}',
             ),
             style: TextStyle(
@@ -1336,6 +1339,24 @@ class _LifeSimScreenState extends State<LifeSimScreen> {
                 'gangs deliberately rotate between divisions — the higher division '
                 'is too strong, so staying lower pays better. Two gangs swap and '
                 'their members migrate between them.',
+          ),
+          style: TextStyle(fontSize: 11, color: Colors.grey[600]),
+        ),
+        Text(
+          _t(
+            '工具包：每个帮派都有「成员平均工具包数量」（0-$kGangToolkitMax）。'
+                '战斗时帮派指挥会参照双方排名决定用几个——对手比自己靠前越多越舍得用'
+                '（每差 $kGangToolkitRankStep 名多用 1 个），势均力敌时用 1 个博一手，'
+                '用完就从平均值里扣掉；每个工具包让出场车辆 +$kToolboxBattleBoostPct%。'
+                '**并非所有指挥都能做出最优决策**：水平低的会用少（输掉本该赢的）'
+                '或者用多（白浪费）。',
+            'Toolkits: every gang has a per-member toolkit average (0-$kGangToolkitMax). '
+                'Its commander decides how many to field based on both ranks — the '
+                'further ahead the opponent is, the more it spends (1 per '
+                '$kGangToolkitRankStep ranks), and 1 in an even matchup. Spent '
+                'toolkits are deducted from the average and each gives the cars '
+                '+$kToolboxBattleBoostPct%. Not every commander decides well: weak '
+                'ones under-spend (losing winnable fights) or over-spend.',
           ),
           style: TextStyle(fontSize: 11, color: Colors.grey[600]),
         ),
@@ -1383,6 +1404,21 @@ class _LifeSimScreenState extends State<LifeSimScreen> {
               fontSize: 12,
               color: r.isPlayer ? Colors.teal : null,
               fontWeight: r.isPlayer ? FontWeight.bold : FontWeight.normal,
+            ),
+          ),
+          SizedBox(
+            width: 62,
+            child: Text(
+              _t(
+                '🧰 ${r.toolkits}　指挥 ${r.commanderSkill}',
+                '🧰 ${r.toolkits}  cmd ${r.commanderSkill}',
+              ),
+              style: TextStyle(
+                fontSize: 10,
+                color: r.isPlayer ? Colors.teal : Colors.grey[600],
+              ),
+              textAlign: TextAlign.right,
+              overflow: TextOverflow.ellipsis,
             ),
           ),
         ],
@@ -1459,6 +1495,17 @@ class _LifeSimScreenState extends State<LifeSimScreen> {
             'Opponent power ${_fmt(s.cityOpponentPower)} · activity ${s.cityOpponentActivity}%',
           ),
           style: const TextStyle(fontSize: 13),
+        ),
+        Text(
+          _t(
+            '对手工具包 ${s.cityOpponentToolkits}/$kGangToolkitMax'
+                '（成员平均）· 指挥水平 ${s.cityOpponentCommanderSkill}'
+                '　—— 它会参考双方排名决定用几个',
+            'Opponent toolkits ${s.cityOpponentToolkits}/$kGangToolkitMax per member '
+                '· commander skill ${s.cityOpponentCommanderSkill}: it decides how '
+                'many to spend based on both ranks',
+          ),
+          style: TextStyle(fontSize: 11, color: Colors.brown[600]),
         ),
         Text(
           _t('对手三车：${opp.map(_fmt).join(' / ')}',
@@ -2002,8 +2049,8 @@ class _LifeSimScreenState extends State<LifeSimScreen> {
               const SizedBox(height: 4),
               Text(
                 rank > 0
-                    ? _t('大致排名：全服第 $rank 位（共 $kGangTotalCapacity 个帮派）',
-                        'Estimated rank: #$rank globally ($kGangTotalCapacity gangs)')
+                    ? _t('大致排名：全服第 $rank 位',
+                        'Estimated rank: #$rank globally')
                     : _t('大致排名：本季未上榜', 'Estimated rank: unranked this season'),
                 style: const TextStyle(fontSize: 12, color: Colors.orange),
               ),
@@ -2069,10 +2116,11 @@ class _LifeSimScreenState extends State<LifeSimScreen> {
               ),
               Text(
                 _t(
-                  '本赛季${div.leagueZh}上榜 ${status.active} 家 / 共 ${status.capacity} 席'
-                      '（封存 ${status.sealed} 家，不上榜）',
-                  'Ranked ${status.active}/${status.capacity} in the '
-                      '${div.leagueEn} (${status.sealed} sealed gangs are not ranked)',
+                  '本赛季${div.leagueZh}共 ${status.total} 个帮派：上榜 ${status.active} 家、'
+                      '主动封存 ${status.sealed} 家、缺人 ${status.shortHanded} 家',
+                  '${status.total} gangs in the ${div.leagueEn} this season: '
+                      '${status.active} ranked, ${status.sealed} sealed, '
+                      '${status.shortHanded} short-handed',
                 ),
                 style: TextStyle(fontSize: 11, color: Colors.grey[600]),
               ),
@@ -2080,8 +2128,8 @@ class _LifeSimScreenState extends State<LifeSimScreen> {
                 _t(
                   '赛季与城市之王共用 $kCitySeasonDays 天：结束时前 $kGangPromoteRank 名晋级、'
                       '$kGangDemoteRank 名及之后退级；城市之王只匹配同组别的帮派；'
-                      '失利会拖低活跃度（连败更明显）；'
-                      '成员不足 $kGangSealMinMembers 人或整季未参战 → 不上榜，不判退级',
+                      '失利会拖低活跃度（连败更明显）；成员不足 $kGangSealMinMembers 人'
+                      '（缺人）或整季未参战 → 不上榜，不判退级',
                   'Shared with City King seasons ($kCitySeasonDays days): the top '
                       '$kGangPromoteRank promote and #$kGangDemoteRank+ relegate. '
                       'City King only matches gangs in your own division; losses '
@@ -2820,6 +2868,29 @@ class _LifeSimScreenState extends State<LifeSimScreen> {
         const SizedBox(height: 8),
         ...rows,
         const SizedBox(height: 8),
+        if (r.opponentToolkitsUsed > 0)
+          Text(
+            _t(
+              '🧰 对手指挥（水平 ${r.opponentCommanderSkill}）用了 '
+                  '${r.opponentToolkitsUsed} 个工具包：对手车辆 '
+                  '+${kToolboxBattleBoostPct * r.opponentToolkitsUsed}%'
+                  '（成员平均剩余 ${r.opponentToolkitsLeft}）',
+              '🧰 The opponent commander (skill ${r.opponentCommanderSkill}) '
+                  'fielded ${r.opponentToolkitsUsed} toolkit(s): their cars '
+                  '+${kToolboxBattleBoostPct * r.opponentToolkitsUsed}% '
+                  '(per-member left ${r.opponentToolkitsLeft})',
+            ),
+            style: TextStyle(fontSize: 12, color: Colors.brown[700]),
+          )
+        else
+          Text(
+            _t(
+              '对手没有使用工具包（成员平均还剩 ${r.opponentToolkitsLeft}）',
+              'The opponent spent no toolkits '
+                  '(per-member left ${r.opponentToolkitsLeft})',
+            ),
+            style: TextStyle(fontSize: 11, color: Colors.grey[600]),
+          ),
         Text(
           _t('比分 ${r.myWins}:${r.oppWins}${r.draws > 0 ? '（平 ${r.draws}）' : ''}',
               'Score ${r.myWins}:${r.oppWins}${r.draws > 0 ? ' (${r.draws} drawn)' : ''}'),
@@ -3028,10 +3099,10 @@ class _LifeSimScreenState extends State<LifeSimScreen> {
               subtitle: Text(
                 _t(
                   '${c.members}/$kGangMaxMembers 名成员 · 战力 ${_fmt(c.power)}'
-                      ' · 活跃度 ${c.activity}%'
+                      ' · 活跃度 ${c.activity}% · 工具包 ${c.toolkits}'
                       '${c.members + 1 < kGangSealMinMembers ? '　⚠️ 加入后不足 $kGangSealMinMembers 人（封存，无法参战）' : ''}',
                   '${c.members}/$kGangMaxMembers members · power ${_fmt(c.power)}'
-                      ' · activity ${c.activity}%'
+                      ' · activity ${c.activity}% · toolkits ${c.toolkits}'
                       '${c.members + 1 < kGangSealMinMembers ? '  ⚠️ fewer than $kGangSealMinMembers members after joining (sealed)' : ''}',
                 ),
                 style: const TextStyle(fontSize: 12),

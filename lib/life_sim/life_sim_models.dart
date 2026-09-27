@@ -324,6 +324,13 @@ class LifeSimSave {
   List<int> cityOpponentCars;
   int cityOpponentActivity;
   int cityOpponentPower;
+
+  /// 对手帮派的成员平均工具包数量（指挥用掉几个就扣几个）
+  int cityOpponentToolkits;
+
+  /// 对手帮派指挥的决策水平（0-100）
+  int cityOpponentCommanderSkill;
+
   bool cityChallenged;
 
   /// 城市之王累计胜场 / 败场（生涯统计）
@@ -402,6 +409,8 @@ class LifeSimSave {
     List<int>? cityOpponentCars,
     this.cityOpponentActivity = 0,
     this.cityOpponentPower = 0,
+    this.cityOpponentToolkits = 0,
+    this.cityOpponentCommanderSkill = 60,
     this.cityChallenged = false,
     this.cityWins = 0,
     this.cityLosses = 0,
@@ -530,6 +539,8 @@ class LifeSimSave {
     'cCars': cityOpponentCars,
     'cAct': cityOpponentActivity,
     'cPower': cityOpponentPower,
+    'cKits': cityOpponentToolkits,
+    'cSkill': cityOpponentCommanderSkill,
     'cDone': cityChallenged,
     'cWin': cityWins,
     'cLose': cityLosses,
@@ -614,6 +625,9 @@ class LifeSimSave {
           .toList(),
       cityOpponentActivity: (json['cAct'] as num?)?.toInt() ?? 0,
       cityOpponentPower: (json['cPower'] as num?)?.toInt() ?? 0,
+      cityOpponentToolkits: (json['cKits'] as num?)?.toInt() ?? 0,
+      cityOpponentCommanderSkill:
+          (json['cSkill'] as num?)?.toInt() ?? 60,
       cityChallenged: json['cDone'] as bool? ?? false,
       cityWins: (json['cWin'] as num?)?.toInt() ?? 0,
       cityLosses: (json['cLose'] as num?)?.toInt() ?? 0,

@@ -1614,40 +1614,76 @@ extension GangDivisionInfo on GangDivision {
 
 /// 每组席位数（前 [kGangPromoteRank] 名晋级、[kGangDemoteRank] 名及之后退级）
 ///
-/// 这是金/银/铜三组的容量；木组是新手池，容量更大，见 [kGangDivisionCapacity]。
+/// 这是金/银/铜三组的基准规模（用于全服排名的偏移量，不是「容量」）。
+/// 一个组有多少帮派是**每个赛季算出来的数量**，见 [kGangDivisionGangCount]。
 const int kGangDivisionSize = 100;
 
-/// 木组（新手池）的榜单容量
-const int kGangWoodCapacity = 200;
-
-/// 每组的**榜单容量**（木组是新手池，容量 200：名次梯度到 80 之后
-/// 再分成 80-120 与 120+ 两段）
-const Map<GangDivision, int> kGangDivisionCapacity =
-    <GangDivision, int>{
-      GangDivision.wood: kGangWoodCapacity,
-      GangDivision.bronze: kGangDivisionSize,
-      GangDivision.silver: kGangDivisionSize,
-      GangDivision.gold: kGangDivisionSize,
+/// 每组本赛季的**帮派总数**（没有「容量」这一说：数量本身每赛季浮动）
+///
+/// - 木组是新手池，帮派最多（也最多人缺人，凑不齐 5 人）；
+/// - 铜组接掉了两个方向的流动（木组升上来的 + 银组掉下来的），数量也不少。
+const Map<GangDivision, ({int min, int max})> kGangDivisionGangCount =
+    <GangDivision, ({int min, int max})>{
+      GangDivision.wood: (min: 200, max: 260),
+      GangDivision.bronze: (min: 110, max: 130),
+      GangDivision.silver: (min: 95, max: 110),
+      GangDivision.gold: (min: 85, max: 95),
     };
 
-/// 全服席位总数（金/银/铜各 100 + 木 200）
-const int kGangTotalCapacity = kGangDivisionSize * 3 + kGangWoodCapacity;
-
-/// 每赛季「封存」（整季不参战）的帮派比例区间（%）
+/// 每赛季**主动封存**（全员迁出到另一个组别的封存帮派、或掉级后留下的
+/// 空帮派）的比例区间（%）。封存是主动行为，随时可以解封复活。
 ///
-/// 封存＝把帮派设为「禁止加入」并把成员保持在 5 人以下：
-/// 打不了城市之王、不上排行榜、也就不会被判 80+ 而掉级。
-/// 低组别封存得最多（冲上去也是软柿子，不如锁住拿保底）。
+/// 注意：木组几乎不主动封存——木组帮派不上榜多半只是**单纯的缺人**
+/// （成员不足 [kGangSealMinMembers] 人，打不了城市之王）。
 const Map<GangDivision, ({int min, int max})> kGangDivisionSealedPct =
     <GangDivision, ({int min, int max})>{
-      GangDivision.wood: (min: 30, max: 45),
-      GangDivision.bronze: (min: 12, max: 24),
-      GangDivision.silver: (min: 8, max: 18),
-      GangDivision.gold: (min: 2, max: 8),
+      GangDivision.wood: (min: 1, max: 4),
+      GangDivision.bronze: (min: 4, max: 9),
+      GangDivision.silver: (min: 5, max: 10),
+      GangDivision.gold: (min: 5, max: 12),
     };
 
 /// 封存线：帮派成员**不足 5 人**无法参加城市之王（也会因此不上排行榜）
 const int kGangSealMinMembers = 5;
+
+/// 每个组别在全服排名里的偏移量（金 0 / 银 100 / 铜 200 / 木 300）
+const int kGangRankOffsetPerDivision = 100;
+
+/// 帮派成员平均工具包数量随**帮派总战力**变化的锚点（对数插值）
+///
+/// 越强的帮派（赢得越多）攒下的工具包越多；帮派战斗时指挥会参考
+/// 双方排名决定用几个，用完就从平均值里扣掉。
+const List<({int power, int toolkits})> kGangToolkitAnchors =
+    <({int power, int toolkits})>[
+      (power: 500000000, toolkits: 5),
+      (power: 150000000, toolkits: 4),
+      (power: 40000000, toolkits: 3),
+      (power: 10000000, toolkits: 2),
+      (power: 1000000, toolkits: 1),
+      (power: 100000, toolkits: 0),
+    ];
+
+/// 按总战力取帮派「成员平均工具包数量」（0 ~ [kGangToolkitMax]）
+int gangToolkitsForPower(int power) => _interpLog(
+  power,
+  <int>[for (final a in kGangToolkitAnchors) a.power],
+  <int>[for (final a in kGangToolkitAnchors) a.toolkits],
+).clamp(0, kGangToolkitMax);
+
+/// 帮派成员平均工具包数量的上限（与单个部件的叠层上限一致）
+const int kGangToolkitMax = 5;
+
+/// 战斗中使用 1 个工具包给帮派车辆带来的加成（%）
+///
+/// 一个工具箱是给「某个部件 +40%」（约等于整车 +40%/5 个插槽）。
+const int kToolboxBattleBoostPct = 8;
+
+/// 帮派指挥的名次差步长：对手每比自己靠前这么多名，就多用 1 个工具包
+const int kGangToolkitRankStep = 8;
+
+/// 帮派指挥的决策水平区间（越低越容易做出糟糕决策）
+const int kGangCommanderSkillMin = 35;
+const int kGangCommanderSkillMax = 95;
 
 /// 城市之王胜场超过这个数后，每多赢一场额外给一个工具箱
 const int kCityToolboxAfterWins = 25;
@@ -1742,19 +1778,23 @@ const Map<GangDivision, int> kGangLeagueRewardMul = <GangDivision, int>{
   return (chests: 0, chestRarityIndex: 4, token: 0, cash: 0);
 }
 
-/// 某组别的名次分段（木组席位更多，尾部拆成 80-120 与 120+）
+/// 某组别的名次分段
+///
+/// 木组帮派更多，名次一直排到 120 之后，所以尾部拆成 **81-120 与 121+** 两段。
 List<({int min, int max})> gangRankBands(GangDivision division) {
-  final cap = kGangDivisionCapacity[division]!;
-  if (cap <= kGangDivisionSize) return kGangRankBands;
+  if (division != GangDivision.wood) return kGangRankBands;
   return <({int min, int max})>[
     (min: 1, max: kGangPromoteRank),
     (min: 21, max: 40),
     (min: 41, max: 60),
     (min: 61, max: 80),
     (min: kGangDemoteRank, max: 120),
-    (min: 121, max: cap),
+    (min: 121, max: kGangOpenBandMax),
   ];
 }
+
+/// 「120+」这类开区间尾段的哨兵值
+const int kGangOpenBandMax = 1 << 30;
 
 /// 晋级线：组内第 1 ~ 20 名晋级
 const int kGangPromoteRank = 20;
@@ -1884,6 +1924,10 @@ class GangBandStat {
   final int carPowerMin;
   final int carPowerMax;
 
+  /// 成员平均工具包数量
+  final int toolkitsMin;
+  final int toolkitsMax;
+
   const GangBandStat({
     required this.rankMin,
     required this.rankMax,
@@ -1896,12 +1940,18 @@ class GangBandStat {
     required this.activityMax,
     required this.carPowerMin,
     required this.carPowerMax,
+    this.toolkitsMin = 0,
+    this.toolkitsMax = 0,
   });
 
-  String get labelZh =>
-      rankMin == rankMax ? '第 $rankMin 名' : '第 $rankMin-$rankMax 名';
-  String get labelEn =>
-      rankMin == rankMax ? '#$rankMin' : '#$rankMin-$rankMax';
+  String get labelZh => rankMin == rankMax
+      ? '第 $rankMin 名'
+      : (rankMax >= kGangOpenBandMax
+            ? '第 $rankMin+ 名'
+            : '第 $rankMin-$rankMax 名');
+  String get labelEn => rankMin == rankMax
+      ? '#$rankMin'
+      : (rankMax >= kGangOpenBandMax ? '#$rankMin+' : '#$rankMin-$rankMax');
 }
 
 /// 统计某组别各名次区间的战力 / 成员数 / 活跃度 / 单车战力（取真实榜单）
@@ -1950,6 +2000,8 @@ GangBandStat _bandStat(List<GangLeagueRow> board, int rankMin, int rankMax) {
   var mMax = slice.first.members;
   var aMin = slice.first.activity;
   var aMax = slice.first.activity;
+  var kMin = slice.first.toolkits;
+  var kMax = slice.first.toolkits;
   var cMin = 1 << 62;
   var cMax = 0;
   for (final r in slice) {
@@ -1960,6 +2012,8 @@ GangBandStat _bandStat(List<GangLeagueRow> board, int rankMin, int rankMax) {
     mMax = max(mMax, r.members);
     aMin = min(aMin, r.activity);
     aMax = max(aMax, r.activity);
+    kMin = min(kMin, r.toolkits);
+    kMax = max(kMax, r.toolkits);
     final perCar = r.power ~/ max(1, r.members) ~/ 3;
     cMin = min(cMin, perCar);
     cMax = max(cMax, perCar);
@@ -1976,6 +2030,8 @@ GangBandStat _bandStat(List<GangLeagueRow> board, int rankMin, int rankMax) {
     activityMax: aMax,
     carPowerMin: cMin == 1 << 62 ? 0 : cMin,
     carPowerMax: cMax,
+    toolkitsMin: kMin,
+    toolkitsMax: kMax,
   );
 }
 
@@ -2082,6 +2138,12 @@ class GangLeagueRow {
   final int members;
   final int activity;
 
+  /// **成员平均工具包数量**（战斗时指挥会决定用几个，用完就扣掉）
+  final int toolkits;
+
+  /// 帮派指挥的决策水平（0-100，越低越容易做出糟糕决策）
+  final int commanderSkill;
+
   /// 是否是玩家自己的帮派
   final bool isPlayer;
 
@@ -2091,6 +2153,8 @@ class GangLeagueRow {
     required this.power,
     required this.members,
     required this.activity,
+    this.toolkits = 0,
+    this.commanderSkill = 60,
     this.isPlayer = false,
   });
 
@@ -2100,6 +2164,8 @@ class GangLeagueRow {
     power: power,
     members: members,
     activity: activity,
+    toolkits: toolkits,
+    commanderSkill: commanderSkill,
     isPlayer: isPlayer,
   );
 }
@@ -2124,6 +2190,9 @@ class GangCandidate {
   final int members;
   final int activity;
 
+  /// 成员平均工具包数量（加入后就变成你的帮派资源）
+  final int toolkits;
+
   const GangCandidate({
     required this.gang,
     required this.division,
@@ -2131,32 +2200,39 @@ class GangCandidate {
     required this.power,
     required this.members,
     required this.activity,
+    this.toolkits = 0,
   });
 
   /// 是否已满员（[kGangMaxMembers] 人）
   bool get full => members >= kGangMaxMembers;
 }
 
-/// 某组别某赛季的联赛榜单
+/// 某组别某赛季的帮派情况
 ///
-/// 一个组别有 [capacity] 个席位，但**整季没打过城市之王的帮派（封存）不上榜**，
-/// 所以 [rows] 只包含参战过的帮派（[activeCount] 家），名次从 1 开始。
+/// 组别**没有「容量」**：[total] 就是本季这个组有多少帮派（每赛季浮动）。
+/// 其中一部分**主动封存**（全员迁出/掉级后留空，可解封复活），
+/// 一部分**缺人**（成员不足 [kGangSealMinMembers] 人，打不了城市之王）。
+/// 剩下真正打过城市之王的才会进排行榜（[rows]）。
 class GangDivisionBoard {
   final GangDivision division;
 
-  /// 榜单容量（木组 200，其余 100）
-  final int capacity;
+  /// 本季该组的帮派总数
+  final int total;
 
-  /// 本季封存（未参战、不上榜）的帮派数
+  /// 主动封存（不上榜，可解封复活）的帮派数
   final int sealedCount;
 
-  /// 上榜帮派（按战力降序，[GangLeagueRow.rank] 从 1 开始）
+  /// 缺人（成员 < [kGangSealMinMembers]，参不了战）的帮派数
+  final int shortHandedCount;
+
+  /// 上榜帮派（打过城市之王，按战力降序，[GangLeagueRow.rank] 从 1 开始）
   final List<GangLeagueRow> rows;
 
   const GangDivisionBoard({
     required this.division,
-    required this.capacity,
+    required this.total,
     required this.sealedCount,
+    required this.shortHandedCount,
     required this.rows,
   });
 
@@ -2166,10 +2242,14 @@ class GangDivisionBoard {
   bool get canDemote => activeCount >= kGangDemoteRank - 1;
 }
 
-/// 生成某组别在第 [seasonIndex] 个赛季的榜单
+/// 生成某组别在第 [seasonIndex] 个赛季的帮派情况
 ///
-/// - 名次越前战力越高（在对数刻度上从组别上限铺到下限，再加抖动）
-/// - 一部分帮派本季**封存**（成员不满 5 人、不参战）→ 不上榜
+/// - 帮派**总数每赛季浮动**（没有「容量」这一说），见 [kGangDivisionGangCount]
+/// - 名次越前战力越高（对数刻度从组别上限铺到下限，再加抖动）
+/// - 一部分帮派**主动封存**（全员迁出/留空，可解封复活）→ 本季不参战
+/// - 一部分帮派**缺人**（成员 < [kGangSealMinMembers]）→ 本季参不了战
+/// - 剩下真正参过战的帮派才在 [GangDivisionBoard.rows] 里（按战力降序）
+/// - 每行还带**成员平均工具包数量**与**指挥决策水平**
 /// - [kGangLeagueRoster] 里的固定帮派占用它们对应的名次
 GangDivisionBoard buildGangDivisionBoard({
   required GangDivision division,
@@ -2182,21 +2262,20 @@ GangDivisionBoard buildGangDivisionBoard({
   final logHi = log(band.max.toDouble());
   final logLo = log(band.min.toDouble());
   final usedNames = <String>{};
-  final capacity = kGangDivisionCapacity[division]!;
-  // 封存：把一部分席位标记为「本季未参战」，它们不上榜
+  // 本季这个组有多少帮派（数量本身就会浮动）
+  final countBand = kGangDivisionGangCount[division]!;
+  final total =
+      countBand.min + rng.nextInt(countBand.max - countBand.min + 1);
+  // 主动封存：全员迁出到别的组别的封存帮派 / 掉级后留下的空帮派
   final sealBand = kGangDivisionSealedPct[division]!;
-  final sealPct =
-      sealBand.min + rng.nextInt(sealBand.max - sealBand.min + 1);
-  final sealedCount = (capacity * sealPct / 100).round();
-  // 固定名单的帮派总是参战（它们就是靠升降级轮换的）
-  final activeCount = max(
-    kGangPromoteRank,
-    capacity - sealedCount,
-  );
+  final sealPct = sealBand.min + rng.nextInt(sealBand.max - sealBand.min + 1);
+  final sealedCount = (total * sealPct / 100).round();
+  // 除开主动封存，剩下的是「理论上会参战」的帮派
+  final rankedPool = max(kGangPromoteRank, total - sealedCount);
 
-  final rows = <GangLeagueRow>[];
-  for (var i = 0; i < activeCount; i++) {
-    final t = activeCount == 1 ? 0.0 : i / (activeCount - 1);
+  final entries = <GangLeagueRow>[];
+  for (var i = 0; i < rankedPool; i++) {
+    final t = rankedPool == 1 ? 0.0 : i / (rankedPool - 1);
     final base = exp(logHi - (logHi - logLo) * t);
     final jitter = 0.94 + rng.nextDouble() * 0.12;
     var name = randomGangName(rng);
@@ -2206,47 +2285,71 @@ GangDivisionBoard buildGangDivisionBoard({
       guard++;
     }
     usedNames.add(name);
-    // 成员数 / 活跃度由**帮派总战力**决定（顶级帮派满员且最活跃），
-    // 再叠一点抖动，让战力相近的帮派之间也有差别
+    // 成员数 / 活跃度 / 工具包由**帮派总战力**决定（顶级帮派满员、最活跃、
+    // 工具包也最多），再叠一点抖动，让战力相近的帮派之间也有差别
     final basePower = base.round();
-    final members = (gangMembersForPower(basePower) * (0.96 + rng.nextDouble() * 0.04))
-        .round()
-        .clamp(1, kGangMaxMembers);
-    final activity = (gangActivityForPower(basePower) + rng.nextInt(7) - 3).clamp(
-      1,
-      99,
-    );
-    rows.add(
+    final members =
+        (gangMembersForPower(basePower) * (0.96 + rng.nextDouble() * 0.04))
+            .round()
+            .clamp(1, kGangMaxMembers);
+    final activity = (gangActivityForPower(basePower) + rng.nextInt(7) - 3)
+        .clamp(1, 99);
+    final toolkits = (gangToolkitsForPower(basePower) + rng.nextInt(3) - 1)
+        .clamp(0, kGangToolkitMax);
+    final skill =
+        (kGangCommanderSkillMin +
+                (kGangCommanderSkillMax - kGangCommanderSkillMin) *
+                    (0.35 + 0.65 * (1 - t)) *
+                    (0.85 + rng.nextDouble() * 0.3))
+            .round()
+            .clamp(kGangCommanderSkillMin, kGangCommanderSkillMax);
+    entries.add(
       GangLeagueRow(
         rank: 0,
         name: name,
         power: max(1, (base * jitter).round()),
         members: members,
         activity: activity,
+        toolkits: toolkits,
+        commanderSkill: skill,
       ),
     );
   }
-  rows.sort((a, b) => b.power.compareTo(a.power));
+  entries.sort((a, b) => b.power.compareTo(a.power));
   // 名次越前成员越多：成员数单调不增（顶级帮派满员，末尾只剩几个人）
   var prevMembers = kGangMaxMembers;
-  for (var i = 0; i < rows.length; i++) {
-    final members = min(prevMembers, rows[i].members);
+  for (var i = 0; i < entries.length; i++) {
+    final members = min(prevMembers, entries[i].members);
     prevMembers = members;
-    rows[i] = GangLeagueRow(
+    entries[i] = GangLeagueRow(
       rank: i + 1,
-      name: rows[i].name,
-      power: rows[i].power,
+      name: entries[i].name,
+      power: entries[i].power,
       members: members,
-      activity: rows[i].activity,
+      activity: entries[i].activity,
+      toolkits: entries[i].toolkits,
+      commanderSkill: entries[i].commanderSkill,
     );
   }
 
-  // 固定帮派占用对应名次（继承该名次的战力 / 成员数 / 活跃度）
+  // 缺人（成员 < kGangSealMinMembers）的帮派参不了战 → 也不上榜
+  final rows = <GangLeagueRow>[
+    for (final r in entries)
+      if (r.members >= kGangSealMinMembers) r,
+  ];
+  final shortHanded = entries.length - rows.length;
+  // 重新编号
+  for (var i = 0; i < rows.length; i++) {
+    rows[i] = rows[i].withRank(i + 1);
+  }
+
+  // 固定帮派占用对应名次（继承该名次的战力 / 成员数 / 活跃度 / 工具包）
   for (final e in kGangLeagueRoster) {
     final p = gangLeaguePlacement(e, seasonIndex);
     if (p.division != division) continue;
     final span = p.rankMax - p.rankMin + 1;
     final rank = p.rankMin + (span <= 1 ? 0 : rng.nextInt(span));
+    if (rows.isEmpty) break;
     final idx = (rank - 1).clamp(0, rows.length - 1);
     rows[idx] = GangLeagueRow(
       rank: idx + 1,
@@ -2254,12 +2357,15 @@ GangDivisionBoard buildGangDivisionBoard({
       power: rows[idx].power,
       members: rows[idx].members,
       activity: rows[idx].activity,
+      toolkits: rows[idx].toolkits,
+      commanderSkill: rows[idx].commanderSkill,
     );
   }
   return GangDivisionBoard(
     division: division,
-    capacity: capacity,
+    total: total,
     sealedCount: sealedCount,
+    shortHandedCount: shortHanded,
     rows: rows,
   );
 }

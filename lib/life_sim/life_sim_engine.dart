@@ -158,6 +158,11 @@ class CityKingResult {
   final int hpToolboxGained;
   final int atkToolboxGained;
 
+  /// 对手指挥本场用了几个工具包 / 用完后成员平均还剩几个
+  final int opponentToolkitsUsed;
+  final int opponentToolkitsLeft;
+  final int opponentCommanderSkill;
+
   const CityKingResult({
     required this.ok,
     this.errorZh = '',
@@ -185,6 +190,9 @@ class CityKingResult {
     this.chestToken = 0,
     this.hpToolboxGained = 0,
     this.atkToolboxGained = 0,
+    this.opponentToolkitsUsed = 0,
+    this.opponentToolkitsLeft = 0,
+    this.opponentCommanderSkill = 0,
   });
 
   int get myWins => rounds.where((r) => r == true).length;
@@ -1941,10 +1949,10 @@ class LifeSimEngine {
     return total;
   }
 
-  /// 玩家帮派的「大致排名」（全服 [kGangTotalCapacity] 个帮派里的位置；1 = 最强）
+  /// 玩家帮派的「大致排名」（全服里的位置；1 = 最强）
   ///
   /// 由联赛组别 + 组内名次推导：金组 = 1-100、银组 = 101-200、
-  /// 铜组 = 201-300、木组 = 301-500。
+  /// 铜组 = 201-300、木组 = 301+。
   /// **0 = 本季未上榜**（没打过城市之王或已封存）。
   int estimateGangRank(LifeSimSave save) {
     if (!save.inGang) return 0;
@@ -1952,7 +1960,7 @@ class LifeSimEngine {
     if (rank <= 0) return 0;
     final div = gangDivision(save);
     final fromTop = GangDivision.values.length - 1 - div.index;
-    return fromTop * kGangDivisionSize + rank;
+    return fromTop * kGangRankOffsetPerDivision + rank;
   }
 
   /// 生成一个帮派实例
@@ -2398,7 +2406,7 @@ class LifeSimEngine {
   ///
   /// - 一个赛季内榜单固定（按服务器 + 组别 + 赛季序号做种子）
   /// - **整季没打过城市之王的帮派不上榜**：玩家必须先打一场才会出现在榜单上
-  /// - 封存的帮派（成员不足 5 人）永远不上榜
+  /// - 封存（成员不足 [kGangSealMinMembers] 人）的帮派永远不上榜
   List<GangLeagueRow> gangBoard(LifeSimSave save) {
     final div = gangDivision(save);
     final board = _npcBoardFull(div, save.day);
@@ -2412,12 +2420,12 @@ class LifeSimEngine {
         power: gangPower(save),
         members: min(kGangMaxMembers, 1 + save.gangMembers.length),
         activity: save.gangActivity,
+        // 玩家帮派的「成员平均工具包」＝自己库存 ÷ 成员数
+        toolkits: myGangToolkits(save),
         isPlayer: true,
       ),
     ]..sort((a, b) => b.power.compareTo(a.power));
-    // 玩家也占组内一个席位（超过容量时挤掉最弱的那个对手）
-    final capacity = kGangDivisionCapacity[div]!;
-    while (rows.length > capacity) {
+    while (rows.length > board.total) {
       final weakest = rows.lastIndexWhere((r) => !r.isPlayer);
       if (weakest < 0) break;
       rows.removeAt(weakest);
@@ -2427,18 +2435,23 @@ class LifeSimEngine {
     ];
   }
 
-  /// 本季该组别上榜 / 封存的帮派数（用于界面与「不足 80 家不退级」判定）
-  ({int active, int sealed, int capacity, bool canDemote}) divisionStatus(
-    LifeSimSave save,
-    GangDivision div,
-  ) {
+  /// 玩家帮派的「成员平均工具包数量」＝ 库存工具箱 ÷ 成员数
+  int myGangToolkits(LifeSimSave save) {
+    final members = max(1, 1 + save.gangMembers.length);
+    return (save.hpToolbox + save.atkToolbox) ~/ members;
+  }
+
+  /// 本季该组别的帮派情况（数量、主动封存、缺人、上榜、能否判退级）
+  ({int total, int sealed, int shortHanded, int active, bool canDemote})
+  divisionStatus(LifeSimSave save, GangDivision div) {
     final board = _npcBoardFull(div, save.day);
     final extra = isGangRanked(save) && gangDivision(save) == div ? 1 : 0;
     final active = board.activeCount + extra;
     return (
-      active: active,
+      total: board.total,
       sealed: board.sealedCount,
-      capacity: board.capacity,
+      shortHanded: board.shortHandedCount,
+      active: active,
       canDemote: active >= kGangDemoteRank - 1,
     );
   }
@@ -2811,6 +2824,7 @@ class LifeSimEngine {
   /// 刷新当天的城市之王对手
   ///
   /// **同组别匹配**：只从玩家帮派所在组别的联赛榜单里挑对手（不含自己）。
+  /// 对手会带上自己的**成员平均工具包数量**与**指挥水平**。
   void rollCityOpponent(LifeSimSave save) {
     final board = gangBoard(
       save,
@@ -2822,7 +2836,48 @@ class LifeSimEngine {
     save.cityOpponentCars = _topCars(gang);
     save.cityOpponentActivity = gang.activity;
     save.cityOpponentPower = gang.totalPower;
+    save.cityOpponentToolkits = row.toolkits;
+    save.cityOpponentCommanderSkill = row.commanderSkill;
     save.cityChallenged = false;
+  }
+
+  /// 帮派指挥根据**双方在排行榜上的排名**决定用几个工具包
+  ///
+  /// - 对手名次比自己靠后（对手更弱）→ 不必浪费工具包
+  /// - 对手名次比自己靠前（对手更强）→ 名次差越大越舍得用（每差
+  ///   [kGangToolkitRankStep] 名多用 1 个）
+  /// - 势均力敌（差 ≤ 5 名）→ 用 1 个博一手
+  /// - **并非所有指挥都能做出最佳决策**：按指挥水平（[skill] 越高越稳）
+  ///   掷一次偏差，水平低的还会多浪费几个
+  int commanderToolkits({
+    required int selfRank,
+    required int foeRank,
+    required int stock,
+    required int skill,
+  }) {
+    if (stock <= 0) return 0;
+    final diff = foeRank - selfRank; // >0 = 对手名次更靠后（更弱）
+    var need = 0;
+    if (diff < 0) {
+      need = (-diff / kGangToolkitRankStep).ceil();
+    } else if (diff <= 5) {
+      need = 1;
+    }
+    // 指挥水平不足时会出现偏差（少用 → 输掉本该赢的；多用 → 白浪费）
+    if (_rng.nextDouble() < (100 - skill) / 100.0) {
+      need += _rng.nextInt(3) - 1;
+      if (skill < 50 && _rng.nextBool()) need += _rng.nextInt(2) + 1;
+    }
+    return need.clamp(0, stock);
+  }
+
+  /// 下一个（或当前）对手的排名（不在榜上时用榜尾估算）
+  int opponentRank(LifeSimSave save) {
+    final board = gangBoard(save);
+    for (final r in board) {
+      if (r.name == save.cityOpponentName) return r.rank;
+    }
+    return board.isEmpty ? 0 : board.length;
   }
 
   /// 取帮派最强的 3 辆车
@@ -2870,8 +2925,20 @@ class LifeSimEngine {
     }
     save.energy -= kCityEnergyCost;
 
+    // 对手指挥参考双方排名决定用几个工具包（用完从成员平均工具包里扣）
+    final myRank = gangLeagueRank(save);
+    final oppRank = opponentRank(save);
+    final oppUsed = commanderToolkits(
+      selfRank: oppRank > 0 ? oppRank : (myRank > 0 ? myRank : 1),
+      foeRank: myRank > 0 ? myRank : 1,
+      stock: save.cityOpponentToolkits,
+      skill: save.cityOpponentCommanderSkill,
+    );
+    save.cityOpponentToolkits = max(0, save.cityOpponentToolkits - oppUsed);
+    final oppBoost = 1 + kToolboxBattleBoostPct * oppUsed / 100.0;
+
     final myMul = activityMultiplier(save.gangActivity);
-    final oppMul = activityMultiplier(save.cityOpponentActivity);
+    final oppMul = activityMultiplier(save.cityOpponentActivity) * oppBoost;
     final myCars = [
       for (final p in vehiclePowers(save)) (p * myMul).round(),
     ]..sort((a, b) => b.compareTo(a));
@@ -2916,6 +2983,19 @@ class LifeSimEngine {
         '${drawCount > 0 ? ' ($drawCount drawn)' : ''}';
 
     final opponentName = save.cityOpponentName ?? '——';
+    if (oppUsed > 0) {
+      _log(
+        save,
+        '🧰',
+        'city',
+        '对手指挥（水平 ${save.cityOpponentCommanderSkill}）用了 $oppUsed 个工具包'
+            '（成员平均剩余 ${save.cityOpponentToolkits}）：'
+            '对手车辆 +${kToolboxBattleBoostPct * oppUsed}%',
+        'The opponent commander (skill '
+            '${save.cityOpponentCommanderSkill}) fielded $oppUsed toolkit(s): '
+            'their cars +${kToolboxBattleBoostPct * oppUsed}%',
+      );
+    }
     // 用「打之前」的双方强度算胜负分（本场涨的活跃度不算进来）
     final myStrength = myCityStrength(save);
     final oppStrength = oppCityStrength(save);
@@ -3087,6 +3167,9 @@ class LifeSimEngine {
       activityGained: activityGained,
       hpToolboxGained: hpTools,
       atkToolboxGained: atkTools,
+      opponentToolkitsUsed: oppUsed,
+      opponentToolkitsLeft: save.cityOpponentToolkits,
+      opponentCommanderSkill: save.cityOpponentCommanderSkill,
     );
   }
 
