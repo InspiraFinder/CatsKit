@@ -7,6 +7,7 @@ library;
 import 'package:flutter/material.dart';
 
 import '../parts_data.dart';
+import 'gang_league_sim.dart';
 import 'life_sim_data.dart';
 import 'life_sim_engine.dart';
 import 'life_sim_models.dart';
@@ -1359,6 +1360,42 @@ class _LifeSimScreenState extends State<LifeSimScreen> {
                 'ones under-spend (losing winnable fights) or over-spend.',
           ),
           style: TextStyle(fontSize: 11, color: Colors.grey[600]),
+        ),
+        Align(
+          alignment: Alignment.centerLeft,
+          child: TextButton.icon(
+            onPressed: () => _showGangSimDialog(),
+            icon: const Icon(Icons.insights, size: 18),
+            label: Text(
+              _t('帮派模拟（各组数量 / 战力 / 工具包与指挥决策）',
+                  'Gang simulation (counts / power / toolkits / commander)'),
+              style: const TextStyle(fontSize: 12),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// 帮派模拟报告（各组数量 / 战力 / 工具包 / 指挥决策）
+  void _showGangSimDialog() {
+    final report = gangLeagueSimReport(seeds: 3, seasons: 4);
+    _dialog(
+      title: _t('帮派模拟', 'Gang simulation'),
+      children: [
+        Text(
+          _t(
+            '按平衡参数模拟出的各组帮派数据（每赛季会在初始名册上小幅浮动、'
+                '随机让一部分帮派封存不上榜）：',
+            'Simulated gang data per division (the roster floats a little every '
+                'season and some gangs seal themselves):',
+          ),
+          style: TextStyle(fontSize: 11, color: Colors.grey[600]),
+        ),
+        const SizedBox(height: 6),
+        SelectableText(
+          report,
+          style: const TextStyle(fontSize: 11, fontFamily: 'monospace'),
         ),
       ],
     );

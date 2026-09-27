@@ -6,6 +6,7 @@ library;
 
 import 'dart:math';
 
+import 'gang_league_roster.dart';
 import 'life_sim_models.dart';
 
 // =====================================================================
@@ -1618,16 +1619,36 @@ extension GangDivisionInfo on GangDivision {
 /// 一个组有多少帮派是**每个赛季算出来的数量**，见 [kGangDivisionGangCount]。
 const int kGangDivisionSize = 100;
 
-/// 每组本赛季的**帮派总数**（没有「容量」这一说：数量本身每赛季浮动）
+/// 分组别取「帮派初始名册」（离线模拟生成，见 gang_league_roster.dart）
+const Map<GangDivision, List<GangSeed>> kGangSeedRoster =
+    <GangDivision, List<GangSeed>>{
+      GangDivision.wood: kGangSeedWood,
+      GangDivision.bronze: kGangSeedBronze,
+      GangDivision.silver: kGangSeedSilver,
+      GangDivision.gold: kGangSeedGold,
+    };
+
+/// 某组别的名册规模（= 本季该组的帮派总数，运行时不再另外随机）
+int gangDivisionRosterSize(GangDivision division) =>
+    kGangSeedRoster[division]!.length;
+
+/// 全服帮派总数
+int get gangTotalSize => kGangSeedRoster.values.fold(
+  0,
+  (sum, list) => sum + list.length,
+);
+
+/// **离线生成用**：每组本赛季的帮派数量区间
 ///
-/// - 木组是新手池，帮派最多（也最多人缺人，凑不齐 5 人）；
-/// - 铜组接掉了两个方向的流动（木组升上来的 + 银组掉下来的），数量也不少。
+/// 运行时的帮派来自 gang_league_roster.dart 里的名册（即用这些参数
+/// 离线跑出来的结果），名册里有多少家，这个组就有多少家。
 const Map<GangDivision, ({int min, int max})> kGangDivisionGangCount =
     <GangDivision, ({int min, int max})>{
       GangDivision.wood: (min: 200, max: 260),
       GangDivision.bronze: (min: 110, max: 130),
       GangDivision.silver: (min: 95, max: 110),
-      GangDivision.gold: (min: 85, max: 95),
+      // 金组最小：封存几家就可能不到 80 家上榜（那就不判退级）
+      GangDivision.gold: (min: 80, max: 88),
     };
 
 /// 每赛季**主动封存**（全员迁出到另一个组别的封存帮派、或掉级后留下的
@@ -1649,7 +1670,7 @@ const int kGangSealMinMembers = 5;
 /// 每个组别在全服排名里的偏移量（金 0 / 银 100 / 铜 200 / 木 300）
 const int kGangRankOffsetPerDivision = 100;
 
-/// 帮派成员平均工具包数量随**帮派总战力**变化的锚点（对数插值）
+/// **离线生成用**：帮派成员平均工具包数量随总战力变化的锚点（对数插值）
 ///
 /// 越强的帮派（赢得越多）攒下的工具包越多；帮派战斗时指挥会参考
 /// 双方排名决定用几个，用完就从平均值里扣掉。
@@ -2256,101 +2277,77 @@ GangDivisionBoard buildGangDivisionBoard({
   required int seed,
   required int seasonIndex,
 }) {
-  // 赛季也混进随机种子，保证「同组别 + 同 seed + 同赛季」稳定、换赛季会重排
+  // 赛季混进随机种子：同一赛季 / 同一种子结果稳定，换赛季会重排
   final rng = Random(seed + seasonIndex * 7919);
-  final band = kGangDivisionPower[division]!;
-  final logHi = log(band.max.toDouble());
-  final logLo = log(band.min.toDouble());
-  final usedNames = <String>{};
-  // 本季这个组有多少帮派（数量本身就会浮动）
-  final countBand = kGangDivisionGangCount[division]!;
-  final total =
-      countBand.min + rng.nextInt(countBand.max - countBand.min + 1);
-  // 主动封存：全员迁出到别的组别的封存帮派 / 掉级后留下的空帮派
+  final seeds = kGangSeedRoster[division]!;
+
+  // 主动封存：全员迁出到另一个组别的封存帮派 / 掉级后留下的空帮派。
+  // 每赛季重新抽名单（下赛季可能抽不到 → 就解封复活了）。
   final sealBand = kGangDivisionSealedPct[division]!;
   final sealPct = sealBand.min + rng.nextInt(sealBand.max - sealBand.min + 1);
-  final sealedCount = (total * sealPct / 100).round();
-  // 除开主动封存，剩下的是「理论上会参战」的帮派
-  final rankedPool = max(kGangPromoteRank, total - sealedCount);
+  final sealedCount = (seeds.length * sealPct / 100).round();
+  final pickOrder = List<int>.generate(seeds.length, (i) => i)..shuffle(rng);
+  final sealedIdx = pickOrder.take(sealedCount).toSet();
 
   final entries = <GangLeagueRow>[];
-  for (var i = 0; i < rankedPool; i++) {
-    final t = rankedPool == 1 ? 0.0 : i / (rankedPool - 1);
-    final base = exp(logHi - (logHi - logLo) * t);
-    final jitter = 0.94 + rng.nextDouble() * 0.12;
-    var name = randomGangName(rng);
-    var guard = 0;
-    while (usedNames.contains(name) && guard < 20) {
-      name = randomGangName(rng);
-      guard++;
+  var shortHanded = 0;
+  for (var i = 0; i < seeds.length; i++) {
+    if (sealedIdx.contains(i)) continue;
+    final s = seeds[i];
+    // 缺人（成员不足 kGangSealMinMembers）的帮派参不了战 → 也不上榜
+    if (s.members < kGangSealMinMembers) {
+      shortHanded++;
+      continue;
     }
-    usedNames.add(name);
-    // 成员数 / 活跃度 / 工具包由**帮派总战力**决定（顶级帮派满员、最活跃、
-    // 工具包也最多），再叠一点抖动，让战力相近的帮派之间也有差别
-    final basePower = base.round();
-    final members =
-        (gangMembersForPower(basePower) * (0.96 + rng.nextDouble() * 0.04))
-            .round()
-            .clamp(1, kGangMaxMembers);
-    final activity = (gangActivityForPower(basePower) + rng.nextInt(7) - 3)
-        .clamp(1, 99);
-    final toolkits = (gangToolkitsForPower(basePower) + rng.nextInt(3) - 1)
-        .clamp(0, kGangToolkitMax);
-    final skill =
-        (kGangCommanderSkillMin +
-                (kGangCommanderSkillMax - kGangCommanderSkillMin) *
-                    (0.35 + 0.65 * (1 - t)) *
-                    (0.85 + rng.nextDouble() * 0.3))
-            .round()
-            .clamp(kGangCommanderSkillMin, kGangCommanderSkillMax);
+    // 每赛季小幅浮动：战力 ±5%、活跃度 ±2、工具包 ±1
+    final drift = 0.95 + rng.nextDouble() * 0.10;
     entries.add(
       GangLeagueRow(
         rank: 0,
-        name: name,
-        power: max(1, (base * jitter).round()),
-        members: members,
-        activity: activity,
-        toolkits: toolkits,
-        commanderSkill: skill,
+        name: s.name,
+        power: max(1, (s.power * drift).round()),
+        members: s.members,
+        activity: (s.activity + rng.nextInt(5) - 2).clamp(1, 99),
+        toolkits: (s.toolkits + rng.nextInt(3) - 1).clamp(0, kGangToolkitMax),
+        commanderSkill: s.skill,
       ),
     );
   }
   entries.sort((a, b) => b.power.compareTo(a.power));
-  // 名次越前成员越多：成员数单调不增（顶级帮派满员，末尾只剩几个人）
-  var prevMembers = kGangMaxMembers;
+  // 名次越前成员越多：把名册里的成员数按降序重新贴到名次上（分布不变）
+  final memberCurve = entries.map((r) => r.members).toList()
+    ..sort((a, b) => b - a);
   for (var i = 0; i < entries.length; i++) {
-    final members = min(prevMembers, entries[i].members);
-    prevMembers = members;
     entries[i] = GangLeagueRow(
       rank: i + 1,
       name: entries[i].name,
       power: entries[i].power,
-      members: members,
+      members: memberCurve[i],
       activity: entries[i].activity,
       toolkits: entries[i].toolkits,
       commanderSkill: entries[i].commanderSkill,
     );
   }
-
-  // 缺人（成员 < kGangSealMinMembers）的帮派参不了战 → 也不上榜
-  final rows = <GangLeagueRow>[
-    for (final r in entries)
-      if (r.members >= kGangSealMinMembers) r,
-  ];
-  final shortHanded = entries.length - rows.length;
-  // 重新编号
-  for (var i = 0; i < rows.length; i++) {
-    rows[i] = rows[i].withRank(i + 1);
-  }
+  final rows = entries;
 
   // 固定帮派占用对应名次（继承该名次的战力 / 成员数 / 活跃度 / 工具包）
+  final usedSlots = <int>{};
   for (final e in kGangLeagueRoster) {
     final p = gangLeaguePlacement(e, seasonIndex);
     if (p.division != division) continue;
-    final span = p.rankMax - p.rankMin + 1;
-    final rank = p.rankMin + (span <= 1 ? 0 : rng.nextInt(span));
     if (rows.isEmpty) break;
-    final idx = (rank - 1).clamp(0, rows.length - 1);
+    final span = p.rankMax - p.rankMin + 1;
+    var idx = (p.rankMin + (span <= 1 ? 0 : rng.nextInt(span)) - 1).clamp(
+      0,
+      rows.length - 1,
+    );
+    // 两个固定帮派不能抢同一个名次
+    var guard = 0;
+    while (usedSlots.contains(idx) && guard < rows.length) {
+      idx = (idx + 1) % rows.length;
+      guard++;
+    }
+    usedSlots.add(idx);
     rows[idx] = GangLeagueRow(
       rank: idx + 1,
       name: e.name,
@@ -2363,7 +2360,7 @@ GangDivisionBoard buildGangDivisionBoard({
   }
   return GangDivisionBoard(
     division: division,
-    total: total,
+    total: seeds.length,
     sealedCount: sealedCount,
     shortHandedCount: shortHanded,
     rows: rows,

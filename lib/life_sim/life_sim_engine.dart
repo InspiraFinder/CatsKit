@@ -2569,10 +2569,20 @@ class LifeSimEngine {
       );
     }
     if (!board.canDemote) {
-      // 上榜帮派不足 80 家 → 本季不判退级
-      if (rank <= kGangPromoteRank) {
+      // 上榜帮派不足 80 家 → 本季不判退级（但晋级区照常晋级）
+      if (rank > 0 && rank <= kGangPromoteRank) {
         final next = div.promoted;
-        if (next != null) {
+        if (next == null) {
+          _log(
+            save,
+            '🏅',
+            'gang',
+            '帮派联赛赛季结束：${div.leagueZh} 第 $rank/$size 名'
+                '（已是最高组别，无法再晋级）',
+            'Gang league season ended: ${div.leagueEn} #$rank/$size '
+                '(already the top division)',
+          );
+        } else {
           save.gangDivisionIndex = next.index;
           _log(
             save,
