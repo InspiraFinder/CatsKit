@@ -679,12 +679,16 @@ class _MenuGroup {
   final IconData icon;
   final Color color;
   final String title;
+
+  /// 副标题（只有置顶横幅用）
+  final String? subtitle;
   final List<_MenuSubItem> items;
 
   const _MenuGroup({
     required this.icon,
     required this.color,
     required this.title,
+    this.subtitle,
     required this.items,
   });
 }
@@ -802,8 +806,31 @@ class _MainMenuScreenState extends State<MainMenuScreen> {
     }
   }
 
-  /// 一级分类（个人 / 帮派 / 数据查询）+ 两个独立入口
+  /// 一级分类：猫生重开（置顶）> 个人功能 > 帮派功能 > 数据查询 > 通用设置
+  static const String _catPattern = 'assets/patterns/cat_pattern.png';
+  static const String _activityPattern =
+      'assets/patterns/activity_pattern.png';
+
   List<_MenuGroup> _menuGroups() => <_MenuGroup>[
+    _MenuGroup(
+      icon: Icons.videogame_asset,
+      color: Colors.pink,
+      title: _t('猫生重开', 'Life Restart'),
+      subtitle: _t('模拟真实游戏进程与氪金程度', 'Simulate the real progression'),
+      items: <_MenuSubItem>[
+        _MenuSubItem(
+          icon: Icons.videogame_asset,
+          label: _t('猫生重开', 'Life Restart'),
+          onTap: () => _navigateAndAwaitLocale(
+            LifeSimScreen(
+              locale: _locale,
+              server: _server,
+              darkMode: _darkMode,
+            ),
+          ),
+        ),
+      ],
+    ),
     _MenuGroup(
       icon: Icons.person,
       color: Colors.indigo,
@@ -931,174 +958,321 @@ class _MainMenuScreenState extends State<MainMenuScreen> {
         ),
       ],
     ),
-    _MenuGroup(
-      icon: Icons.videogame_asset,
-      color: Colors.pink,
-      title: _t('猫生重开', 'Life Restart'),
-      items: <_MenuSubItem>[
-        _MenuSubItem(
-          icon: Icons.videogame_asset,
-          label: _t('猫生重开', 'Life Restart'),
-          onTap: () => _navigateAndAwaitLocale(
-            LifeSimScreen(
-              locale: _locale,
-              server: _server,
-              darkMode: _darkMode,
-            ),
-          ),
-        ),
-      ],
-    ),
   ];
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final groups = _menuGroups();
+    // 猫生重开置顶（横跨两列），其余分类两列排布
+    final hero = groups.first;
+    final rest = groups.skip(1).toList();
+    final rows = <Widget>[ _buildHero(context, hero) ];
+    for (var i = 0; i < rest.length; i += 2) {
+      final left = rest[i];
+      final right = i + 1 < rest.length ? rest[i + 1] : null;
+      rows.add(
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            Expanded(child: _buildTile(context, left)),
+            const SizedBox(width: 12),
+            Expanded(
+              child: right == null ?
+                  const SizedBox.shrink() :
+                  _buildTile(context, right),
+            ),
+          ],
+        ),
+      );
+      // 展开的面板贴在所属那一行下面（整行宽，方便阅读）
+      if (_expandedGroups.contains(left.title)) {
+        rows.add(_buildPanel(context, left));
+      }
+      if (right != null && _expandedGroups.contains(right.title)) {
+        rows.add(_buildPanel(context, right));
+      }
+    }
+
     return Scaffold(
       appBar: AppBar(title: const Text('CatsKit'), centerTitle: true),
-      body: Center(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: <Widget>[
-              const Icon(Icons.directions_car, size: 72, color: Colors.blue),
-              const SizedBox(height: 12),
-              const Text(
-                'CatsKit',
-                style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold),
+      body: Stack(
+        children: <Widget>[
+          // 周期性图案背景（吉祥物贴纸，低透明度当水印）
+          Positioned.fill(
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                image: DecorationImage(
+                  image: const AssetImage(_catPattern),
+                  repeat: ImageRepeat.repeat,
+                  opacity: isDark ? 0.10 : 0.07,
+                  colorFilter: ColorFilter.mode(
+                    isDark ? Colors.white : Colors.black,
+                    BlendMode.srcIn,
+                  ),
+                ),
               ),
-              const SizedBox(height: 4),
-              Text(
-                _t('工具集', 'Toolkit'),
-                style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+            ),
+          ),
+          Center(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(
+                horizontal: 20,
+                vertical: 18,
               ),
-              const SizedBox(height: 20),
-              for (final group in _menuGroups()) ...<Widget>[
-                _buildGroup(context, group),
-                const SizedBox(height: 12),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: <Widget>[
+                  const Icon(
+                    Icons.directions_car,
+                    size: 64,
+                    color: Colors.blue,
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'CatsKit',
+                    style: TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    _t('工具集', 'Toolkit'),
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: Colors.grey[600],
+                    ),
+                  ),
+                  const SizedBox(height: 18),
+                  for (final row in rows) ...<Widget>[
+                    row,
+                    const SizedBox(height: 12),
+                  ],
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// 置顶横幅：猫生重开（宽度 = 两个分类磁贴，带活动图标图案背景）
+  Widget _buildHero(BuildContext context, _MenuGroup group) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final radius = BorderRadius.circular(18);
+    return SizedBox(
+      key: const ValueKey<String>('menu-hero'),
+      width: double.infinity,
+      height: 116,
+      child: Material(
+        color: group.color,
+        elevation: 5,
+        borderRadius: radius,
+        child: InkWell(
+          borderRadius: radius,
+          onTap: group.items.first.onTap,
+          child: ClipRRect(
+            borderRadius: radius,
+            child: Stack(
+              children: <Widget>[
+                Positioned.fill(
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: <Color>[
+                          group.color,
+                          Color.lerp(group.color, Colors.black, 0.35)!,
+                        ],
+                      ),
+                      image: DecorationImage(
+                        image: const AssetImage(_activityPattern),
+                        repeat: ImageRepeat.repeat,
+                        opacity: isDark ? 0.42 : 0.34,
+                      ),
+                    ),
+                  ),
+                ),
+                Center(
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: <Widget>[
+                      Icon(
+                        group.icon,
+                        size: 36,
+                        color: Colors.white,
+                      ),
+                      const SizedBox(width: 12),
+                      Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: <Widget>[
+                          Text(
+                            group.title,
+                            style: const TextStyle(
+                              fontSize: 23,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                              shadows: <Shadow>[
+                                Shadow(
+                                  color: Colors.black54,
+                                  blurRadius: 6,
+                                ),
+                              ],
+                            ),
+                          ),
+                          if (group.subtitle != null)
+                            Text(
+                              group.subtitle!,
+                              style: const TextStyle(
+                                fontSize: 12,
+                                color: Colors.white70,
+                              ),
+                            ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
               ],
-            ],
+            ),
           ),
         ),
       ),
     );
   }
 
-  /// 一级选项：含多个模块时可折叠展开，只有一个模块时直接跳转
-  Widget _buildGroup(BuildContext context, _MenuGroup group) {
+  /// 分类磁贴（半宽，文案居中）；只有一个模块时直接跳转
+  Widget _buildTile(BuildContext context, _MenuGroup group) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final expandable = group.items.length > 1;
-    if (!expandable) {
-      return _buildMenuItem(
-        context,
-        icon: group.icon,
-        label: group.title,
-        color: group.color,
-        onTap: group.items.first.onTap,
-      );
-    }
     final expanded = _expandedGroups.contains(group.title);
-    return Column(
-      children: <Widget>[
-        SizedBox(
-          width: double.infinity,
-          child: ElevatedButton(
-            onPressed: () => setState(() {
+    final radius = BorderRadius.circular(16);
+    return SizedBox(
+      key: ValueKey<String>('menu-tile-${group.title}'),
+      height: 104,
+      child: Material(
+        color: group.color.withValues(alpha: isDark ? 0.24 : 0.12),
+        borderRadius: radius,
+        child: InkWell(
+          borderRadius: radius,
+          onTap: () {
+            if (!expandable) {
+              group.items.first.onTap();
+              return;
+            }
+            setState(() {
               if (expanded) {
                 _expandedGroups.remove(group.title);
               } else {
                 _expandedGroups.add(group.title);
               }
-            }),
-            style: ElevatedButton.styleFrom(
-              padding: const EdgeInsets.symmetric(
-                vertical: 18,
-                horizontal: 20,
-              ),
-              backgroundColor: group.color,
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
-              ),
-              elevation: 4,
-            ),
-            child: Row(
+            });
+          },
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 6),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
               children: <Widget>[
-                Icon(group.icon, size: 26),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    group.title,
-                    style: const TextStyle(
-                      fontSize: 19,
-                      fontWeight: FontWeight.bold,
-                    ),
+                Icon(
+                  group.icon,
+                  size: 28,
+                  color: isDark ? Colors.white : group.color,
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  group.title,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.bold,
+                    color: isDark ? Colors.white : Colors.black87,
                   ),
                 ),
-                // 展开状态 + 模块数量
+                const SizedBox(height: 2),
                 Text(
-                  group.items.length.toString(),
-                  style: const TextStyle(fontSize: 14),
-                ),
-                Icon(
-                  expanded ? Icons.expand_less : Icons.expand_more,
-                  size: 24,
+                  !expandable
+                      ? _t('直接进入', 'Open')
+                      : (expanded
+                            ? _t(
+                                '${group.items.length} 个模块 · 收起',
+                                '${group.items.length} items',
+                              )
+                            : _t(
+                                '${group.items.length} 个模块 · 展开',
+                                '${group.items.length} items',
+                              )),
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: isDark ? Colors.white70 : Colors.grey[700],
+                  ),
                 ),
               ],
             ),
           ),
         ),
-        AnimatedCrossFade(
-          duration: const Duration(milliseconds: 160),
-          firstChild: const SizedBox(width: double.infinity, height: 0),
-          secondChild: Padding(
-            padding: const EdgeInsets.only(top: 8),
-            child: Column(
-              children: <Widget>[
-                for (final item in group.items) ...<Widget>[
-                  _buildSubItem(context, group, item),
-                  const SizedBox(height: 8),
-                ],
-              ],
-            ),
-          ),
-          crossFadeState: expanded
-              ? CrossFadeState.showSecond
-              : CrossFadeState.showFirst,
-        ),
-      ],
+      ),
     );
   }
 
-  /// 二级模块按钮
+  /// 展开面板：贴在所属那一行下面，整行宽，列出二级模块
+  Widget _buildPanel(BuildContext context, _MenuGroup group) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: group.color.withValues(alpha: isDark ? 0.14 : 0.07),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: group.color.withValues(alpha: 0.35),
+        ),
+      ),
+      child: Column(
+        children: <Widget>[
+          for (var i = 0; i < group.items.length; i++) ...<Widget>[
+            _buildSubItem(context, group, group.items[i]),
+            if (i != group.items.length - 1) const SizedBox(height: 8),
+          ],
+        ],
+      ),
+    );
+  }
+
+  /// 二级模块按钮（文案居中）
   Widget _buildSubItem(
     BuildContext context,
     _MenuGroup group,
     _MenuSubItem item,
   ) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final accent = isDark ? Colors.white : group.color;
     return SizedBox(
       width: double.infinity,
       child: OutlinedButton(
         onPressed: item.onTap,
         style: OutlinedButton.styleFrom(
-          padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
-          foregroundColor: isDark ? Colors.white : group.color,
-          backgroundColor: group.color.withValues(alpha: isDark ? 0.18 : 0.07),
-          side: BorderSide(color: group.color.withValues(alpha: 0.5)),
+          padding: const EdgeInsets.symmetric(vertical: 13),
+          foregroundColor: accent,
+          backgroundColor: accent.withValues(alpha: 0.06),
+          side: BorderSide(color: group.color.withValues(alpha: 0.4)),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(10),
           ),
         ),
         child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
           children: <Widget>[
-            Icon(item.icon, size: 20),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Text(
-                item.label,
-                style: const TextStyle(fontSize: 16),
-                overflow: TextOverflow.ellipsis,
-              ),
+            Icon(item.icon, size: 18),
+            const SizedBox(width: 8),
+            Text(
+              item.label,
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 15),
             ),
           ],
         ),
@@ -1106,46 +1280,6 @@ class _MainMenuScreenState extends State<MainMenuScreen> {
     );
   }
 
-  Widget _buildMenuItem(
-    BuildContext context, {
-    required IconData icon,
-    required String label,
-    required Color color,
-    required VoidCallback onTap,
-  }) {
-    return SizedBox(
-      width: double.infinity,
-      child: ElevatedButton(
-        onPressed: onTap,
-        style: ElevatedButton.styleFrom(
-          padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 24),
-          backgroundColor: color,
-          foregroundColor: Colors.white,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-          elevation: 4,
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, size: 28),
-            const SizedBox(width: 12),
-            Flexible(
-              child: Text(
-                label,
-                style: const TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                ),
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 }
 
 // ==================== 组车工具 ====================
