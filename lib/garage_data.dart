@@ -193,7 +193,6 @@ class GarageVehicle {
 class GarageStore {
   static const String _prefsKey = 'garage_slots';
   static const int slotCount = 10;
-
   /// 读取全部车位
   static Future<List<GarageVehicle?>> load() async {
     final prefs = await SharedPreferences.getInstance();
@@ -219,4 +218,21 @@ class GarageStore {
     final list = slots.map((v) => v?.toJson()).toList();
     await prefs.setString(_prefsKey, jsonEncode(list));
   }
+}
+
+/// 车位的显示名
+///
+/// 「我的车库」里给车位起的名字优先（即使车辆被清空，名字也保留），
+/// 没起名字时用「车位 N」/「Slot N」。
+/// **所有能从车位选择车辆的模块都要用它拿名字**，这样改名后会立刻同步。
+String garageSlotLabel(GarageVehicle? v, int index, {bool zh = true}) {
+  final name = (v?.name ?? '').trim();
+  if (name.isNotEmpty) return name;
+  return zh ? '车位 ${index + 1}' : 'Slot ${index + 1}';
+}
+
+/// 车位名的紧凑版（没名字时只显示序号，用于窄按钮）
+String garageSlotShortLabel(GarageVehicle? v, int index) {
+  final name = (v?.name ?? '').trim();
+  return name.isNotEmpty ? name : '${index + 1}';
 }

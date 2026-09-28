@@ -24,7 +24,7 @@ import 'balance_history_screen.dart';
 import 'max_stats_screen.dart';
 import 'life_sim/life_sim_screen.dart';
 
-const String appVersion = '1.9.0';
+const String appVersion = '2.0.0';
 
 /// 获取部件在当前语言下的显示名称
 String pn(PartData part, String? locale) {
@@ -1682,9 +1682,7 @@ class _BuildToolScreenState extends State<BuildToolScreen> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
-                  (filled && (v?.name ?? '').isNotEmpty)
-                      ? v!.name!
-                      : _t('车位$slot', 'Slot $slot'),
+                  garageSlotLabel(v, slot - 1, zh: widget.locale == 'zh'),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
