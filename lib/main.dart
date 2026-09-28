@@ -811,6 +811,9 @@ class _MainMenuScreenState extends State<MainMenuScreen> {
   static const String _activityPattern =
       'assets/patterns/activity_pattern.png';
 
+  /// 应用主图标（无标题版，README 与主界面共用同一张）
+  static const String _mainIcon = 'assets/icon/main_icon.jpg';
+
   List<_MenuGroup> _menuGroups() => <_MenuGroup>[
     _MenuGroup(
       icon: Icons.videogame_asset,
@@ -1010,26 +1013,42 @@ class _MainMenuScreenState extends State<MainMenuScreen> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: <Widget>[
-                  const Icon(
-                    Icons.directions_car,
-                    size: 64,
-                    color: Colors.blue,
-                  ),
-                  const SizedBox(height: 8),
-                  const Text(
-                    'CatsKit',
-                    style: TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    _t('工具集', 'Toolkit'),
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: Colors.grey[600],
-                    ),
+                  // 应用主图标 + 标题（标题在图标右侧）
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: <Widget>[
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(14),
+                        child: Image.asset(
+                          _mainIcon,
+                          width: 60,
+                          height: 60,
+                          fit: BoxFit.cover,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: <Widget>[
+                          const Text(
+                            'CatsKit',
+                            style: TextStyle(
+                              fontSize: 26,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            _t('工具集', 'Toolkit'),
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: Colors.grey[600],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                   ),
                   const SizedBox(height: 18),
                   ...children,
