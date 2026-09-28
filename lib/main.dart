@@ -960,38 +960,25 @@ class _MainMenuScreenState extends State<MainMenuScreen> {
     ),
   ];
 
+  /// 一级按钮高度（猫生重开是它的两倍高，宽度全部一致）
+  static const double _groupButtonHeight = 62;
+
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final groups = _menuGroups();
-    // 猫生重开置顶（横跨两列），其余分类两列排布
-    final hero = groups.first;
-    final rest = groups.skip(1).toList();
-    final rows = <Widget>[ _buildHero(context, hero) ];
-    for (var i = 0; i < rest.length; i += 2) {
-      final left = rest[i];
-      final right = i + 1 < rest.length ? rest[i + 1] : null;
-      rows.add(
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: <Widget>[
-            Expanded(child: _buildTile(context, left)),
-            const SizedBox(width: 12),
-            Expanded(
-              child: right == null ?
-                  const SizedBox.shrink() :
-                  _buildTile(context, right),
-            ),
-          ],
-        ),
-      );
-      // 展开的面板贴在所属那一行下面（整行宽，方便阅读）
-      if (_expandedGroups.contains(left.title)) {
-        rows.add(_buildPanel(context, left));
+    // 猫生重开置顶（双倍高），其余分类依次排列，全部同宽
+    final children = <Widget>[
+      _buildHero(context, groups.first),
+      const SizedBox(height: 12),
+    ];
+    for (final group in groups.skip(1)) {
+      children.add(_buildGroupButton(context, group));
+      if (_expandedGroups.contains(group.title)) {
+        children.add(const SizedBox(height: 8));
+        children.add(_buildPanel(context, group));
       }
-      if (right != null && _expandedGroups.contains(right.title)) {
-        rows.add(_buildPanel(context, right));
-      }
+      children.add(const SizedBox(height: 12));
     }
 
     return Scaffold(
@@ -1045,10 +1032,7 @@ class _MainMenuScreenState extends State<MainMenuScreen> {
                     ),
                   ),
                   const SizedBox(height: 18),
-                  for (final row in rows) ...<Widget>[
-                    row,
-                    const SizedBox(height: 12),
-                  ],
+                  ...children,
                 ],
               ),
             ),
@@ -1058,14 +1042,14 @@ class _MainMenuScreenState extends State<MainMenuScreen> {
     );
   }
 
-  /// 置顶横幅：猫生重开（宽度 = 两个分类磁贴，带活动图标图案背景）
+  /// 置顶按钮：猫生重开（双倍高，宽度与其它一级按钮一致，带活动图标图案背景）
   Widget _buildHero(BuildContext context, _MenuGroup group) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final radius = BorderRadius.circular(18);
     return SizedBox(
       key: const ValueKey<String>('menu-hero'),
       width: double.infinity,
-      height: 116,
+      height: _groupButtonHeight * 2,
       child: Material(
         color: group.color,
         elevation: 5,
@@ -1097,23 +1081,23 @@ class _MainMenuScreenState extends State<MainMenuScreen> {
                   ),
                 ),
                 Center(
-                  child: Row(
+                  child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: <Widget>[
-                      Icon(
-                        group.icon,
-                        size: 36,
-                        color: Colors.white,
-                      ),
-                      const SizedBox(width: 12),
-                      Column(
+                      Row(
                         mainAxisSize: MainAxisSize.min,
-                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: <Widget>[
+                          const Icon(
+                            Icons.videogame_asset,
+                            size: 34,
+                            color: Colors.white,
+                          ),
+                          const SizedBox(width: 10),
                           Text(
                             group.title,
+                            textAlign: TextAlign.center,
                             style: const TextStyle(
-                              fontSize: 23,
+                              fontSize: 24,
                               fontWeight: FontWeight.bold,
                               color: Colors.white,
                               shadows: <Shadow>[
@@ -1124,16 +1108,19 @@ class _MainMenuScreenState extends State<MainMenuScreen> {
                               ],
                             ),
                           ),
-                          if (group.subtitle != null)
-                            Text(
-                              group.subtitle!,
-                              style: const TextStyle(
-                                fontSize: 12,
-                                color: Colors.white70,
-                              ),
-                            ),
                         ],
                       ),
+                      if (group.subtitle != null) ...<Widget>[
+                        const SizedBox(height: 4),
+                        Text(
+                          group.subtitle!,
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: Colors.white70,
+                          ),
+                        ),
+                      ],
                     ],
                   ),
                 ),
@@ -1145,17 +1132,19 @@ class _MainMenuScreenState extends State<MainMenuScreen> {
     );
   }
 
-  /// 分类磁贴（半宽，文案居中）；只有一个模块时直接跳转
-  Widget _buildTile(BuildContext context, _MenuGroup group) {
+  /// 一级分类按钮（宽度与猫生重开一致，文案整体居中）
+  Widget _buildGroupButton(BuildContext context, _MenuGroup group) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final expandable = group.items.length > 1;
     final expanded = _expandedGroups.contains(group.title);
-    final radius = BorderRadius.circular(16);
+    final radius = BorderRadius.circular(14);
+    final accent = isDark ? Colors.white : group.color;
     return SizedBox(
-      key: ValueKey<String>('menu-tile-${group.title}'),
-      height: 104,
+      key: ValueKey<String>('menu-group-${group.title}'),
+      width: double.infinity,
+      height: _groupButtonHeight,
       child: Material(
-        color: group.color.withValues(alpha: isDark ? 0.24 : 0.12),
+        color: accent.withValues(alpha: isDark ? 0.22 : 0.12),
         borderRadius: radius,
         child: InkWell(
           borderRadius: radius,
@@ -1172,45 +1161,39 @@ class _MainMenuScreenState extends State<MainMenuScreen> {
               }
             });
           },
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 6),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
+          child: Center(
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
               children: <Widget>[
-                Icon(
-                  group.icon,
-                  size: 28,
-                  color: isDark ? Colors.white : group.color,
-                ),
-                const SizedBox(height: 6),
+                Icon(group.icon, size: 24, color: accent),
+                const SizedBox(width: 10),
                 Text(
                   group.title,
                   textAlign: TextAlign.center,
                   style: TextStyle(
-                    fontSize: 15,
+                    fontSize: 18,
                     fontWeight: FontWeight.bold,
                     color: isDark ? Colors.white : Colors.black87,
                   ),
                 ),
-                const SizedBox(height: 2),
-                Text(
-                  !expandable
-                      ? _t('直接进入', 'Open')
-                      : (expanded
-                            ? _t(
-                                '${group.items.length} 个模块 · 收起',
-                                '${group.items.length} items',
-                              )
-                            : _t(
-                                '${group.items.length} 个模块 · 展开',
-                                '${group.items.length} items',
-                              )),
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 11,
-                    color: isDark ? Colors.white70 : Colors.grey[700],
+                if (expandable) ...<Widget>[
+                  const SizedBox(width: 10),
+                  Text(
+                    expanded
+                        ? _t('收起', 'close')
+                        : _t('${group.items.length} 个模块', '${group.items.length} items'),
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: isDark ? Colors.white70 : Colors.grey[700],
+                    ),
                   ),
-                ),
+                  Icon(
+                    expanded ? Icons.expand_less : Icons.expand_more,
+                    size: 20,
+                    color: accent,
+                  ),
+                ],
               ],
             ),
           ),
@@ -1218,7 +1201,6 @@ class _MainMenuScreenState extends State<MainMenuScreen> {
       ),
     );
   }
-
   /// 展开面板：贴在所属那一行下面，整行宽，列出二级模块
   Widget _buildPanel(BuildContext context, _MenuGroup group) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
