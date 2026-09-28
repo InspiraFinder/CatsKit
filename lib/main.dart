@@ -811,8 +811,8 @@ class _MainMenuScreenState extends State<MainMenuScreen> {
   static const String _activityPattern =
       'assets/patterns/activity_pattern.png';
 
-  /// 应用主图标（无标题版，README 与主界面共用同一张）
-  static const String _mainIcon = 'assets/icon/main_icon.jpg';
+  /// 应用图标（唯一一张，README 与主界面共用）
+  static const String _mainIcon = 'assets/icon/icon.png';
 
   List<_MenuGroup> _menuGroups() => <_MenuGroup>[
     _MenuGroup(

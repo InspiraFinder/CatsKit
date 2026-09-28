@@ -32,17 +32,16 @@ dev_dependencies:
 flutter_launcher_icons:
   android: true
   ios: true
-  image_path: "assets/icon/icon.jpg"
-  adaptive_icon_background: "#FFFFFF"
-  adaptive_icon_foreground: "assets/icon/icon.jpg"
+  image_path: "assets/icon/icon.png"
+  adaptive_icon_background: "#FDF6E3"
+  adaptive_icon_foreground: "assets/icon/icon.png"
 
 flutter:
   uses-material-design: true
 
   # ========== 添加资源目录 ==========
   assets:
-    - assets/icon/icon.jpg
-    - assets/icon/main_icon.jpg
+    - assets/icon/icon.png
     - assets/ocr/catskit_ocr.py
     - assets/images/
     - assets/images_cn/

@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="assets/icon/main_icon.jpg" width="160" alt="CatsKit">
+  <img src="assets/icon/icon.png" width="160" alt="CatsKit">
   <h1>CatsKit</h1>
   <p>🐱 猫猫车工具 — C.A.T.S. 游戏辅助工具</p>
 </div>
