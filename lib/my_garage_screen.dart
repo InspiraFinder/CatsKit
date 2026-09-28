@@ -183,9 +183,9 @@ class _MyGarageScreenState extends State<MyGarageScreen> {
     final v = _slots[i];
     final filled = v != null && !v.isEmpty;
     final selected = i == _selectedSlot;
-    final name = (v?.name ?? '').trim();
-    // 有名称就显示（即使车辆已清空、车位仅剩名称）
-    final hasName = name.isNotEmpty;
+    // 有名称就显示名称（即使车辆已清空、车位仅剩名称），否则显示序号；
+    // 统一走 garage_data.dart 的 helper，保证各模块车位名一致
+    final hasName = (v?.name ?? '').trim().isNotEmpty;
     return InkWell(
       borderRadius: BorderRadius.circular(10),
       onTap: () => setState(() {
@@ -225,27 +225,17 @@ class _MyGarageScreenState extends State<MyGarageScreen> {
                   : Colors.grey,
             ),
             const SizedBox(height: 2),
-            if (hasName)
-              Text(
-                name,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 10,
-                  fontWeight: FontWeight.bold,
-                  color: selected ? Colors.white : Colors.black87,
-                ),
-              )
-            else
-              Text(
-                '${i + 1}',
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.bold,
-                  color: selected ? Colors.white : Colors.black87,
-                ),
+            Text(
+              garageSlotShortLabel(v, i),
+              maxLines: hasName ? 2 : 1,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: hasName ? 10 : 12,
+                fontWeight: FontWeight.bold,
+                color: selected ? Colors.white : Colors.black87,
               ),
+            ),
           ],
         ),
       ),

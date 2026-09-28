@@ -22,8 +22,9 @@ import 'gang_stats_screen.dart';
 import 'my_gang_screen.dart';
 import 'balance_history_screen.dart';
 import 'max_stats_screen.dart';
+import 'life_sim/life_sim_screen.dart';
 
-const String appVersion = '1.9.0';
+const String appVersion = '2.0.0';
 
 /// 获取部件在当前语言下的显示名称
 String pn(PartData part, String? locale) {
@@ -673,6 +674,38 @@ class _MainScreenState extends State<MainScreen> {
 }
 
 // ==================== 主菜单 ====================
+/// 主界面的一个一级分类
+class _MenuGroup {
+  final IconData icon;
+  final Color color;
+  final String title;
+
+  /// 副标题（只有置顶横幅用）
+  final String? subtitle;
+  final List<_MenuSubItem> items;
+
+  const _MenuGroup({
+    required this.icon,
+    required this.color,
+    required this.title,
+    this.subtitle,
+    required this.items,
+  });
+}
+
+/// 一级分类下的一个二级模块
+class _MenuSubItem {
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+
+  const _MenuSubItem({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
+}
+
 class MainMenuScreen extends StatefulWidget {
   final String locale;
   final ValueChanged<String>? onLocaleChanged;
@@ -703,6 +736,9 @@ class _MainMenuScreenState extends State<MainMenuScreen> {
   late String _server;
   late bool _darkMode;
   late int? _bgColor;
+
+  /// 展开的一级分类（默认全部收起，5 个一级选项一屏可见）
+  final Set<String> _expandedGroups = <String>{};
 
   String _t(String zh, String en) => _locale == 'zh' ? zh : en;
 
@@ -770,209 +806,481 @@ class _MainMenuScreenState extends State<MainMenuScreen> {
     }
   }
 
+  /// 一级分类：猫生重开（置顶）> 个人功能 > 帮派功能 > 数据查询 > 通用设置
+  static const String _catPattern = 'assets/patterns/cat_pattern.png';
+  static const String _activityPattern =
+      'assets/patterns/activity_pattern.png';
+
+  /// 应用图标（唯一一张，README 与主界面共用）
+  static const String _mainIcon = 'assets/icon/icon.png';
+
+  List<_MenuGroup> _menuGroups() => <_MenuGroup>[
+    _MenuGroup(
+      icon: Icons.videogame_asset,
+      color: Colors.pink,
+      title: _t('猫生重开', 'Life Restart'),
+      subtitle: _t('模拟真实游戏进程与氪金程度', 'Simulate the real progression'),
+      items: <_MenuSubItem>[
+        _MenuSubItem(
+          icon: Icons.videogame_asset,
+          label: _t('猫生重开', 'Life Restart'),
+          onTap: () => _navigateAndAwaitLocale(
+            LifeSimScreen(
+              locale: _locale,
+              server: _server,
+              darkMode: _darkMode,
+            ),
+          ),
+        ),
+      ],
+    ),
+    _MenuGroup(
+      icon: Icons.person,
+      color: Colors.indigo,
+      title: _t('个人功能', 'Personal'),
+      items: <_MenuSubItem>[
+        _MenuSubItem(
+          icon: Icons.garage,
+          label: _t('我的车库', 'My Garage'),
+          onTap: () => _navigateAndAwaitLocale(
+            MyGarageScreen(locale: _locale, server: _server),
+          ),
+        ),
+        _MenuSubItem(
+          icon: Icons.build,
+          label: _t('组车工具', 'Build Tool'),
+          onTap: () => _navigateAndAwaitLocale(
+            BuildToolScreen(locale: _locale, server: _server),
+          ),
+        ),
+        _MenuSubItem(
+          icon: Icons.auto_awesome,
+          label: _t('碎片计算', 'Fragment Calc'),
+          onTap: () => _navigateAndAwaitLocale(
+            FragmentCalcScreen(locale: _locale),
+          ),
+        ),
+        _MenuSubItem(
+          icon: Icons.upgrade,
+          label: _t('升级计划', 'Upgrade Plan'),
+          onTap: () => _navigateAndAwaitLocale(
+            UpgradePlanScreen(locale: _locale, server: _server),
+          ),
+        ),
+      ],
+    ),
+    _MenuGroup(
+      icon: Icons.groups_2,
+      color: Colors.teal,
+      title: _t('帮派功能', 'Gang'),
+      items: <_MenuSubItem>[
+        _MenuSubItem(
+          icon: Icons.groups_2,
+          label: _t('我的帮派', 'My Gang'),
+          onTap: () => _navigateAndAwaitLocale(
+            MyGangScreen(locale: _locale, server: _server),
+          ),
+        ),
+        _MenuSubItem(
+          icon: Icons.search,
+          label: _t('查车工具', 'Vehicle Check'),
+          onTap: () => _navigateAndAwaitLocale(
+            MainScreen(
+              locale: _locale,
+              server: _server,
+              darkMode: _darkMode,
+              onDarkModeChanged: widget.onDarkModeChanged,
+              bgColor: _bgColor,
+              onBgColorChanged: widget.onBgColorChanged,
+            ),
+          ),
+        ),
+        _MenuSubItem(
+          icon: Icons.insights,
+          label: _t('帮派统计', 'Gang Stats'),
+          onTap: () => _navigateAndAwaitLocale(
+            GangStatsScreen(locale: _locale, server: _server),
+          ),
+        ),
+        _MenuSubItem(
+          icon: Icons.timer,
+          label: _t('时间计算', 'Timer'),
+          onTap: () =>
+              _navigateAndAwaitLocale(TimeCalcScreen(locale: _locale)),
+        ),
+      ],
+    ),
+    _MenuGroup(
+      icon: Icons.storage,
+      color: Colors.deepPurple,
+      title: _t('数据查询', 'Data'),
+      items: <_MenuSubItem>[
+        _MenuSubItem(
+          icon: Icons.calendar_month,
+          label: _t('活动日历', 'Activity Calendar'),
+          onTap: () => _navigateAndAwaitLocale(
+            ActivityCalendarScreen(locale: _locale, server: _server),
+          ),
+        ),
+        _MenuSubItem(
+          icon: Icons.balance,
+          label: _t('历史平衡', 'Balance History'),
+          onTap: () => _navigateAndAwaitLocale(
+            BalanceHistoryScreen(locale: _locale, server: _server),
+          ),
+        ),
+        _MenuSubItem(
+          icon: Icons.emoji_events,
+          label: _t('极限数值', 'Max Stats'),
+          onTap: () => _navigateAndAwaitLocale(
+            MaxStatsScreen(locale: _locale, server: _server),
+          ),
+        ),
+      ],
+    ),
+    _MenuGroup(
+      icon: Icons.settings,
+      color: Colors.green,
+      title: _t('通用设置', 'Settings'),
+      items: <_MenuSubItem>[
+        _MenuSubItem(
+          icon: Icons.settings,
+          label: _t('通用设置', 'Settings'),
+          onTap: () => _navigateAndAwaitLocale(
+            SettingsScreen(
+              currentLocale: _locale,
+              currentServer: _server,
+              currentShowSnackBar: false,
+              currentDarkMode: _darkMode,
+              currentBgColor: _bgColor,
+              currentGithubUpdateUrl:
+                  'https://github.com/InspiraFinder/CatsKit/releases',
+              currentMirrorUrl: '',
+            ),
+          ),
+        ),
+      ],
+    ),
+  ];
+
+  /// 一级按钮高度（猫生重开是它的两倍高，宽度全部一致）
+  static const double _groupButtonHeight = 62;
+
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final groups = _menuGroups();
+    // 猫生重开置顶（双倍高），其余分类依次排列，全部同宽
+    final children = <Widget>[
+      _buildHero(context, groups.first),
+      const SizedBox(height: 12),
+    ];
+    for (final group in groups.skip(1)) {
+      children.add(_buildGroupButton(context, group));
+      if (_expandedGroups.contains(group.title)) {
+        children.add(const SizedBox(height: 8));
+        children.add(_buildPanel(context, group));
+      }
+      children.add(const SizedBox(height: 12));
+    }
+
     return Scaffold(
       appBar: AppBar(title: const Text('CatsKit'), centerTitle: true),
-      body: Center(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(Icons.directions_car, size: 80, color: Colors.blue),
-              const SizedBox(height: 24),
-              const Text(
-                'CatsKit',
-                style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                _t('工具集', 'Toolkit'),
-                style: TextStyle(fontSize: 16, color: Colors.grey[600]),
-              ),
-              const SizedBox(height: 48),
-              _buildMenuItem(
-                context,
-                icon: Icons.search,
-                label: _t('查车工具', 'Vehicle Check'),
-                color: Colors.blue,
-                onTap: () => _navigateAndAwaitLocale(
-                  MainScreen(
-                    locale: _locale,
-                    server: _server,
-                    darkMode: _darkMode,
-                    onDarkModeChanged: widget.onDarkModeChanged,
-                    bgColor: _bgColor,
-                    onBgColorChanged: widget.onBgColorChanged,
+      body: Stack(
+        children: <Widget>[
+          // 周期性图案背景（吉祥物贴纸，低透明度当水印）
+          Positioned.fill(
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                image: DecorationImage(
+                  image: const AssetImage(_catPattern),
+                  repeat: ImageRepeat.repeat,
+                  opacity: isDark ? 0.10 : 0.07,
+                  colorFilter: ColorFilter.mode(
+                    isDark ? Colors.white : Colors.black,
+                    BlendMode.srcIn,
                   ),
                 ),
               ),
-              const SizedBox(height: 16),
-              _buildMenuItem(
-                context,
-                icon: Icons.build,
-                label: _t('组车工具', 'Build Tool'),
-                color: Colors.orange,
-                onTap: () => _navigateAndAwaitLocale(
-                  BuildToolScreen(locale: _locale, server: _server),
-                ),
+            ),
+          ),
+          Center(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(
+                horizontal: 20,
+                vertical: 18,
               ),
-              const SizedBox(height: 16),
-              _buildMenuItem(
-                context,
-                icon: Icons.timer,
-                label: _t('时间计算', 'Timer'),
-                color: Colors.purple,
-                onTap: () =>
-                    _navigateAndAwaitLocale(TimeCalcScreen(locale: _locale)),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: <Widget>[
+                  // 应用主图标 + 标题（标题在图标右侧）
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: <Widget>[
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(14),
+                        child: Image.asset(
+                          _mainIcon,
+                          width: 60,
+                          height: 60,
+                          fit: BoxFit.cover,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: <Widget>[
+                          const Text(
+                            'CatsKit',
+                            style: TextStyle(
+                              fontSize: 26,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            _t('工具集', 'Toolkit'),
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: Colors.grey[600],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 18),
+                  ...children,
+                ],
               ),
-              const SizedBox(height: 16),
-              _buildMenuItem(
-                context,
-                icon: Icons.auto_awesome,
-                label: _t('碎片计算', 'Fragment Calc'),
-                color: Colors.teal,
-                onTap: () => _navigateAndAwaitLocale(
-                  FragmentCalcScreen(locale: _locale),
-                ),
-              ),
-              const SizedBox(height: 16),
-              _buildMenuItem(
-                context,
-                icon: Icons.calendar_month,
-                label: _t('活动日历', 'Activity Calendar'),
-                color: Colors.cyan,
-                onTap: () => _navigateAndAwaitLocale(
-                  ActivityCalendarScreen(locale: _locale, server: _server),
-                ),
-              ),
-              const SizedBox(height: 16),
-              _buildMenuItem(
-                context,
-                icon: Icons.garage,
-                label: _t('我的车库', 'My Garage'),
-                color: Colors.indigo,
-                onTap: () => _navigateAndAwaitLocale(
-                  MyGarageScreen(locale: _locale, server: _server),
-                ),
-              ),
-              const SizedBox(height: 16),
-              _buildMenuItem(
-                context,
-                icon: Icons.upgrade,
-                label: _t('升级计划', 'Upgrade Plan'),
-                color: Colors.deepOrange,
-                onTap: () => _navigateAndAwaitLocale(
-                  UpgradePlanScreen(locale: _locale, server: _server),
-                ),
-              ),
-              const SizedBox(height: 16),
-              _buildMenuItem(
-                context,
-                icon: Icons.balance,
-                label: _t('历史平衡', 'Balance History'),
-                color: Colors.purple,
-                onTap: () => _navigateAndAwaitLocale(
-                  BalanceHistoryScreen(locale: _locale, server: _server),
-                ),
-              ),
-              const SizedBox(height: 16),
-              _buildMenuItem(
-                context,
-                icon: Icons.emoji_events,
-                label: _t('极限数值', 'Max Stats'),
-                color: Colors.amber,
-                onTap: () => _navigateAndAwaitLocale(
-                  MaxStatsScreen(locale: _locale, server: _server),
-                ),
-              ),
-              const SizedBox(height: 16),
-              _buildMenuItem(
-                context,
-                icon: Icons.groups_2,
-                label: _t('我的帮派', 'My Gang'),
-                color: Colors.teal,
-                onTap: () => _navigateAndAwaitLocale(
-                  MyGangScreen(locale: _locale, server: _server),
-                ),
-              ),
-              const SizedBox(height: 16),
-              _buildMenuItem(
-                context,
-                icon: Icons.groups,
-                label: _t('帮派统计', 'Gang Stats'),
-                color: Colors.brown,
-                onTap: () => _navigateAndAwaitLocale(
-                  GangStatsScreen(locale: _locale, server: _server),
-                ),
-              ),
-              const SizedBox(height: 16),
-              _buildMenuItem(
-                context,
-                icon: Icons.settings,
-                label: _t('通用设置', 'Settings'),
-                color: Colors.green,
-                onTap: () => _navigateAndAwaitLocale(
-                  SettingsScreen(
-                    currentLocale: _locale,
-                    currentServer: _server,
-                    currentShowSnackBar: false,
-                    currentDarkMode: _darkMode,
-                    currentBgColor: _bgColor,
-                    currentGithubUpdateUrl:
-                        'https://github.com/InspiraFinder/CatsKit/releases',
-                    currentMirrorUrl: '',
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// 置顶按钮：猫生重开（双倍高，宽度与其它一级按钮一致，带活动图标图案背景）
+  Widget _buildHero(BuildContext context, _MenuGroup group) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final radius = BorderRadius.circular(18);
+    return SizedBox(
+      key: const ValueKey<String>('menu-hero'),
+      width: double.infinity,
+      height: _groupButtonHeight * 2,
+      child: Material(
+        color: group.color,
+        elevation: 5,
+        borderRadius: radius,
+        child: InkWell(
+          borderRadius: radius,
+          onTap: group.items.first.onTap,
+          child: ClipRRect(
+            borderRadius: radius,
+            child: Stack(
+              children: <Widget>[
+                Positioned.fill(
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: <Color>[
+                          group.color,
+                          Color.lerp(group.color, Colors.black, 0.35)!,
+                        ],
+                      ),
+                      image: DecorationImage(
+                        image: const AssetImage(_activityPattern),
+                        repeat: ImageRepeat.repeat,
+                        opacity: isDark ? 0.42 : 0.34,
+                      ),
+                    ),
                   ),
                 ),
-              ),
-            ],
+                Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: <Widget>[
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: <Widget>[
+                          const Icon(
+                            Icons.videogame_asset,
+                            size: 34,
+                            color: Colors.white,
+                          ),
+                          const SizedBox(width: 10),
+                          Text(
+                            group.title,
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(
+                              fontSize: 24,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                              shadows: <Shadow>[
+                                Shadow(
+                                  color: Colors.black54,
+                                  blurRadius: 6,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                      if (group.subtitle != null) ...<Widget>[
+                        const SizedBox(height: 4),
+                        Text(
+                          group.subtitle!,
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: Colors.white70,
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
     );
   }
 
-  Widget _buildMenuItem(
-    BuildContext context, {
-    required IconData icon,
-    required String label,
-    required Color color,
-    required VoidCallback onTap,
-  }) {
+  /// 一级分类按钮（宽度与猫生重开一致，文案整体居中）
+  Widget _buildGroupButton(BuildContext context, _MenuGroup group) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final expandable = group.items.length > 1;
+    final expanded = _expandedGroups.contains(group.title);
+    final radius = BorderRadius.circular(14);
+    final accent = isDark ? Colors.white : group.color;
+    return SizedBox(
+      key: ValueKey<String>('menu-group-${group.title}'),
+      width: double.infinity,
+      height: _groupButtonHeight,
+      child: Material(
+        color: accent.withValues(alpha: isDark ? 0.22 : 0.12),
+        borderRadius: radius,
+        child: InkWell(
+          borderRadius: radius,
+          onTap: () {
+            if (!expandable) {
+              group.items.first.onTap();
+              return;
+            }
+            setState(() {
+              if (expanded) {
+                _expandedGroups.remove(group.title);
+              } else {
+                _expandedGroups.add(group.title);
+              }
+            });
+          },
+          child: Center(
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                Icon(group.icon, size: 24, color: accent),
+                const SizedBox(width: 10),
+                Text(
+                  group.title,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: isDark ? Colors.white : Colors.black87,
+                  ),
+                ),
+                if (expandable) ...<Widget>[
+                  const SizedBox(width: 10),
+                  Text(
+                    expanded
+                        ? _t('收起', 'close')
+                        : _t('${group.items.length} 个模块', '${group.items.length} items'),
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: isDark ? Colors.white70 : Colors.grey[700],
+                    ),
+                  ),
+                  Icon(
+                    expanded ? Icons.expand_less : Icons.expand_more,
+                    size: 20,
+                    color: accent,
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+  /// 展开面板：贴在所属那一行下面，整行宽，列出二级模块
+  Widget _buildPanel(BuildContext context, _MenuGroup group) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: group.color.withValues(alpha: isDark ? 0.14 : 0.07),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: group.color.withValues(alpha: 0.35),
+        ),
+      ),
+      child: Column(
+        children: <Widget>[
+          for (var i = 0; i < group.items.length; i++) ...<Widget>[
+            _buildSubItem(context, group, group.items[i]),
+            if (i != group.items.length - 1) const SizedBox(height: 8),
+          ],
+        ],
+      ),
+    );
+  }
+
+  /// 二级模块按钮（文案居中）
+  Widget _buildSubItem(
+    BuildContext context,
+    _MenuGroup group,
+    _MenuSubItem item,
+  ) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final accent = isDark ? Colors.white : group.color;
     return SizedBox(
       width: double.infinity,
-      child: ElevatedButton(
-        onPressed: onTap,
-        style: ElevatedButton.styleFrom(
-          padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 24),
-          backgroundColor: color,
-          foregroundColor: Colors.white,
+      child: OutlinedButton(
+        onPressed: item.onTap,
+        style: OutlinedButton.styleFrom(
+          padding: const EdgeInsets.symmetric(vertical: 13),
+          foregroundColor: accent,
+          backgroundColor: accent.withValues(alpha: 0.06),
+          side: BorderSide(color: group.color.withValues(alpha: 0.4)),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(10),
           ),
-          elevation: 4,
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, size: 28),
-            const SizedBox(width: 12),
-            Flexible(
-              child: Text(
-                label,
-                style: const TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                ),
-                overflow: TextOverflow.ellipsis,
-              ),
+          children: <Widget>[
+            Icon(item.icon, size: 18),
+            const SizedBox(width: 8),
+            Text(
+              item.label,
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 15),
             ),
           ],
         ),
       ),
     );
   }
+
 }
 
 // ==================== 组车工具 ====================
@@ -1374,9 +1682,7 @@ class _BuildToolScreenState extends State<BuildToolScreen> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
-                  (filled && (v?.name ?? '').isNotEmpty)
-                      ? v!.name!
-                      : _t('车位$slot', 'Slot $slot'),
+                  garageSlotLabel(v, slot - 1, zh: widget.locale == 'zh'),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
@@ -2679,8 +2985,10 @@ class CarValidation {
     List<PartData> gadgets,
     PartData? extraWeapon,
     Map<String, int> levels,
-    Map<String, int> extraBonuses,
-  ) {
+    Map<String, int> extraBonuses, {
+    Map<String, int> hpBoxPct = const <String, int> {},
+    Map<String, int> atkBoxPct = const <String, int> {},
+  }) {
     // allParts：参与 HP/ATK/加成/赞助计算（含额外武器）
     // powerParts：参与电力计算（不含额外武器，额外武器不耗电）
     final allParts = <PartData>[];
@@ -2759,24 +3067,27 @@ class CarValidation {
 
     // HP/ATK：分类加成与额外加成为独立乘区，逐部件相乘
     // HP = Σ hp*(1+分类加成/100)*(1+额外加成/100)，ATK 同理
+    // 生命/攻击工具箱（城市之王 25 胜后掉落）是又一个独立乘区，只作用于对应数值
     double hp = 0, atk = 0;
     for (final p in allParts) {
       final hpV = p.hp(lv(p));
       final atkV = p.atk(lv(p));
       final xm = 1 + xb(p) / 100.0;
+      final hm = 1 + (hpBoxPct[p.id] ?? 0) / 100.0;
+      final am = 1 + (atkBoxPct[p.id] ?? 0) / 100.0;
       switch (p.category) {
         case PartCategory.body:
-          hp += hpV * (1 + bodyBonusPct / 100.0) * xm;
+          hp += hpV * (1 + bodyBonusPct / 100.0) * xm * hm;
           break;
         case PartCategory.weapon:
-          atk += atkV * (1 + weaponBonusPct / 100.0) * xm;
+          atk += atkV * (1 + weaponBonusPct / 100.0) * xm * am;
           break;
         case PartCategory.wheel:
-          hp += hpV * (1 + wheelBonusPct / 100.0) * xm;
-          atk += atkV * (1 + wheelBonusPct / 100.0) * xm;
+          hp += hpV * (1 + wheelBonusPct / 100.0) * xm * hm;
+          atk += atkV * (1 + wheelBonusPct / 100.0) * xm * am;
           break;
         case PartCategory.gadget:
-          hp += hpV * (1 + gadgetBonusPct / 100.0) * xm;
+          hp += hpV * (1 + gadgetBonusPct / 100.0) * xm * hm;
           break;
       }
     }

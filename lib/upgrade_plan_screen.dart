@@ -537,8 +537,8 @@ class _UpgradePlanScreenState extends State<UpgradePlanScreen> {
       borderRadius: BorderRadius.circular(10),
       onTap: () => _onSelectSlot(i),
       child: Container(
-        width: 62,
-        padding: const EdgeInsets.symmetric(vertical: 8),
+        constraints: const BoxConstraints(minWidth: 62, maxWidth: 92),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
         decoration: BoxDecoration(
           color: selected
               ? Colors.indigo
@@ -567,10 +567,14 @@ class _UpgradePlanScreenState extends State<UpgradePlanScreen> {
                   : Colors.grey,
             ),
             const SizedBox(height: 2),
+            // 车位名与「我的车库」保持一致（自定义名称优先，否则显示序号）
             Text(
-              '${i + 1}',
+              garageSlotShortLabel(v, i),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.center,
               style: TextStyle(
-                fontSize: 12,
+                fontSize: (v?.name ?? '').trim().isEmpty ? 12 : 10,
                 fontWeight: FontWeight.bold,
                 color: selected ? Colors.white : Colors.black87,
               ),
