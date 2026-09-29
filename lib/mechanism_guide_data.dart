@@ -293,7 +293,7 @@ const List<GuideChapter> kGuideChapters = <GuideChapter>[
     id: 'city_king',
     titleZh: '城市之王',
     titleEn: 'City King',
-    summaryZh: '赛季节奏、战斗规则（建筑 / 车位 / 链接 / 高回报）、升降级与胜场 · 地区 · 赛季结算奖励',
+    summaryZh: '赛季节奏、战斗规则（建筑 / 车位 / 链接 / 高回报 / 结算系数）、升降级与胜场 · 地区 · 赛季结算奖励',
     summaryEn:
         'Season flow, battle rules (buildings, slots, links, high reward), promotion / demotion and the win / region / season rewards',
     icon: Icons.emoji_events,
@@ -451,6 +451,52 @@ const List<GuideChapter> kGuideChapters = <GuideChapter>[
       GuideBlock.tip(
         '高回报加成只在「赛季收尾之后」开启的战斗里出现（收尾的触发条件见下一节）。',
         'The high-reward bonus only appears in battles started after the season wrap-up point (see the next section for the trigger).',
+      ),
+      // ---------- 3.5 战斗分数与结算系数 ----------
+      GuideBlock.heading('战斗分数与结算系数', 'Battle score & settlement multiplier'),
+      GuideBlock.text(
+        '一场战斗最终算多少分，是「战斗分 × 结算系数」：战斗分是战斗里打出来的分数，'
+        '结算系数只看**本场之前**已经拿到的赛季胜场数 —— 胜场越多系数越高。',
+        'What a battle finally earns is "battle score × settlement multiplier". The battle score is what you '
+            'scored in the fight; the multiplier depends only on the season wins you already had **before** this battle — '
+            'the more wins, the higher it is.',
+      ),
+      GuideBlock.table(
+        GuideTable(
+          headZh: <String>['赛前已有胜场', '结算系数'],
+          headEn: <String>['Wins before the battle', 'Multiplier'],
+          rowsZh: <List<String>>[
+            <String>['0 - 1', '×1'],
+            <String>['2 - 3', '×2'],
+            <String>['4 - 5', '×3'],
+            <String>['6 - 8', '×4'],
+            <String>['9 - 11', '×5'],
+            <String>['12 - 15', '×6'],
+            <String>['16 - 19', '×8'],
+            <String>['20 - 24', '×10'],
+            <String>['25 - 29', '×15'],
+            <String>['30 及以上', '×20'],
+          ],
+          rowsEn: <List<String>>[
+            <String>['0 - 1', '×1'],
+            <String>['2 - 3', '×2'],
+            <String>['4 - 5', '×3'],
+            <String>['6 - 8', '×4'],
+            <String>['9 - 11', '×5'],
+            <String>['12 - 15', '×6'],
+            <String>['16 - 19', '×8'],
+            <String>['20 - 24', '×10'],
+            <String>['25 - 29', '×15'],
+            <String>['30+', '×20'],
+          ],
+        ),
+      ),
+      GuideBlock.tip(
+        '系数只按本场之前的胜场算，所以同一档里连胜不会马上提高系数，跨到下一档才会提高。'
+        '在「赛季统计」里填了赛前胜场就会按这张表自动带出系数（也可以手动改）。',
+        'The multiplier is read from your wins before the battle, so wins inside one band do not raise it — '
+            'you have to cross into the next band. In Season Stats the multiplier is filled in from this table '
+            '(and can be overridden).',
       ),
       // ---------- 3. 赛季什么时候结束 ----------
       GuideBlock.heading('赛季什么时候结束', 'When a season ends'),

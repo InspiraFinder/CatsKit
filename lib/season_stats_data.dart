@@ -2,8 +2,6 @@ import 'dart:convert';
 
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'life_sim/life_sim_data.dart';
-
 /// 一条「赛季统计」记录：开始时间 / 结束时间 / 持续时间 / 战斗分数
 ///
 /// 除了下面四个核心字段，还有两个可选字段参与表格里的派生计算：
@@ -141,9 +139,61 @@ class SeasonStatRecord {
 /// 一场战斗的固定时长：24 小时（1440 分钟）
 const int kSeasonBattleMinutes = 24 * 60;
 
-/// 按「赛后胜场」取战斗分数的结算系数（未填胜场时返回 null）
-int? seasonStatMultiplierOf(int? winsAfter) =>
-    winsAfter == null ? null : cityScoreMultiplier(winsAfter);
+/// 战斗分数的结算系数的一档：按**本场之前的赛季胜场数**取
+class SeasonScoreMultiplier {
+  /// 赛前胜场下限（含）
+  final int minWins;
+
+  /// 赛前胜场上限（含）；null = 无上限
+  final int? maxWins;
+
+  /// 这一档的结算系数
+  final int multiplier;
+
+  const SeasonScoreMultiplier({
+    required this.minWins,
+    this.maxWins,
+    required this.multiplier,
+  });
+
+  /// 区间文案：`0 - 1` / `30 及以上`
+  String winsLabel(bool zh) {
+    if (maxWins == null) return zh ? '$minWins 及以上' : '$minWins+';
+    if (minWins == maxWins) return '$minWins';
+    return '$minWins - $maxWins';
+  }
+}
+
+/// 战斗分数的结算系数表（按赛前胜场升序）
+///
+/// 赛前 0-1 胜 ×1、2-3 胜 ×2、4-5 胜 ×3、6-8 胜 ×4、9-11 胜 ×5、12-15 胜 ×6、
+/// 16-19 胜 ×8、20-24 胜 ×10、25-29 胜 ×15、30 胜及以上 ×20。
+///
+/// ⚠️ 机制指南里的那张表要与本表保持一致（`test/season_stats_test.dart` 有对拍）。
+const List<SeasonScoreMultiplier> kSeasonScoreMultipliers =
+    <SeasonScoreMultiplier>[
+      SeasonScoreMultiplier(minWins: 0, maxWins: 1, multiplier: 1),
+      SeasonScoreMultiplier(minWins: 2, maxWins: 3, multiplier: 2),
+      SeasonScoreMultiplier(minWins: 4, maxWins: 5, multiplier: 3),
+      SeasonScoreMultiplier(minWins: 6, maxWins: 8, multiplier: 4),
+      SeasonScoreMultiplier(minWins: 9, maxWins: 11, multiplier: 5),
+      SeasonScoreMultiplier(minWins: 12, maxWins: 15, multiplier: 6),
+      SeasonScoreMultiplier(minWins: 16, maxWins: 19, multiplier: 8),
+      SeasonScoreMultiplier(minWins: 20, maxWins: 24, multiplier: 10),
+      SeasonScoreMultiplier(minWins: 25, maxWins: 29, multiplier: 15),
+      SeasonScoreMultiplier(minWins: 30, multiplier: 20),
+    ];
+
+/// 按**赛前胜场**取结算系数（胜场未知时返回 null）
+int? seasonScoreMultiplierOf(int? winsBefore) {
+  if (winsBefore == null || winsBefore < 0) return null;
+  for (final band in kSeasonScoreMultipliers) {
+    if (winsBefore < band.minWins) continue;
+    if (band.maxWins != null && winsBefore > band.maxWins!) continue;
+    return band.multiplier;
+  }
+  return null;
+}
 
 /// 表格里的一行：把依赖「战斗先后顺序」的派生字段一次算好
 class SeasonStatRow {
@@ -199,7 +249,9 @@ List<SeasonStatRow> buildSeasonStatRows(List<SeasonStatRecord> records) {
     final r = sorted[i];
     final prev = i > 0 ? rows[i - 1] : null;
     final winsBefore = prev == null ? 0 : prev.winsAfter;
-    final multiplier = r.settleMultiplier ?? seasonStatMultiplierOf(r.winsAfter);
+    // 结算系数只看「本场之前」的胜场；手填的系数优先
+    final multiplier =
+        r.settleMultiplier ?? seasonScoreMultiplierOf(winsBefore);
     int? gap;
     if (prev != null) {
       final raw = r.startTime.difference(prev.endTime).inMinutes;

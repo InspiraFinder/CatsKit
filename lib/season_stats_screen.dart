@@ -94,8 +94,16 @@ class _SeasonStatsScreenState extends State<SeasonStatsScreen> {
     _setRecords(records, loading: true);
   }
 
-  /// 上一条的赛后胜场（用于「本场默认又是胜场」）
-  int get _lastWins => _rows.isEmpty ? 0 : (_rows.last.winsAfter ?? 0);
+  /// 表格里最后一场的赛后胜场（下一场的「赛前胜场」）；表里没记录时按 0 算
+  int? get _lastWins => _rows.isEmpty ? 0 : _rows.last.winsAfter;
+
+  /// 某条记录的赛前胜场（编辑时用）
+  int? _winsBeforeOf(String id) {
+    for (final r in _rows) {
+      if (r.id == id) return r.winsBefore;
+    }
+    return null;
+  }
 
   /// 当前筛选条件（含自定义范围）下的行
   List<SeasonStatRow> get _visible {
@@ -138,7 +146,7 @@ class _SeasonStatsScreenState extends State<SeasonStatsScreen> {
     final record = await showSeasonStatRecordDialog(
       context,
       locale: widget.locale,
-      defaultWinsAfter: _lastWins + 1,
+      winsBefore: _lastWins,
     );
     if (record == null) return;
     final list = await SeasonStatsStore.add(record);
@@ -151,6 +159,7 @@ class _SeasonStatsScreenState extends State<SeasonStatsScreen> {
       context,
       locale: widget.locale,
       initial: record,
+      winsBefore: _winsBeforeOf(record.id),
     );
     if (edited == null) return;
     final list = await SeasonStatsStore.update(edited);
@@ -842,7 +851,8 @@ class _SeasonStatsScreenState extends State<SeasonStatsScreen> {
 /// 弹出「新增 / 编辑记录」对话框，取消返回 null。
 ///
 /// [initial] 非空表示编辑已有记录；[defaultStart] / [defaultEnd] / [defaultScore] /
-/// [defaultWinsAfter] 用于「时间计算」导入时预填。
+/// [winsBefore] 用于「时间计算」导入或手动新增时预填：
+/// 「赛前胜场」决定结算系数（不填系数就自动按它取），「赛后胜场」默认 = 赛前 +1。
 Future<SeasonStatRecord?> showSeasonStatRecordDialog(
   BuildContext context, {
   String locale = 'zh',
@@ -850,7 +860,7 @@ Future<SeasonStatRecord?> showSeasonStatRecordDialog(
   DateTime? defaultStart,
   DateTime? defaultEnd,
   int? defaultScore,
-  int? defaultWinsAfter,
+  int? winsBefore,
 }) {
   return showDialog<SeasonStatRecord>(
     context: context,
@@ -860,7 +870,7 @@ Future<SeasonStatRecord?> showSeasonStatRecordDialog(
       defaultStart: defaultStart,
       defaultEnd: defaultEnd,
       defaultScore: defaultScore,
-      defaultWinsAfter: defaultWinsAfter,
+      winsBefore: winsBefore,
     ),
   );
 }
@@ -871,7 +881,9 @@ class _SeasonStatDialog extends StatefulWidget {
   final DateTime? defaultStart;
   final DateTime? defaultEnd;
   final int? defaultScore;
-  final int? defaultWinsAfter;
+
+  /// 本场之前的赛季胜场（决定结算系数）
+  final int? winsBefore;
 
   const _SeasonStatDialog({
     required this.locale,
@@ -879,7 +891,7 @@ class _SeasonStatDialog extends StatefulWidget {
     this.defaultStart,
     this.defaultEnd,
     this.defaultScore,
-    this.defaultWinsAfter,
+    this.winsBefore,
   });
 
   @override
@@ -905,7 +917,7 @@ class _SeasonStatDialogState extends State<_SeasonStatDialog> {
     _scoreCtrl = TextEditingController(
       text: (widget.initial?.finalScore ?? widget.defaultScore ?? 0).toString(),
     );
-    final wins = widget.initial?.winsAfter ?? widget.defaultWinsAfter;
+    final wins = widget.initial?.winsAfter ?? _defaultWinsAfter;
     _winsCtrl = TextEditingController(text: wins?.toString() ?? '');
     _multiplierCtrl = TextEditingController(
       text: widget.initial?.settleMultiplier?.toString() ?? '',
@@ -929,9 +941,33 @@ class _SeasonStatDialogState extends State<_SeasonStatDialog> {
 
   bool get _hasWins => _winsCtrl.text.trim().isNotEmpty;
 
-  /// 自动取到的系数（系数输入框留空时用它）
-  int? get _autoMultiplier =>
-      _hasWins ? seasonStatMultiplierOf(_winsAfter) : null;
+  /// 「赛后胜场」的默认值：赛前 +1（先假定本场是胜场，可改）
+  int? get _defaultWinsAfter =>
+      widget.winsBefore == null ? null : widget.winsBefore! + 1;
+
+  /// 结算系数的自动值（系数输入框留空时用它）——只看**本场之前**的胜场
+  int? get _autoMultiplier => seasonScoreMultiplierOf(_winsBeforeForCalc);
+
+  /// 对话框里能拿到的「赛前胜场」：
+  /// 新增时由调用方传入；编辑时若没传，就用本场赛后胜场 −1 近似回推。
+  int? get _winsBeforeForCalc {
+    if (widget.winsBefore != null) return widget.winsBefore;
+    final after = widget.initial?.winsAfter;
+    if (after == null) return null;
+    return after > 0 ? after - 1 : 0;
+  }
+
+  /// 自动系数所在档位的文案（`0 - 1` / `30 及以上`）
+  String _multiplierBandLabel() {
+    final before = _winsBeforeForCalc;
+    if (before == null) return '-';
+    for (final band in kSeasonScoreMultipliers) {
+      if (before < band.minWins) continue;
+      if (band.maxWins != null && before > band.maxWins!) continue;
+      return band.winsLabel(_isZh);
+    }
+    return '-';
+  }
 
   /// 最终生效的系数（手填优先）
   int? get _effectiveMultiplier =>
@@ -1045,6 +1081,37 @@ class _SeasonStatDialogState extends State<_SeasonStatDialog> {
                   ),
                 ],
               ),
+            ),
+            const SizedBox(height: 4),
+            Row(
+              children: [
+                SizedBox(
+                  width: 78,
+                  child: Text(
+                    _t('赛前胜场', 'Wins before'),
+                    style: const TextStyle(fontSize: 13),
+                  ),
+                ),
+                Text(
+                  widget.winsBefore?.toString() ?? '-',
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    _autoMultiplier == null
+                        ? _t('填赛前胜场后自动取系数', 'auto once wins are known')
+                        : _t(
+                            '赛前胜场落在「${_multiplierBandLabel()}」→ 系数自动 ×$_autoMultiplier',
+                            'auto ×$_autoMultiplier from this band',
+                          ),
+                    style: TextStyle(fontSize: 11, color: Colors.grey[600]),
+                  ),
+                ),
+              ],
             ),
             const SizedBox(height: 4),
             TextField(
@@ -1170,22 +1237,23 @@ Future<bool> importSeasonStatFromTimer(
   required int finalScore,
 }) async {
   final isZh = locale == 'zh';
-  // 「赛后胜场」默认接上一条 +1（先假定本场是胜场，用户可在对话框里改）
+  // 「赛前胜场」= 现有最后一场的赛后胜场（表里没记录则 0），
+  // 「赛后胜场」在对话框里默认 = 赛前 +1（先假定本场是胜场，可改）
   final existing = await SeasonStatsStore.load();
   final rows = buildSeasonStatRows(existing);
-  final defaultWins = rows.isEmpty ? 1 : (rows.last.winsAfter ?? 0) + 1;
+  final winsBefore = rows.isEmpty ? 0 : rows.last.winsAfter;
 
   if (!context.mounted) return false;
   final record = await showSeasonStatRecordDialog(
     context,
     locale: locale,
+    winsBefore: winsBefore,
     initial: SeasonStatRecord(
       id: newSeasonStatId(),
       startTime: startTime,
       endTime: endTime,
       finalScore: finalScore,
       source: 'timer',
-      winsAfter: defaultWins,
     ),
   );
   if (record == null) return false;
