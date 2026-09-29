@@ -383,8 +383,8 @@ const List<GuideChapter> kGuideChapters = <GuideChapter>[
           'When the duel ends, the winner\'s **current HP** is recorded and saved — winning does not refill the car',
         ),
         GuideBullet(
-          '胜方以结算时的血量占领车位（如果本来就是这个车位的主人，则以该血量继续持有）',
-          'The winner holds the slot with the HP it had at the end of the duel (if it already held the slot, it keeps it at that HP)',
+          '胜方以结算时的血量进入**防守状态**（如果本来就是这个车位的主人，就以该血量继续持有）',
+          'The winner enters the **defending state** with the HP it had at the end of the duel (if it already held the slot, it keeps it at that HP)',
         ),
         GuideBullet(
           'HP 归零的车会爆炸、暂时无法使用，需要 2 小时才能回满 HP',
@@ -399,16 +399,20 @@ const List<GuideChapter> kGuideChapters = <GuideChapter>[
         headZh: <String>['车辆状态', '说明'],
         headEn: <String>['Car state', 'Notes'],
         rowsZh: <List<String>>[
-          <String>['满血', '可以正常参战'],
-          <String>['残血', '可以参战，按「2 小时回满」的速度恢复'],
-          <String>['HP 归零', '爆炸，暂时无法使用，2 小时后回满'],
+          <String>['空闲', '可以挑选「未被我方占领」的车位发起攻击'],
+          <String>['防守', '车辆占领车位时的状态'],
+          <String>['爆炸', 'HP 归零后爆炸；等生命值回满（2 小时）后变回空闲'],
         ],
         rowsEn: <List<String>>[
-          <String>['Full HP', 'Ready to fight'],
-          <String>['Damaged', 'Can fight; regenerates at "full HP in 2 hours"'],
-          <String>['HP = 0', 'Explodes and is unusable; refills after 2 hours'],
+          <String>['Idle', 'Can attack a slot that is not held by your side'],
+          <String>['Defending', 'The state while the car holds a slot'],
+          <String>['Exploded', 'HP hit zero: it explodes and turns back to idle once HP is full (2 hours)'],
         ],
       )),
+      GuideBlock.text(
+        '状态流转：空闲 →（占领车位）→ 防守；防守 →（HP 归零）→ 爆炸 →（生命值回满）→ 空闲。',
+        'State flow: idle → (takes a slot) → defending; defending → (HP reaches zero) → exploded → (HP refills) → idle.',
+      ),
       // ---------- 3. 特殊机制 ----------
       GuideBlock.heading('特殊机制：链接与高回报加成', 'Special mechanics: links & high reward'),
       GuideBlock.text(
