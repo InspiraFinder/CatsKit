@@ -178,6 +178,7 @@ class _MechanismGuideScreenState extends State<MechanismGuideScreen> {
 
   Widget _buildChapterCard(GuideChapter c, bool isDark) {
     final count = c.blocks.length;
+    final sectionCount = c.sections.length;
     return Material(
       color: isDark ? const Color(0xFF1E1E1E) : Colors.white,
       borderRadius: BorderRadius.circular(10),
@@ -236,7 +237,9 @@ class _MechanismGuideScreenState extends State<MechanismGuideScreen> {
                     ),
                     const SizedBox(height: 6),
                     Text(
-                      _isZh ? '$count 个段落' : '$count blocks',
+                      sectionCount > 0
+                          ? (_isZh ? '$sectionCount 个小节' : '$sectionCount sections')
+                          : (_isZh ? '$count 个段落' : '$count blocks'),
                       style: TextStyle(
                         fontSize: 11,
                         color: isDark ? Colors.white38 : Colors.black38,
@@ -256,8 +259,9 @@ class _MechanismGuideScreenState extends State<MechanismGuideScreen> {
 }
 
 // ==================== 章节页 ====================
-/// 单章内容：把 [GuideChapter.blocks] 渲染成段落 / 列表 / 提示 / 配图
-class GuideChapterScreen extends StatelessWidget {
+/// 单章内容（wiki 式）：顶部是「章内目录」，下面按小节渲染
+/// 段落 / 要点 / 提示 / 配图 / 表格；点目录可以跳到对应小节。
+class GuideChapterScreen extends StatefulWidget {
   final GuideChapter chapter;
   final String locale;
   final String server;
@@ -268,11 +272,24 @@ class GuideChapterScreen extends StatelessWidget {
     this.server = 'cn',
   });
 
+  @override
+  State<GuideChapterScreen> createState() => _GuideChapterScreenState();
+}
+
+class _GuideChapterScreenState extends State<GuideChapterScreen> {
+  GuideChapter get chapter => widget.chapter;
+  String get locale => widget.locale;
+  String get server => widget.server;
+
+  /// 每个块的 key（目录跳转用）
+  final Map<int, GlobalKey> _blockKeys = <int, GlobalKey>{};
+
   String _t(String zh, String en) => locale == 'zh' ? zh : en;
 
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final sections = chapter.sections;
     return Scaffold(
       appBar: AppBar(
         title: Text(chapter.title(locale)),
@@ -283,21 +300,135 @@ class GuideChapterScreen extends StatelessWidget {
           tooltip: _t('返回目录', 'Back'),
         ),
       ),
-      body: ListView(
+      // 用 Column（而不是 ListView）一次建好整章，目录跳转才能立刻定位
+      body: SingleChildScrollView(
         padding: const EdgeInsets.all(12),
-        children: <Widget>[
-          for (final b in chapter.blocks) ...[
-            _buildBlock(b, isDark),
-            const SizedBox(height: 12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            if (sections.length > 1) ...<Widget>[
+              _buildToc(sections, isDark),
+              const SizedBox(height: 14),
+            ],
+            for (var i = 0; i < chapter.blocks.length; i++) ...<Widget>[
+              KeyedSubtree(
+                key: _blockKeys.putIfAbsent(i, () => GlobalKey()),
+                child: _buildBlock(chapter.blocks[i], isDark),
+              ),
+              SizedBox(height: i == chapter.blocks.length - 1 ? 8 : 12),
+            ],
           ],
-          const SizedBox(height: 8),
+        ),
+      ),
+    );
+  }
+
+  /// 章内目录，点击跳到对应小节
+  Widget _buildToc(List<(int, String, String)> sections, bool isDark) {
+    final zh = locale == 'zh';
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(12, 10, 12, 6),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1E1E1E) : const Color(0xFFF7F7F9),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: isDark ? Colors.white24 : Colors.black12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Row(
+            children: <Widget>[
+              Icon(Icons.list_alt, size: 15, color: chapter.color),
+              const SizedBox(width: 6),
+              Text(
+                zh ? '目录' : 'Contents',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                  color: chapter.color,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          for (var i = 0; i < sections.length; i++)
+            InkWell(
+              borderRadius: BorderRadius.circular(6),
+              onTap: () => _jumpTo(sections[i].$1),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 5),
+                child: Row(
+                  children: <Widget>[
+                    SizedBox(
+                      width: 20,
+                      child: Text(
+                        '${i + 1}.',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: isDark ? Colors.white38 : Colors.black38,
+                        ),
+                      ),
+                    ),
+                    Expanded(
+                      child: Text(
+                        zh ? sections[i].$2 : sections[i].$3,
+                        style: const TextStyle(fontSize: 12, height: 1.3),
+                      ),
+                    ),
+                    Icon(
+                      Icons.chevron_right,
+                      size: 14,
+                      color: isDark ? Colors.white24 : Colors.black26,
+                    ),
+                  ],
+                ),
+              ),
+            ),
         ],
       ),
     );
   }
 
+  Future<void> _jumpTo(int blockIndex) async {
+    final ctx = _blockKeys[blockIndex]?.currentContext;
+    if (ctx == null) return;
+    await Scrollable.ensureVisible(
+      ctx,
+      duration: const Duration(milliseconds: 250),
+      curve: Curves.easeOut,
+      alignment: 0.02,
+    );
+  }
+
   Widget _buildBlock(GuideBlock b, bool isDark) {
     final parts = <Widget>[];
+
+    if (b.headingZh != null) {
+      parts.add(Row(
+        children: <Widget>[
+          Container(
+            width: 4,
+            height: 15,
+            decoration: BoxDecoration(
+              color: chapter.color,
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              _t(b.headingZh!, b.headingEn ?? b.headingZh!),
+              style: TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.bold,
+                color: isDark ? Colors.white : Colors.black87,
+              ),
+            ),
+          ),
+        ],
+      ));
+    }
 
     if (b.textZh != null) {
       parts.add(Text(
