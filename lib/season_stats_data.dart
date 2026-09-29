@@ -789,9 +789,10 @@ DateTime? rangeStart(SeasonStatRange range, {DateTime? now}) {
   }
 }
 
-/// 按关键词 + 时间范围筛选，再按指定列排序（纯函数，便于测试）
+/// 按「对方 ID」+ 时间范围筛选，再按指定列排序（纯函数，便于测试）
 ///
-/// [from] / [to] 为闭区间，按记录的**开始时间**过滤；[to] 为空表示不设上限。
+/// - [query]：只匹配**对方 ID**（不区分大小写、包含即命中）；空串 = 不按对方筛
+/// - [from] / [to]：闭区间，按记录的**开始时间**过滤；为空表示不设该侧上限
 List<SeasonStatRow> filterAndSortSeasonStatRows(
   List<SeasonStatRow> rows, {
   String query = '',
@@ -805,7 +806,7 @@ List<SeasonStatRow> filterAndSortSeasonStatRows(
   for (final r in rows) {
     if (from != null && r.startTime.isBefore(from)) continue;
     if (to != null && r.startTime.isAfter(to)) continue;
-    if (q.isNotEmpty && !seasonStatHaystack(r).contains(q)) continue;
+    if (q.isNotEmpty && !r.enemyId.toLowerCase().contains(q)) continue;
     filtered.add(r);
   }
 
@@ -854,30 +855,8 @@ List<SeasonStatRow> filterAndSortSeasonStatRows(
   return filtered;
 }
 
-/// 一行的可搜索文本（赛季 / 对战 / 时间 / 时长 / 间隔 / 分数 / 胜场 / 系数 / 来源都能被搜到）
-String seasonStatHaystack(SeasonStatRow r) => [
-  r.seasonName,
-  r.enemyId,
-  formatSeasonStatFullTime(r.startTime),
-  formatSeasonStatTime(r.startTime),
-  formatSeasonStatFullTime(r.endTime),
-  formatSeasonStatTime(r.endTime),
-  '${r.durationMinutes}',
-  formatSeasonStatDuration(r.durationMinutes, zh: true),
-  formatSeasonStatDuration(r.durationMinutes, zh: false),
-  if (r.gapMinutes != null) '${r.gapMinutes}',
-  if (r.gapMinutes != null)
-    formatSeasonStatDuration(r.gapMinutes!, zh: true),
-  '${r.finalScore}',
-  formatSeasonStatScore(r.finalScore),
-  if (r.winsAfter != null) '${r.winsAfter}胜',
-  if (r.winsBefore != null) '${r.winsBefore}',
-  if (r.won != null) (r.won! ? '胜 获胜 win' : '负 失败 lose'),
-  if (r.multiplier != null) 'x${r.multiplier} ×${r.multiplier}',
-  if (r.gainedScore != null) formatSeasonStatScore(r.gainedScore!),
-  '第${r.order}场',
-  r.fromTimer ? 'timer 时间计算 导入' : 'manual 手动',
-].join(' ').toLowerCase();
+/// 搜索方式：目前只支持按「对方」或按「时间范围」两种
+enum SeasonStatSearchMode { opponent, time }
 
 /// 汇总统计
 SeasonStatsSummary summarizeSeasonStats(List<SeasonStatRow> rows) {

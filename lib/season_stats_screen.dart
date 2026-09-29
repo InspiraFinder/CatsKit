@@ -81,9 +81,17 @@ class _SeasonStatsScreenState extends State<SeasonStatsScreen> {
   /// 每个赛季各自重算（场次从 1 开始），筛选排序不会影响它。
   List<SeasonStatRow> _rows = <SeasonStatRow>[];
   bool _loading = true;
+
+  /// 搜索方式：按对方 / 按时间范围
+  SeasonStatSearchMode _searchMode = SeasonStatSearchMode.opponent;
+
+  /// 按对方搜索的关键词（只匹配对方 ID）
   String _query = '';
-  SeasonStatRange _range = SeasonStatRange.all;
-  DateTimeRange? _customRange;
+
+  /// 按时间范围搜索的起止时间（闭区间；为空表示不设该侧上限）
+  DateTime? _fromTime;
+  DateTime? _toTime;
+
   SeasonStatSortKey _sortKey = SeasonStatSortKey.startTime;
   bool _ascending = false;
 
@@ -178,28 +186,81 @@ class _SeasonStatsScreenState extends State<SeasonStatsScreen> {
     return null;
   }
 
-  /// 当前筛选条件（含自定义范围）下的行
+  /// 当前搜索 / 筛选条件下的行
   List<SeasonStatRow> get _visible {
-    DateTime? from;
-    DateTime? to;
-    if (_range == SeasonStatRange.custom) {
-      from = _customRange?.start;
-      // 结束日当天也要算进去
-      final end = _customRange?.end;
-      to = end == null
-          ? null
-          : DateTime(end.year, end.month, end.day, 23, 59, 59, 999);
-    } else {
-      from = rangeStart(_range);
-    }
+    // 两种搜索方式互斥：按对方时不管时间，按时间时不管对方
+    final byOpponent = _searchMode == SeasonStatSearchMode.opponent;
     return filterAndSortSeasonStatRows(
       _rows,
-      query: _query,
-      from: from,
-      to: to,
+      query: byOpponent ? _query : '',
+      from: byOpponent ? null : _fromTime,
+      to: byOpponent ? null : _toTime,
       sortKey: _sortKey,
       ascending: _ascending,
     );
+  }
+
+  /// 是否有任何搜索条件生效
+  bool get _hasFilter => _searchMode == SeasonStatSearchMode.opponent
+      ? _query.trim().isNotEmpty
+      : (_fromTime != null || _toTime != null);
+
+  /// 清空搜索条件
+  void _resetSearch() {
+    _searchCtrl.clear();
+    setState(() {
+      _query = '';
+      _fromTime = null;
+      _toTime = null;
+    });
+  }
+
+  /// 选一个时间（[isFrom] = true 选起始，否则选结束）
+  Future<void> _pickSearchTime(bool isFrom) async {
+    final now = DateTime.now();
+    final base = (isFrom ? _fromTime : _toTime) ?? now;
+    final date = await showDatePicker(
+      context: context,
+      initialDate: base,
+      firstDate: DateTime(now.year - 5),
+      lastDate: DateTime(now.year + 5),
+      helpText: isFrom ? _t('选择起始日期', 'Start date') : _t('选择结束日期', 'End date'),
+    );
+    if (date == null || !mounted) return;
+    final time = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.fromDateTime(base),
+      helpText: isFrom ? _t('选择起始时间', 'Start time') : _t('选择结束时间', 'End time'),
+    );
+    if (time == null || !mounted) return;
+    final picked = DateTime(
+      date.year,
+      date.month,
+      date.day,
+      time.hour,
+      time.minute,
+    );
+    setState(() {
+      if (isFrom) {
+        _fromTime = picked;
+        // 起始晚于结束时把结束一起顺延，避免出现空区间
+        if (_toTime != null && _toTime!.isBefore(picked)) _toTime = picked;
+      } else {
+        _toTime = picked;
+        if (_fromTime != null && _fromTime!.isAfter(picked)) _fromTime = picked;
+      }
+    });
+  }
+
+  /// 快捷填充时间范围（今天 / 近 7 天 / 近 30 天）
+  void _quickRange(SeasonStatRange range) {
+    final now = DateTime.now();
+    final start = rangeStart(range, now: now);
+    setState(() {
+      _searchMode = SeasonStatSearchMode.time;
+      _fromTime = start;
+      _toTime = now;
+    });
   }
 
   void _toggleSort(SeasonStatSortKey key) {
@@ -351,22 +412,6 @@ class _SeasonStatsScreenState extends State<SeasonStatsScreen> {
         duration: const Duration(seconds: 2),
       ),
     );
-  }
-
-  Future<void> _pickCustomRange() async {
-    final now = DateTime.now();
-    final picked = await showDateRangePicker(
-      context: context,
-      firstDate: DateTime(now.year - 5),
-      lastDate: DateTime(now.year + 5),
-      initialDateRange: _customRange,
-      helpText: _t('选择统计范围', 'Select range'),
-    );
-    if (picked == null) return;
-    setState(() {
-      _customRange = picked;
-      _range = SeasonStatRange.custom;
-    });
   }
 
   // ==================== 界面 ====================
@@ -1273,94 +1318,151 @@ class _SeasonStatsScreenState extends State<SeasonStatsScreen> {
     );
   }
 
+  /// 搜索区：先选「搜什么」（对方 / 时间），再按对应方式输入
   Widget _buildFilters() {
     final dark = Theme.of(context).brightness == Brightness.dark;
-    Widget chip(SeasonStatRange range, String label) {
-      return ChoiceChip(
-        label: Text(label, style: const TextStyle(fontSize: 12)),
-        selected: _range == range,
-        visualDensity: VisualDensity.compact,
-        onSelected: (_) async {
-          if (range == SeasonStatRange.custom) {
-            await _pickCustomRange();
-          } else {
-            setState(() => _range = range);
-          }
-        },
-      );
-    }
+    final byOpponent = _searchMode == SeasonStatSearchMode.opponent;
 
-    String customLabel = _t('自定义', 'Custom');
-    if (_range == SeasonStatRange.custom && _customRange != null) {
-      final s = _customRange!.start;
-      final e = _customRange!.end;
-      customLabel =
-          '${s.month}/${s.day} - ${e.month}/${e.day}';
-    }
+    Widget quickChip(SeasonStatRange range, String label) => ActionChip(
+      label: Text(label, style: const TextStyle(fontSize: 12)),
+      visualDensity: VisualDensity.compact,
+      onPressed: () => _quickRange(range),
+    );
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
       child: Column(
         children: [
-          SizedBox(
-            height: 36,
-            child: TextField(
-              controller: _searchCtrl,
-              onChanged: (v) => setState(() => _query = v),
-              style: const TextStyle(fontSize: 14),
-              decoration: InputDecoration(
-                isDense: true,
-                hintText: _t('搜索赛季 / 对战 / 时间 / 分数', 'Search season / opponent / time / score'),
-                hintStyle: const TextStyle(fontSize: 13),
-                prefixIcon: const Icon(Icons.search, size: 18),
-                suffixIcon: _query.isEmpty
-                    ? null
-                    : IconButton(
-                        icon: const Icon(Icons.close, size: 16),
-                        onPressed: () {
-                          _searchCtrl.clear();
-                          setState(() => _query = '');
-                        },
-                      ),
-                border: const OutlineInputBorder(),
+          // ---- 先选搜索方式 ----
+          Row(
+            children: [
+              Text(
+                _t('搜索：', 'Search:'),
+                style: TextStyle(
+                  fontSize: 13,
+                  color: dark ? Colors.white70 : Colors.grey[700],
+                ),
               ),
-            ),
-          ),
-          const SizedBox(height: 6),
-          SizedBox(
-            height: 40,
-            child: ListView(
-              scrollDirection: Axis.horizontal,
-              children: [
-                chip(SeasonStatRange.all, _t('全部', 'All')),
-                const SizedBox(width: 6),
-                chip(SeasonStatRange.today, _t('今天', 'Today')),
-                const SizedBox(width: 6),
-                chip(SeasonStatRange.last7, _t('近 7 天', '7 days')),
-                const SizedBox(width: 6),
-                chip(SeasonStatRange.last30, _t('近 30 天', '30 days')),
-                const SizedBox(width: 6),
-                chip(SeasonStatRange.custom, customLabel),
-                const SizedBox(width: 6),
-                if (_range != SeasonStatRange.all || _query.isNotEmpty)
-                  TextButton.icon(
-                    onPressed: () {
-                      _searchCtrl.clear();
-                      setState(() {
-                        _query = '';
-                        _range = SeasonStatRange.all;
-                        _customRange = null;
-                      });
-                    },
-                    icon: const Icon(Icons.restart_alt, size: 16),
+              const SizedBox(width: 8),
+              SegmentedButton<SeasonStatSearchMode>(
+                segments: <ButtonSegment<SeasonStatSearchMode>>[
+                  ButtonSegment<SeasonStatSearchMode>(
+                    value: SeasonStatSearchMode.opponent,
+                    icon: const Icon(Icons.groups_2, size: 16),
                     label: Text(
-                      _t('重置', 'Reset'),
+                      _t('对方', 'Opponent'),
                       style: const TextStyle(fontSize: 12),
                     ),
                   ),
+                  ButtonSegment<SeasonStatSearchMode>(
+                    value: SeasonStatSearchMode.time,
+                    icon: const Icon(Icons.schedule, size: 16),
+                    label: Text(
+                      _t('时间', 'Time'),
+                      style: const TextStyle(fontSize: 12),
+                    ),
+                  ),
+                ],
+                selected: <SeasonStatSearchMode>{_searchMode},
+                onSelectionChanged: (s) =>
+                    setState(() => _searchMode = s.first),
+                showSelectedIcon: false,
+                style: const ButtonStyle(
+                  visualDensity: VisualDensity.compact,
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+              ),
+              const Spacer(),
+              if (_hasFilter)
+                TextButton.icon(
+                  onPressed: _resetSearch,
+                  icon: const Icon(Icons.restart_alt, size: 16),
+                  label: Text(
+                    _t('重置', 'Reset'),
+                    style: const TextStyle(fontSize: 12),
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 6),
+
+          // ---- 按对方：搜索框 ----
+          if (byOpponent)
+            SizedBox(
+              height: 36,
+              child: TextField(
+                controller: _searchCtrl,
+                onChanged: (v) => setState(() => _query = v),
+                style: const TextStyle(fontSize: 14),
+                decoration: InputDecoration(
+                  isDense: true,
+                  hintText: _t('输入对方 ID', 'Enter opponent ID'),
+                  hintStyle: const TextStyle(fontSize: 13),
+                  prefixIcon: const Icon(Icons.search, size: 18),
+                  suffixIcon: _query.isEmpty
+                      ? null
+                      : IconButton(
+                          icon: const Icon(Icons.close, size: 16),
+                          onPressed: () {
+                            _searchCtrl.clear();
+                            setState(() => _query = '');
+                          },
+                        ),
+                  border: const OutlineInputBorder(),
+                ),
+              ),
+            )
+          // ---- 按时间：起始 + 结束 ----
+          else ...[
+            Row(
+              children: [
+                Expanded(
+                  child: _timeField(
+                    label: _t('起始时间', 'From'),
+                    value: _fromTime,
+                    onTap: () => _pickSearchTime(true),
+                    onClear: _fromTime == null
+                        ? null
+                        : () => setState(() => _fromTime = null),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: _timeField(
+                    label: _t('结束时间', 'To'),
+                    value: _toTime,
+                    onTap: () => _pickSearchTime(false),
+                    onClear: _toTime == null
+                        ? null
+                        : () => setState(() => _toTime = null),
+                  ),
+                ),
               ],
             ),
-          ),
+            const SizedBox(height: 6),
+            SizedBox(
+              height: 36,
+              child: ListView(
+                scrollDirection: Axis.horizontal,
+                children: [
+                  Text(
+                    _t('快捷：', 'Quick:'),
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: dark ? Colors.white54 : Colors.grey[600],
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  quickChip(SeasonStatRange.today, _t('今天', 'Today')),
+                  const SizedBox(width: 6),
+                  quickChip(SeasonStatRange.last7, _t('近 7 天', '7 days')),
+                  const SizedBox(width: 6),
+                  quickChip(SeasonStatRange.last30, _t('近 30 天', '30 days')),
+                ],
+              ),
+            ),
+          ],
+
           Align(
             alignment: Alignment.centerLeft,
             child: Text(
@@ -1377,6 +1479,46 @@ class _SeasonStatsScreenState extends State<SeasonStatsScreen> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  /// 时间输入框（点一下弹日期 + 时间选择）
+  Widget _timeField({
+    required String label,
+    required DateTime? value,
+    required VoidCallback onTap,
+    VoidCallback? onClear,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(4),
+      child: InputDecorator(
+        decoration: InputDecoration(
+          isDense: true,
+          labelText: label,
+          border: const OutlineInputBorder(),
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 10,
+            vertical: 10,
+          ),
+          suffixIcon: onClear == null
+              ? const Icon(Icons.schedule, size: 16)
+              : IconButton(
+                  icon: const Icon(Icons.close, size: 16),
+                  onPressed: onClear,
+                  visualDensity: VisualDensity.compact,
+                ),
+        ),
+        child: Text(
+          value == null
+              ? _t('不限', 'Any')
+              : formatSeasonStatFullTime(value),
+          style: TextStyle(
+            fontSize: 13,
+            color: value == null ? Colors.grey : null,
+          ),
+        ),
       ),
     );
   }
