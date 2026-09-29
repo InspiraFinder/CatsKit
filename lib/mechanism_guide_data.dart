@@ -392,6 +392,16 @@ const List<GuideChapter> kGuideChapters = <GuideChapter>[
               '**stays there with the HP it has when the duel ends** and keeps regenerating until full HP',
         ),
         GuideBullet(
+          '人机占着的车位不属于任何一方，我方和对方都可以攻击它',
+          'A slot held by a bot belongs to neither side, so both we and the opposing gang may attack it',
+        ),
+        GuideBullet(
+          '攻击锁定：某个车位正在被攻击时，**在战斗结果结算之前谁都不能再攻击这个车位**'
+          '（我方其他成员、对方成员都一样）—— 只能改选其它可攻击的车位，或者等这次攻击结算完',
+          'Attack lock: while a slot is being attacked, **nobody else may attack that slot until the result is resolved** '
+          '(neither our other members nor the opposing gang) — they must pick another attackable slot or wait for the result',
+        ),
+        GuideBullet(
           '战斗结束时记录胜方的**当前 HP** 并保存状态 —— 车不会因为打赢就回满血',
           'When the duel ends the winner\'s **current HP** is recorded and saved — winning does not refill the car',
         ),
