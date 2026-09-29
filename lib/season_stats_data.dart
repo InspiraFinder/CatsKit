@@ -74,22 +74,35 @@ class SeasonStatRecord {
         source: json['source'] as String? ?? 'manual',
       );
 
-  /// 由「时间计算」的结果生成记录：
-  /// 开始时间 = 计算那一刻，结束时间 = 计算那一刻 + 实际结束分钟数，
-  /// 于是「持续时间」正好等于本次计算的时长。
+  /// 由「时间计算」的结果生成记录。
+  ///
+  /// 一场战斗按固定 [kSeasonBattleMinutes]（24 小时）计算，而「时间计算」拿到的是
+  /// **剩余时间**，因此：
+  /// - 已经经过的时间 = 24h − 剩余时间
+  /// - 开始时间 = 计算那一刻 − 已经经过的时间
+  /// - 结束时间 = 开始时间 + 24h（也就是 计算那一刻 + 剩余时间）
   factory SeasonStatRecord.fromTimer({
     String? id,
     required DateTime calcTime,
-    required int endMinutes,
+    required int remainingMinutes,
     required int finalScore,
-  }) => SeasonStatRecord(
-    id: id ?? newSeasonStatId(),
-    startTime: calcTime,
-    endTime: calcTime.add(Duration(minutes: endMinutes < 0 ? 0 : endMinutes)),
-    finalScore: finalScore,
-    source: 'timer',
-  );
+  }) {
+    final remain = remainingMinutes < 0 ? 0 : remainingMinutes;
+    var elapsed = kSeasonBattleMinutes - remain;
+    if (elapsed < 0) elapsed = 0;
+    final start = calcTime.subtract(Duration(minutes: elapsed));
+    return SeasonStatRecord(
+      id: id ?? newSeasonStatId(),
+      startTime: start,
+      endTime: start.add(const Duration(minutes: kSeasonBattleMinutes)),
+      finalScore: finalScore,
+      source: 'timer',
+    );
+  }
 }
+
+/// 一场战斗的固定时长：24 小时（1440 分钟）
+const int kSeasonBattleMinutes = 24 * 60;
 
 /// 生成一个新的记录 id
 String newSeasonStatId() =>

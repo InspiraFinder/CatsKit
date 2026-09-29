@@ -45,10 +45,10 @@ class _TimeCalcScreenState extends State<TimeCalcScreen> {
   String? _resultWinner;
   String? _resultMyFinalScore;
   String? _resultEnemyFinalScore;
-  /// 本次计算发生的时刻（作为导入赛季统计时的「开始时间」）
+  /// 本次计算发生的时刻（用于反推战斗开始时间）
   DateTime? _resultCalcTime;
-  /// 距离战斗结束的分钟数（作为导入赛季统计时的「持续时间」）
-  double? _resultEndMinutes;
+  /// 识别到的「剩余时间」分钟数（战斗按 24h 计，已经经过 = 24h − 剩余时间）
+  int? _resultRemainingMinutes;
   bool _hasResult = false;
   // 识别到的文字框（用于叠加显示）
   List<Map<String, dynamic>> _textItems = [];
@@ -192,8 +192,6 @@ class _TimeCalcScreenState extends State<TimeCalcScreen> {
       String resultWinner = '无法判定';
       String resultMyFinal = myScore;
       String resultEnemyFinal = enemyScore;
-      // 实际结束分钟数（用于计算「结束时间」与「持续时间」）
-      double? resultEndMinutes;
 
       final remainingMin = _parseTimeToMinutes(timeLeft);
       // 实际结束分钟数（默认正常结束，若有队伍达线则提前）
@@ -317,7 +315,6 @@ class _TimeCalcScreenState extends State<TimeCalcScreen> {
           resultEndTime =
               '${endTime.hour.toString().padLeft(2, '0')}:${endTime.minute.toString().padLeft(2, '0')}';
           resultTimeLeft = _formatMinutes(endMin);
-          resultEndMinutes = endMin;
         } else if (myScoreVal != null && enemyScoreVal != null) {
           // 缺少每分钟得分，只能按当前分数判断
           if (myScoreVal > enemyScoreVal) {
@@ -336,7 +333,6 @@ class _TimeCalcScreenState extends State<TimeCalcScreen> {
         resultEndTime =
             '${endTime.hour.toString().padLeft(2, '0')}:${endTime.minute.toString().padLeft(2, '0')}';
         resultTimeLeft = _formatMinutes(remainingMin);
-        resultEndMinutes = remainingMin;
       }
 
       if (!mounted) return;
@@ -353,7 +349,7 @@ class _TimeCalcScreenState extends State<TimeCalcScreen> {
         _resultMyFinalScore = resultMyFinal;
         _resultEnemyFinalScore = resultEnemyFinal;
         _resultCalcTime = now;
-        _resultEndMinutes = resultEndMinutes;
+        _resultRemainingMinutes = remainingMin?.round();
         _textItems = androidItems;
         _hasResult = true;
       });
@@ -1050,7 +1046,8 @@ class _TimeCalcScreenState extends State<TimeCalcScreen> {
                 _isZh ? '敌方最终分数' : 'Enemy Final Score',
                 _resultEnemyFinalScore ?? '',
               ),
-              if (_resultCalcTime != null && _resultEndMinutes != null) ...[
+              if (_resultCalcTime != null &&
+                  (_resultRemainingMinutes ?? 0) > 0) ...[
                 const Divider(height: 20),
                 _buildSeasonStatPreview(),
               ],
@@ -1123,6 +1120,15 @@ class _TimeCalcScreenState extends State<TimeCalcScreen> {
           formatSeasonStatScore(preview.finalScore),
           bold: true,
         ),
+        Padding(
+          padding: const EdgeInsets.only(top: 2),
+          child: Text(
+            _isZh
+                ? '战斗按 24 小时计算：已经经过 = 24h − 剩余时间'
+                : 'Battle is 24h long: elapsed = 24h - time left',
+            style: TextStyle(fontSize: 11, color: Colors.grey[600]),
+          ),
+        ),
         const SizedBox(height: 8),
         SizedBox(
           width: double.infinity,
@@ -1139,7 +1145,6 @@ class _TimeCalcScreenState extends State<TimeCalcScreen> {
   /// 根据本次计算结果拼出待写入的赛季统计记录
   SeasonStatRecord _seasonStatPreviewRecord() {
     final start = _resultCalcTime ?? DateTime.now();
-    final minutes = _resultEndMinutes?.round() ?? 0;
     final score =
         int.tryParse(
           (_resultMyFinalScore ?? '').replaceAll(',', '').replaceAll(' ', ''),
@@ -1147,7 +1152,7 @@ class _TimeCalcScreenState extends State<TimeCalcScreen> {
         0;
     return SeasonStatRecord.fromTimer(
       calcTime: start,
-      endMinutes: minutes,
+      remainingMinutes: _resultRemainingMinutes ?? 0,
       finalScore: score,
     );
   }
