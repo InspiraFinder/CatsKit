@@ -22,6 +22,7 @@ import 'gang_stats_screen.dart';
 import 'my_gang_screen.dart';
 import 'balance_history_screen.dart';
 import 'max_stats_screen.dart';
+import 'mechanism_guide_screen.dart';
 import 'life_sim/life_sim_screen.dart';
 
 const String appVersion = '2.0.0';
@@ -916,6 +917,13 @@ class _MainMenuScreenState extends State<MainMenuScreen> {
       color: Colors.deepPurple,
       title: _t('数据查询', 'Data'),
       items: <_MenuSubItem>[
+        _MenuSubItem(
+          icon: Icons.menu_book,
+          label: _t('机制指南', 'Mechanic Guide'),
+          onTap: () => _navigateAndAwaitLocale(
+            MechanismGuideScreen(locale: _locale, server: _server),
+          ),
+        ),
         _MenuSubItem(
           icon: Icons.calendar_month,
           label: _t('活动日历', 'Activity Calendar'),
