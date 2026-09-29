@@ -170,7 +170,7 @@ keystore_base64.txt
 *.base64
 
 # 其他平台（如不需要）
-linux/
+# 注意：linux/ 必须提交（GitHub Actions 需要构建 Linux 桌面版 tar.gz，见 .github/workflows/release.yml）
 macos/
 web/
 # 注意：windows/ 和 ios/ 必须提交（GitHub Actions 需要构建 Windows 桌面版和 iOS IPA，勿删除此例外）
