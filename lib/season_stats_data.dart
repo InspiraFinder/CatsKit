@@ -76,25 +76,33 @@ class SeasonStatRecord {
 
   /// 由「时间计算」的结果生成记录。
   ///
-  /// 一场战斗按固定 [kSeasonBattleMinutes]（24 小时）计算，而「时间计算」拿到的是
-  /// **剩余时间**，因此：
+  /// 一场战斗最长 [kSeasonBattleMinutes]（24 小时），而「时间计算」识别到的是**剩余时间**：
   /// - 已经经过的时间 = 24h − 剩余时间
   /// - 开始时间 = 计算那一刻 − 已经经过的时间
-  /// - 结束时间 = 开始时间 + 24h（也就是 计算那一刻 + 剩余时间）
+  /// - 结束时间 = 计算那一刻 + **实际**结束分钟数
+  ///
+  /// 注意：结束时间不一定是开始时间 + 24h。一方提前达到分数线就会提前结束，
+  /// 此时 [endMinutes] < [remainingMinutes]，战斗时长也就不到 24 小时。
   factory SeasonStatRecord.fromTimer({
     String? id,
     required DateTime calcTime,
     required int remainingMinutes,
+    required int endMinutes,
     required int finalScore,
   }) {
-    final remain = remainingMinutes < 0 ? 0 : remainingMinutes;
-    var elapsed = kSeasonBattleMinutes - remain;
-    if (elapsed < 0) elapsed = 0;
-    final start = calcTime.subtract(Duration(minutes: elapsed));
+    // 剩余时间钳制到 [0, 24h]：脏数据也不会算出反的区间
+    var remain = remainingMinutes;
+    if (remain < 0) remain = 0;
+    if (remain > kSeasonBattleMinutes) remain = kSeasonBattleMinutes;
+    final elapsed = kSeasonBattleMinutes - remain;
+    // 实际结束时间不可能晚于 24 小时窗口的末尾
+    var end = endMinutes;
+    if (end < 0) end = 0;
+    if (end > remain) end = remain;
     return SeasonStatRecord(
       id: id ?? newSeasonStatId(),
-      startTime: start,
-      endTime: start.add(const Duration(minutes: kSeasonBattleMinutes)),
+      startTime: calcTime.subtract(Duration(minutes: elapsed)),
+      endTime: calcTime.add(Duration(minutes: end)),
       finalScore: finalScore,
       source: 'timer',
     );
