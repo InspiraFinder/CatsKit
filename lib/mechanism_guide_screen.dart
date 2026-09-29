@@ -341,6 +341,11 @@ class GuideChapterScreen extends StatelessWidget {
       ));
     }
 
+    if (b.table != null) {
+      if (parts.isNotEmpty) parts.add(const SizedBox(height: 8));
+      parts.add(_buildTable(b.table!, isDark));
+    }
+
     if (b.tipZh != null) {
       if (parts.isNotEmpty) parts.add(const SizedBox(height: 8));
       parts.add(Container(
@@ -392,6 +397,52 @@ class GuideChapterScreen extends StatelessWidget {
 
     if (parts.isEmpty) return const SizedBox.shrink();
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: parts);
+  }
+
+  /// 表格：列宽自适应内容，太宽时可以左右滑
+  Widget _buildTable(GuideTable t, bool isDark) {
+    final zh = locale == 'zh';
+    final head = zh ? t.headZh : t.headEn;
+    final rows = zh ? t.rowsZh : t.rowsEn;
+    final borderColor = isDark ? Colors.white24 : Colors.black12;
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Table(
+        defaultColumnWidth: const IntrinsicColumnWidth(),
+        border: TableBorder.all(color: borderColor, width: 0.7),
+        children: <TableRow>[
+          TableRow(
+            decoration: BoxDecoration(
+              color: chapter.color.withValues(alpha: isDark ? 0.24 : 0.10),
+            ),
+            children: <Widget>[
+              for (final h in head) _cell(h, isDark, header: true),
+            ],
+          ),
+          for (final r in rows)
+            TableRow(
+              children: <Widget>[
+                for (final c in r) _cell(c, isDark),
+              ],
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _cell(String s, bool isDark, {bool header = false}) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+      child: Text(
+        s,
+        style: TextStyle(
+          fontSize: 11,
+          height: 1.3,
+          fontWeight: header ? FontWeight.bold : FontWeight.normal,
+          color: isDark ? Colors.white70 : Colors.black87,
+        ),
+      ),
+    );
   }
 }
 
