@@ -807,7 +807,8 @@ class _MainMenuScreenState extends State<MainMenuScreen> {
   }
 
   /// 一级分类：猫生重开（置顶）> 个人功能 > 帮派功能 > 数据查询 > 通用设置
-  static const String _catPattern = 'assets/patterns/cat_pattern.png';
+  /// 主界面背景：游戏内图标贴片（宝箱/齿轮/奖杯/星星/皇冠/盾牌/猫头骨/闪电/放大镜）
+  static const String _gamePattern = 'assets/patterns/game_pattern.png';
   static const String _activityPattern =
       'assets/patterns/activity_pattern.png';
 
@@ -988,12 +989,12 @@ class _MainMenuScreenState extends State<MainMenuScreen> {
       appBar: AppBar(title: const Text('CatsKit'), centerTitle: true),
       body: Stack(
         children: <Widget>[
-          // 周期性图案背景（吉祥物贴纸，低透明度当水印）
+          // 周期性图案背景（游戏内图标贴片，低透明度当水印）
           Positioned.fill(
             child: DecoratedBox(
               decoration: BoxDecoration(
                 image: DecorationImage(
-                  image: const AssetImage(_catPattern),
+                  image: const AssetImage(_gamePattern),
                   repeat: ImageRepeat.repeat,
                   opacity: isDark ? 0.10 : 0.07,
                   colorFilter: ColorFilter.mode(
