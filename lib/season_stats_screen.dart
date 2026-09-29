@@ -873,6 +873,7 @@ Future<SeasonStatRecord?> showSeasonStatRecordDialog(
   DateTime? defaultEnd,
   int? defaultScore,
   int? winsBefore,
+  String defaultEnemyId = '',
 }) {
   return showDialog<SeasonStatRecord>(
     context: context,
@@ -883,6 +884,7 @@ Future<SeasonStatRecord?> showSeasonStatRecordDialog(
       defaultEnd: defaultEnd,
       defaultScore: defaultScore,
       winsBefore: winsBefore,
+      defaultEnemyId: defaultEnemyId,
     ),
   );
 }
@@ -897,6 +899,9 @@ class _SeasonStatDialog extends StatefulWidget {
   /// 本场之前的赛季胜场（决定结算系数）
   final int? winsBefore;
 
+  /// 「对战」输入框的默认值
+  final String defaultEnemyId;
+
   const _SeasonStatDialog({
     required this.locale,
     this.initial,
@@ -904,6 +909,7 @@ class _SeasonStatDialog extends StatefulWidget {
     this.defaultEnd,
     this.defaultScore,
     this.winsBefore,
+    this.defaultEnemyId = '',
   });
 
   @override
@@ -934,7 +940,11 @@ class _SeasonStatDialogState extends State<_SeasonStatDialog> {
     );
     final wins = widget.initial?.winsBefore ?? widget.winsBefore;
     _winsBeforeCtrl = TextEditingController(text: wins?.toString() ?? '');
-    _enemyCtrl = TextEditingController(text: widget.initial?.enemyId ?? '');
+    _enemyCtrl = TextEditingController(
+      text: widget.initial?.enemyId.isNotEmpty == true
+          ? widget.initial!.enemyId
+          : widget.defaultEnemyId,
+    );
     _won = widget.initial?.won ?? true;
   }
 
@@ -1237,6 +1247,9 @@ class _SeasonStatDialogState extends State<_SeasonStatDialog> {
 // ==================== 供「时间计算」调用 ====================
 
 /// 「时间计算」→ 导入赛季统计：弹确认框并保存，成功后提示可直接跳转查看。
+///
+/// [overwriteLast] 为 true 时不是新增，而是把**最近一场**（开始时间最新的那条）
+/// 用本次结果覆盖掉（保留原来的 id、赛前胜场与本场结果作为默认值，可在对话框里改）。
 /// 返回是否真的写入了记录。
 Future<bool> importSeasonStatFromTimer(
   BuildContext context, {
@@ -1244,37 +1257,61 @@ Future<bool> importSeasonStatFromTimer(
   required DateTime startTime,
   required DateTime endTime,
   required int finalScore,
+  String enemyId = '',
+  bool overwriteLast = false,
 }) async {
   final isZh = locale == 'zh';
-  // 「赛前胜场」= 现有最后一场的赛后胜场（表里没记录则 0），
-  // 「赛后胜场」在对话框里默认 = 赛前 +1（先假定本场是胜场，可改）
+  // 「赛前胜场」= 现有最后一场的赛后胜场（表里没记录则 0）
   final existing = await SeasonStatsStore.load();
   final rows = buildSeasonStatRows(existing);
-  final winsBefore = rows.isEmpty ? 0 : rows.last.winsAfter;
+  final last = rows.isEmpty ? null : rows.last;
+
+  if (overwriteLast && last == null) {
+    if (!context.mounted) return false;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          isZh ? '赛季统计里还没有记录，先点「新增」吧' : 'No record to overwrite yet',
+          style: const TextStyle(fontSize: 12),
+        ),
+      ),
+    );
+    return false;
+  }
 
   if (!context.mounted) return false;
   final record = await showSeasonStatRecordDialog(
     context,
     locale: locale,
-    winsBefore: winsBefore,
+    winsBefore: last?.winsBefore ?? 0,
+    defaultEnemyId: enemyId,
     initial: SeasonStatRecord(
-      id: newSeasonStatId(),
+      id: overwriteLast ? last!.id : newSeasonStatId(),
+      enemyId: enemyId.isNotEmpty ? enemyId : (last?.enemyId ?? ''),
       startTime: startTime,
       endTime: endTime,
       finalScore: finalScore,
-      source: 'timer',
+      source: overwriteLast ? last!.record.source : 'timer',
+      winsBefore: overwriteLast ? last!.winsBefore : null,
+      won: overwriteLast ? last!.won : null,
     ),
   );
   if (record == null) return false;
-  await SeasonStatsStore.add(record);
+  if (overwriteLast) {
+    await SeasonStatsStore.update(record);
+  } else {
+    await SeasonStatsStore.add(record);
+  }
   if (!context.mounted) return true;
   ScaffoldMessenger.of(context).showSnackBar(
     SnackBar(
       content: Text(
         isZh
-            ? '已导入赛季统计（${formatSeasonStatDuration(record.durationMinutes, zh: true)} · '
+            ? '${overwriteLast ? '已覆盖最近一条' : '已导入赛季统计'}'
+                  '（${formatSeasonStatDuration(record.durationMinutes, zh: true)} · '
                   '战斗分 ${formatSeasonStatScore(record.finalScore)}）'
-            : 'Imported: ${formatSeasonStatDuration(record.durationMinutes, zh: false)} · '
+            : '${overwriteLast ? 'Overwrote the last record' : 'Imported'}: '
+                  '${formatSeasonStatDuration(record.durationMinutes, zh: false)} · '
                   '${formatSeasonStatScore(record.finalScore)}',
         style: const TextStyle(fontSize: 12),
       ),
