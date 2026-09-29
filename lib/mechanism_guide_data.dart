@@ -27,7 +27,7 @@ class GuideFigure {
   /// `carLayout`（车辆结构） / `partSample`（四类部件示例） / `sponsors`（赞助商）
   /// / `activityIcons`（活动图标一览） / `jokerTiers`（王牌 R1-R5）
   /// / `chestTypes`（自选箱 / 固定箱） / `gangTiers`（帮派四个组别）
-  /// / `seasonTimeline`（40 天赛季时间轴）
+  /// / `seasonFlow`（赛季收尾流程）
   final String? diagram;
 
   final String captionZh;
@@ -288,9 +288,9 @@ const List<GuideChapter> kGuideChapters = <GuideChapter>[
     ],
     blocks: <GuideBlock>[
       GuideBlock.text(
-        '城市之王是帮派之间的日常对抗：40 天为一个赛季，每天可以挑战同组别的帮派。'
+        '城市之王是帮派之间的日常对抗：赛季没有固定天数，每天可以挑战同组别的帮派。'
         '胜场会推进你本赛季所处的「地区」，地区越高、胜场奖励越好；每征服一个地区，还会额外发放一份阶段奖励。',
-        'A day-by-day gang battle mode: a season lasts 40 days and you may challenge gangs of your own division every day. '
+        'A day-by-day gang battle mode: a season has no fixed length and you may challenge gangs of your own division every day. '
             'Wins advance your "region" this season — higher regions pay better win rewards, and conquering a region grants a stage reward.',
       ),
       GuideBlock.bullets(<GuideBullet>[
@@ -412,17 +412,33 @@ const List<GuideChapter> kGuideChapters = <GuideChapter>[
         '征服地区 10（达到 30 胜场）时，额外获得 25000 紫票与赛季专属小猫装扮。',
         'Conquering region 10 (30 wins) additionally grants 25,000 purple tickets and a season-exclusive kitty outfit.',
       ),
+      GuideBlock.text(
+        '赛季什么时候结束：不按固定天数，而是看「已方多少个帮派打满 30 胜」——'
+        '所有组别中累计有 10 个帮派达到 30 胜场的那一刻，赛季进入收尾；'
+        '收尾期间依次是：再过 7 天关闭战斗入口（之后不能加入新战斗）→ 再过 1 天所有帮派战斗完成 → '
+        '发放赛季结算奖励 → 1 天缓冲（领奖励、换帮派）→ 开启新赛季。',
+        'How a season ends: not by a fixed number of days but by "how many gangs have hit 30 wins" — '
+            'the moment 10 gangs across all divisions reach 30 wins, the season starts to wrap up: '
+            '7 more days until battle entry closes (no new battles), then 1 more day for every gang to finish its battles, '
+            'then season rewards are granted, then a 1-day buffer (claim rewards, switch gangs) and a new season begins.',
+      ),
       GuideBlock.figures(<GuideFigure>[
         GuideFigure.diagram(
-          'seasonTimeline',
-          captionZh: '赛季 40 天：地区推进节点（胜场）与对应的结算分数倍率',
+          'seasonFlow',
+          captionZh: '赛季收尾流程（T = 有 10 个帮派达到 30 胜的那天）',
           captionEn:
-              'The 40-day season: region milestones (wins) and their score multipliers',
+              'Season wrap-up flow (T = the day the 10th gang reaches 30 wins)',
         ),
       ]),
+      GuideBlock.tip(
+        '单场战斗不一定是严格意义上的一天，最长 1 天；具体时长可以看「时间计算」模块。',
+        'A single battle is not strictly one day — it lasts up to 1 day; check the "Timer" module for the duration.',
+      ),
       GuideBlock.text(
-        '赛季结算奖励：赛季结束后按「组别 + 名次」结算，一共给四种东西——自选箱、固定箱、代币、紫票。',
-        'Season settlement: paid at the end of the season by division + rank. It consists of four things — choice chests, fixed chests, tokens and purple tickets.',
+        '赛季结算奖励：所有帮派战斗完成后发放（发完有 1 天缓冲用来领奖励、换帮派），'
+        '按「组别 + 名次」结算，一共给四种东西——自选箱、固定箱、代币、紫票。',
+        'Season settlement: granted once every gang has finished its battles (followed by a 1-day buffer to claim rewards and switch gangs). '
+            'Rewards are paid by division + rank: choice chests, fixed chests, tokens and purple tickets.',
       ),
       GuideBlock.bullets(<GuideBullet>[
         GuideBullet(

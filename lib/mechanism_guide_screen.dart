@@ -519,8 +519,8 @@ Widget buildGuideFigure(
       return _ChestTypesFigure(locale: locale);
     case 'gangTiers':
       return _GangTiersFigure(locale: locale, isDark: isDark);
-    case 'seasonTimeline':
-      return _SeasonTimelineFigure(locale: locale, isDark: isDark);
+    case 'seasonFlow':
+      return _SeasonFlowFigure(locale: locale, isDark: isDark);
     default:
       return _MissingFigure(text: '${figure.diagram}');
   }
@@ -969,93 +969,96 @@ class _GangTiersFigure extends StatelessWidget {
       };
 }
 
-/// 40 天赛季时间轴（里程碑与倍率取自 kCityWinMilestones）
-class _SeasonTimelineFigure extends StatelessWidget {
+/// 赛季收尾流程图：10 个帮派到达 30 胜 → +7 天关战斗入口 → +1 天战斗完成 → 发奖 → 缓冲 1 天 → 新赛季
+class _SeasonFlowFigure extends StatelessWidget {
   final String locale;
   final bool isDark;
-  const _SeasonTimelineFigure({required this.locale, required this.isDark});
+  const _SeasonFlowFigure({required this.locale, required this.isDark});
+
+  /// (阶段标签, 中文说明, 英文说明, 标签颜色)
+  static const List<(String, String, String, Color)> _steps =
+      <(String, String, String, Color)>[
+    (
+      'T+0',
+      '所有组别中累计有 10 个帮派达到 30 胜场 → 赛季准备结束',
+      '10 gangs (across all divisions) reach 30 wins → the season starts to end',
+      Colors.amber,
+    ),
+    (
+      'T+7 天',
+      '战斗入口关闭，之后不能加入新的战斗',
+      'Battle entry closes — no new battles can be started',
+      Colors.orange,
+    ),
+    (
+      'T+8 天',
+      '所有帮派战斗完成（单场战斗最长 1 天）',
+      'All battles finish (a battle lasts up to 1 day)',
+      Colors.deepOrange,
+    ),
+    (
+      '结算',
+      '发放赛季结算奖励（自选箱 / 固定箱 / 代币 / 紫票）',
+      'Season rewards are granted (choice chests / fixed chests / tokens / tickets)',
+      Colors.pink,
+    ),
+    (
+      '缓冲 1 天',
+      '用来领奖励、换帮派',
+      'One buffer day: claim rewards and switch gangs',
+      Colors.purple,
+    ),
+    (
+      '新赛季',
+      '开启新的赛季',
+      'A new season begins',
+      Colors.green,
+    ),
+  ];
 
   @override
   Widget build(BuildContext context) {
-    return AspectRatio(
-      aspectRatio: 340 / 92,
-      child: CustomPaint(
-        painter: _SeasonTimelinePainter(zh: locale == 'zh', isDark: isDark),
-      ),
+    final zh = locale == 'zh';
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        for (final (day, zhText, enText, color) in _steps)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 7),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                Container(
+                  width: 56,
+                  padding: const EdgeInsets.symmetric(vertical: 3),
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: color.withValues(alpha: isDark ? 0.28 : 0.14),
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(color: color, width: 1),
+                  ),
+                  child: Text(
+                    day,
+                    style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                      color: isDark ? Colors.white : Colors.black87,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    zh ? zhText : enText,
+                    style: const TextStyle(fontSize: 11.5, height: 1.4),
+                  ),
+                ),
+              ],
+            ),
+          ),
+      ],
     );
   }
-}
-
-class _SeasonTimelinePainter extends CustomPainter {
-  final bool zh;
-  final bool isDark;
-  _SeasonTimelinePainter({required this.zh, required this.isDark});
-
-  static const double _w = 340;
-  static const double _h = 92;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    canvas.save();
-    canvas.scale(size.width / _w, size.height / _h);
-
-    final axisColor = isDark ? Colors.white38 : Colors.black26;
-    final textColor = isDark ? Colors.white70 : Colors.black87;
-    const left = 16.0;
-    const right = _w - 16;
-    const y = 52.0;
-
-    // 主轴
-    canvas.drawLine(Offset(left, y), Offset(right, y),
-        Paint()..color = axisColor..strokeWidth = 2);
-
-    // 每天一个刻度，每 5 天加长
-    for (var day = 1; day <= kCitySeasonDays; day++) {
-      final x = left + (right - left) * (day - 1) / (kCitySeasonDays - 1);
-      final long = day % 5 == 0;
-      canvas.drawLine(
-        Offset(x, y - (long ? 7 : 4)),
-        Offset(x, y + (long ? 7 : 4)),
-        Paint()..color = axisColor..strokeWidth = long ? 1.6 : 1,
-      );
-    }
-    _text(canvas, zh ? '第 1 天' : 'Day 1', Offset(left, y + 12), textColor,
-        center: true, fontSize: 9);
-    _text(canvas, zh ? '第 $kCitySeasonDays 天（赛季结束）' : 'Day $kCitySeasonDays (end)',
-        Offset(right - 26, y + 12), textColor,
-        center: true, fontSize: 9);
-
-    // 胜场里程碑（按胜场占 40 天的比例摆）
-    for (final m in kCityWinMilestones) {
-      final x = left + (right - left) * (m.wins - 1) / (kCitySeasonDays - 1);
-      canvas.drawCircle(Offset(x, y), 3.4, Paint()..color = Colors.pink);
-      _text(canvas, '${m.wins}', Offset(x, y - 26), Colors.pink,
-          center: true, fontSize: 9);
-      _text(canvas, '×${m.scoreMultiplier}', Offset(x, y - 15), textColor,
-          center: true, fontSize: 8);
-    }
-
-    _text(canvas, zh ? '$kCitySeasonDays 天 = 1 赛季' : '$kCitySeasonDays days = 1 season',
-        const Offset(_w / 2, 8), textColor, center: true, fontSize: 10);
-
-    canvas.restore();
-  }
-
-  void _text(Canvas canvas, String s, Offset at, Color color,
-      {bool center = false, double fontSize = 10}) {
-    final tp = TextPainter(
-      text: TextSpan(
-        text: s,
-        style: TextStyle(fontSize: fontSize, color: color),
-      ),
-      textDirection: TextDirection.ltr,
-    )..layout();
-    tp.paint(canvas, center ? Offset(at.dx - tp.width / 2, at.dy) : at);
-  }
-
-  @override
-  bool shouldRepaint(covariant _SeasonTimelinePainter old) =>
-      old.zh != zh || old.isDark != isDark;
 }
 
 /// 部件在当前语言下的名字（与 `main.dart` 的 `pn` 同规则，避免循环依赖）
