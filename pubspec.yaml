@@ -46,4 +46,5 @@ flutter:
     - assets/images/
     - assets/images_cn/
     - assets/cats_icons/
+    - assets/guide/
     - assets/patterns/

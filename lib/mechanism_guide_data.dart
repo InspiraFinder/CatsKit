@@ -25,7 +25,8 @@ class GuideFigure {
 
   /// 内置示意图 id，二选一：
   /// `carLayout`（车辆结构） / `partSample`（四类部件示例） / `sponsors`（赞助商）
-  /// / `activityIcons`（活动图标一览） / `gangTiers`（帮派四个组别）
+  /// / `activityIcons`（活动图标一览） / `jokerTiers`（王牌 R1-R5）
+  /// / `chestTypes`（自选箱 / 固定箱） / `gangTiers`（帮派四个组别）
   /// / `seasonTimeline`（40 天赛季时间轴）
   final String? diagram;
 
@@ -187,6 +188,51 @@ class GuideChapter {
   }
 }
 
+/// 城市之王赛季结算表的数据行（列：名次 / 自选箱 / 固定箱 / 紫票 / 代币；中英通用）
+const List<List<String>> _settleGold = <List<String>>[
+  <String>['1', '20', '20', '500000', '130'],
+  <String>['2-3', '18', '18', '395000', '102'],
+  <String>['4-6', '16', '16', '311000', '80'],
+  <String>['7-10', '14', '14', '245000', '63'],
+  <String>['11-20', '13', '13', '193000', '50'],
+  <String>['21-45', '12', '12', '152000', '39'],
+  <String>['46-80', '11', '11', '120000', '31'],
+  <String>['80+', '4', '4', '35000', '10'],
+];
+
+const List<List<String>> _settleSilver = <List<String>>[
+  <String>['1', '15', '15', '160000', '44'],
+  <String>['2-3', '12', '12', '122000', '32'],
+  <String>['4-6', '11', '11', '94000', '26'],
+  <String>['7-10', '10', '10', '74000', '20'],
+  <String>['11-20', '9', '9', '58000', '16'],
+  <String>['21-45', '8', '8', '45000', '12'],
+  <String>['46-80', '7', '7', '33000', '9'],
+  <String>['80+', '2', '2', '10000', '3'],
+];
+
+const List<List<String>> _settleBronze = <List<String>>[
+  <String>['1', '10', '10', '50000', '12'],
+  <String>['2-3', '8', '8', '40000', '9'],
+  <String>['4-6', '7', '7', '31000', '7'],
+  <String>['7-10', '6', '6', '24000', '6'],
+  <String>['11-20', '5', '5', '20000', '5'],
+  <String>['21-45', '4', '4', '18000', '4'],
+  <String>['46-80', '3', '3', '15000', '3'],
+  <String>['80+', '0', '0', '4000', '1'],
+];
+
+const List<List<String>> _settleWood = <List<String>>[
+  <String>['1', '5', '5', '22000', '4'],
+  <String>['2-3', '4', '4', '16500', '3'],
+  <String>['4-6', '3', '3', '13500', '2'],
+  <String>['7-10', '3', '2', '11000', '2'],
+  <String>['11-20', '2', '2', '9000', '1'],
+  <String>['21-50', '2', '1', '7500', '1'],
+  <String>['51-120', '1', '0', '6000', '1'],
+  <String>['121-200', '0', '0', '2000', '0'],
+];
+
 /// 全部章节 —— **内容都加在这里**
 ///
 /// 目前有「城市之王」一章（胜场奖励 / 地区奖励 / 赛季结算奖励）；
@@ -303,6 +349,26 @@ const List<GuideChapter> kGuideChapters = <GuideChapter>[
             'The 30-win tier is still "region 10" but counts as a new tier.',
       ),
       GuideBlock.text(
+        '工具箱分「+ATK」与「+HP」两种，等阶越高加成越高：',
+        'Toolboxes come in "+ATK" and "+HP" versions; the higher the tier, the bigger the bonus:',
+      ),
+      GuideBlock.table(GuideTable(
+        headZh: <String>['工具箱等阶', '加成'],
+        headEn: <String>['Toolbox tier', 'Bonus'],
+        rowsZh: <List<String>>[
+          <String>['R1', '+10%'],
+          <String>['R2', '+20%'],
+          <String>['R3', '+30%'],
+          <String>['R4', '+40%'],
+        ],
+        rowsEn: <List<String>>[
+          <String>['R1', '+10%'],
+          <String>['R2', '+20%'],
+          <String>['R3', '+30%'],
+          <String>['R4', '+40%'],
+        ],
+      )),
+      GuideBlock.text(
         '征服地区（地区奖励／阶段奖励）：每到达一个新地区，就等于征服了上一个地区，发放下面的阶段奖励。',
         'Conquering a region (region / stage rewards): each time you reach a new region you have conquered the previous one and receive the reward below.',
       ),
@@ -311,29 +377,37 @@ const List<GuideChapter> kGuideChapters = <GuideChapter>[
         headEn: <String>['Region', 'Tokens', 'Part rewards'],
         rowsZh: <List<String>>[
           <String>['1', '1', '15 × R1 王牌 + 5 × R3-5 车轮'],
-          <String>['2', '1', '10 × R2 + 5 × R3-5 车身'],
-          <String>['3', '2', '10 × R2 + 3 × R4-5 武器'],
-          <String>['4', '2', '4 × R3 + 3 × R4-5 配件'],
-          <String>['5', '3', '7 × R3 + 3 × R4-6 车轮'],
-          <String>['6', '3', '2 × R4 + 3 × R4-6 车身'],
-          <String>['7', '4', '4 × R4 + 3 × R5-6 武器'],
-          <String>['8', '4', '1 × R5 + 3 × R5-6 任意部件'],
-          <String>['9', '5', '2 × R5 + 3 × R6 任意部件'],
-          <String>['10', '5', '2 × R5 + 4 × R6'],
+          <String>['2', '1', '10 × R2 王牌 + 5 × R3-5 车身'],
+          <String>['3', '2', '10 × R2 王牌 + 3 × R4-5 武器'],
+          <String>['4', '2', '4 × R3 王牌 + 3 × R4-5 配件'],
+          <String>['5', '3', '7 × R3 王牌 + 3 × R4-6 车轮'],
+          <String>['6', '3', '2 × R4 王牌 + 3 × R4-6 车身'],
+          <String>['7', '4', '4 × R4 王牌 + 3 × R5-6 武器'],
+          <String>['8', '4', '1 × R5 王牌 + 3 × R5-6 任意部件'],
+          <String>['9', '5', '2 × R5 王牌 + 3 × R6 任意部件'],
+          <String>['10', '5', '2 × R5 王牌 + 4 × R6'],
         ],
         rowsEn: <List<String>>[
           <String>['1', '1', '15 x R1 Joker + 5 x R3-5 wheel'],
-          <String>['2', '1', '10 x R2 + 5 x R3-5 body'],
-          <String>['3', '2', '10 x R2 + 3 x R4-5 weapon'],
-          <String>['4', '2', '4 x R3 + 3 x R4-5 gadget'],
-          <String>['5', '3', '7 x R3 + 3 x R4-6 wheel'],
-          <String>['6', '3', '2 x R4 + 3 x R4-6 body'],
-          <String>['7', '4', '4 x R4 + 3 x R5-6 weapon'],
-          <String>['8', '4', '1 x R5 + 3 x R5-6 any part'],
-          <String>['9', '5', '2 x R5 + 3 x R6 any part'],
-          <String>['10', '5', '2 x R5 + 4 x R6'],
+          <String>['2', '1', '10 x R2 Joker + 5 x R3-5 body'],
+          <String>['3', '2', '10 x R2 Joker + 3 x R4-5 weapon'],
+          <String>['4', '2', '4 x R3 Joker + 3 x R4-5 gadget'],
+          <String>['5', '3', '7 x R3 Joker + 3 x R4-6 wheel'],
+          <String>['6', '3', '2 x R4 Joker + 3 x R4-6 body'],
+          <String>['7', '4', '4 x R4 Joker + 3 x R5-6 weapon'],
+          <String>['8', '4', '1 x R5 Joker + 3 x R5-6 any part'],
+          <String>['9', '5', '2 x R5 Joker + 3 x R6 any part'],
+          <String>['10', '5', '2 x R5 Joker + 4 x R6'],
         ],
       )),
+      GuideBlock.figures(<GuideFigure>[
+        GuideFigure.diagram(
+          'jokerTiers',
+          captionZh: '王牌（地区奖励的第一项）分 R1-R5，依次为银 / 绿 / 蓝 / 紫 / 金',
+          captionEn:
+              'Jokers (the first item of every region reward) come in R1-R5: silver / green / blue / purple / gold',
+        ),
+      ]),
       GuideBlock.tip(
         '征服地区 10（达到 30 胜场）时，额外获得 25000 紫票与赛季专属小猫装扮。',
         'Conquering region 10 (30 wins) additionally grants 25,000 purple tickets and a season-exclusive kitty outfit.',
@@ -347,8 +421,59 @@ const List<GuideChapter> kGuideChapters = <GuideChapter>[
         ),
       ]),
       GuideBlock.text(
-        '赛季结算奖励：赛季结束后按最终成绩结算（具体奖励与算法待补充）。',
-        'Season settlement: rewards are paid out at the end of the season based on your final result (what and how is TBD).',
+        '赛季结算奖励：赛季结束后按「组别 + 名次」结算，一共给四种东西——自选箱、固定箱、代币、紫票。',
+        'Season settlement: paid at the end of the season by division + rank. It consists of four things — choice chests, fixed chests, tokens and purple tickets.',
+      ),
+      GuideBlock.bullets(<GuideBullet>[
+        GuideBullet(
+          '自选箱：箱子里的每一项都会弹出两个选项二选一，选完可能再弹出两个选项继续选'
+          '（例如含两个部件的自选箱，会连着让你二选一两次）',
+          'Choice chest: every item pops up two options and you take one; after choosing, two more may appear '
+          '(a chest holding two parts asks you to pick 1-of-2 twice)',
+        ),
+        GuideBullet(
+          '固定箱：内容固定，没有选项',
+          'Fixed chest: contents are fixed, no choices',
+        ),
+      ]),
+      GuideBlock.figures(<GuideFigure>[
+        GuideFigure.diagram(
+          'chestTypes',
+          captionZh: '自选箱（可二选一）与固定箱',
+          captionEn: 'Choice chest (pick 1 of 2) and fixed chest',
+        ),
+      ]),
+      GuideBlock.text(
+        '各「组别 + 名次」的赛季结算奖励（自选箱 / 固定箱 / 紫票 / 代币）：',
+        'Season settlement by division and rank (choice chests / fixed chests / purple tickets / tokens):',
+      ),
+      GuideBlock.table(GuideTable(
+        headZh: <String>['金组 · 名次', '自选箱', '固定箱', '紫票', '代币'],
+        headEn: <String>['Gold · Rank', 'Choice', 'Fixed', 'Tickets', 'Tokens'],
+        rowsZh: _settleGold,
+        rowsEn: _settleGold,
+      )),
+      GuideBlock.table(GuideTable(
+        headZh: <String>['银组 · 名次', '自选箱', '固定箱', '紫票', '代币'],
+        headEn: <String>['Silver · Rank', 'Choice', 'Fixed', 'Tickets', 'Tokens'],
+        rowsZh: _settleSilver,
+        rowsEn: _settleSilver,
+      )),
+      GuideBlock.table(GuideTable(
+        headZh: <String>['铜组 · 名次', '自选箱', '固定箱', '紫票', '代币'],
+        headEn: <String>['Bronze · Rank', 'Choice', 'Fixed', 'Tickets', 'Tokens'],
+        rowsZh: _settleBronze,
+        rowsEn: _settleBronze,
+      )),
+      GuideBlock.table(GuideTable(
+        headZh: <String>['木组 · 名次', '自选箱', '固定箱', '紫票', '代币'],
+        headEn: <String>['Wood · Rank', 'Choice', 'Fixed', 'Tickets', 'Tokens'],
+        rowsZh: _settleWood,
+        rowsEn: _settleWood,
+      )),
+      GuideBlock.tip(
+        '木组的帮派比其它组多（200 家以上），所以后三档的名次区间不一样（21-50 / 51-120 / 121-200）。',
+        'The wood league holds more gangs (200+), so its last three rank bands differ (21-50 / 51-120 / 121-200).',
       ),
     ],
   ),

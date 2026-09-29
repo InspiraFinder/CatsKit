@@ -513,6 +513,10 @@ Widget buildGuideFigure(
       return const _SponsorFigure();
     case 'activityIcons':
       return _ActivityIconsFigure(locale: locale);
+    case 'jokerTiers':
+      return const _JokerTiersFigure();
+    case 'chestTypes':
+      return _ChestTypesFigure(locale: locale);
     case 'gangTiers':
       return _GangTiersFigure(locale: locale, isDark: isDark);
     case 'seasonTimeline':
@@ -782,6 +786,67 @@ class _SponsorCell extends StatelessWidget {
     return Column(
       children: <Widget>[
         Image.asset(asset, height: 46, fit: BoxFit.contain),
+        const SizedBox(height: 4),
+        Text(label, style: const TextStyle(fontSize: 10)),
+      ],
+    );
+  }
+}
+
+/// 王牌（Joker）R1-R5：图片见 `assets/guide/joker_r*.png`
+class _JokerTiersFigure extends StatelessWidget {
+  const _JokerTiersFigure();
+
+  static const List<String> _assets = <String>[
+    'assets/guide/joker_r1.png',
+    'assets/guide/joker_r2.png',
+    'assets/guide/joker_r3.png',
+    'assets/guide/joker_r4.png',
+    'assets/guide/joker_r5.png',
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: <Widget>[
+        for (var i = 0; i < _assets.length; i++)
+          Expanded(
+            child: Column(
+              children: <Widget>[
+                Image.asset(_assets[i], height: 44, fit: BoxFit.contain),
+                const SizedBox(height: 3),
+                Text('R${i + 1}', style: const TextStyle(fontSize: 10)),
+              ],
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+/// 两种赛季结算箱子：自选箱（可二选一）/ 固定箱
+class _ChestTypesFigure extends StatelessWidget {
+  final String locale;
+  const _ChestTypesFigure({required this.locale});
+
+  @override
+  Widget build(BuildContext context) {
+    final zh = locale == 'zh';
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+      children: <Widget>[
+        _cell('assets/guide/chest_choice.png',
+            zh ? '自选箱（可二选一）' : 'Choice chest'),
+        _cell('assets/guide/chest_fixed.png',
+            zh ? '固定箱（内容固定）' : 'Fixed chest'),
+      ],
+    );
+  }
+
+  Widget _cell(String asset, String label) {
+    return Column(
+      children: <Widget>[
+        Image.asset(asset, height: 56, fit: BoxFit.contain),
         const SizedBox(height: 4),
         Text(label, style: const TextStyle(fontSize: 10)),
       ],
