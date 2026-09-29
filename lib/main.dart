@@ -22,9 +22,10 @@ import 'gang_stats_screen.dart';
 import 'my_gang_screen.dart';
 import 'balance_history_screen.dart';
 import 'max_stats_screen.dart';
+import 'mechanism_guide_screen.dart';
 import 'life_sim/life_sim_screen.dart';
 
-const String appVersion = '2.0.0';
+const String appVersion = '2.1.0';
 
 /// 获取部件在当前语言下的显示名称
 String pn(PartData part, String? locale) {
@@ -807,7 +808,8 @@ class _MainMenuScreenState extends State<MainMenuScreen> {
   }
 
   /// 一级分类：猫生重开（置顶）> 个人功能 > 帮派功能 > 数据查询 > 通用设置
-  static const String _catPattern = 'assets/patterns/cat_pattern.png';
+  /// 主界面背景：纯色方块贴片（沿用 2.0.0 的构图，方块里的图案已清空）
+  static const String _gamePattern = 'assets/patterns/game_pattern.png';
   static const String _activityPattern =
       'assets/patterns/activity_pattern.png';
 
@@ -916,6 +918,13 @@ class _MainMenuScreenState extends State<MainMenuScreen> {
       title: _t('数据查询', 'Data'),
       items: <_MenuSubItem>[
         _MenuSubItem(
+          icon: Icons.menu_book,
+          label: _t('机制指南', 'Mechanic Guide'),
+          onTap: () => _navigateAndAwaitLocale(
+            MechanismGuideScreen(locale: _locale, server: _server),
+          ),
+        ),
+        _MenuSubItem(
           icon: Icons.calendar_month,
           label: _t('活动日历', 'Activity Calendar'),
           onTap: () => _navigateAndAwaitLocale(
@@ -988,12 +997,12 @@ class _MainMenuScreenState extends State<MainMenuScreen> {
       appBar: AppBar(title: const Text('CatsKit'), centerTitle: true),
       body: Stack(
         children: <Widget>[
-          // 周期性图案背景（吉祥物贴纸，低透明度当水印）
+          // 周期性图案背景（纯色方块贴片，低透明度当水印）
           Positioned.fill(
             child: DecoratedBox(
               decoration: BoxDecoration(
                 image: DecorationImage(
-                  image: const AssetImage(_catPattern),
+                  image: const AssetImage(_gamePattern),
                   repeat: ImageRepeat.repeat,
                   opacity: isDark ? 0.10 : 0.07,
                   colorFilter: ColorFilter.mode(
