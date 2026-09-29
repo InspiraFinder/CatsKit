@@ -367,7 +367,49 @@ const List<GuideChapter> kGuideChapters = <GuideChapter>[
               'Buildings and slots (blue = ours, red = theirs, grey = empty; "link" and "×5" mark special bonuses)',
         ),
       ]),
-      // ---------- 2. 特殊机制 ----------
+      // ---------- 2. 车位争夺 ----------
+      GuideBlock.heading('车位争夺：一辆车怎么打', 'Taking a slot: how a single fight works'),
+      GuideBlock.text(
+        '战斗开始时，所有建筑的所有车位都会被人机的车填满；之后双方成员各自派空闲的车去抢车位。'
+        '抢车位的流程是：挑一个「还没被我方占领」的车位发起攻击 → 派一辆空闲的车跟车位上的车单挑 → '
+        '一方 HP 归零则战斗结束。',
+        'When a battle starts, every slot of every building is filled by bot vehicles; from then on both sides send idle cars to take slots. '
+            'Taking a slot works like this: pick a slot that is not held by your side → send one idle car to duel the car on that slot → '
+            'the duel ends when one side\'s HP reaches zero.',
+      ),
+      GuideBlock.bullets(<GuideBullet>[
+        GuideBullet(
+          '战斗结束时记录胜方**当前的 HP** 并保存状态 —— 车不会因为打赢就回满血',
+          'When the duel ends, the winner\'s **current HP** is recorded and saved — winning does not refill the car',
+        ),
+        GuideBullet(
+          '胜方以结算时的血量占领车位（如果本来就是这个车位的主人，则以该血量继续持有）',
+          'The winner holds the slot with the HP it had at the end of the duel (if it already held the slot, it keeps it at that HP)',
+        ),
+        GuideBullet(
+          'HP 归零的车会爆炸、暂时无法使用，需要 2 小时才能回满 HP',
+          'A car whose HP hits zero explodes and becomes unusable; it needs 2 hours to refill',
+        ),
+        GuideBullet(
+          '没满血的车也会慢慢回血，速度就是「2 小时回满」',
+          'Damaged cars also regenerate, at the rate of "full HP in 2 hours"',
+        ),
+      ]),
+      GuideBlock.table(GuideTable(
+        headZh: <String>['车辆状态', '说明'],
+        headEn: <String>['Car state', 'Notes'],
+        rowsZh: <List<String>>[
+          <String>['满血', '可以正常参战'],
+          <String>['残血', '可以参战，按「2 小时回满」的速度恢复'],
+          <String>['HP 归零', '爆炸，暂时无法使用，2 小时后回满'],
+        ],
+        rowsEn: <List<String>>[
+          <String>['Full HP', 'Ready to fight'],
+          <String>['Damaged', 'Can fight; regenerates at "full HP in 2 hours"'],
+          <String>['HP = 0', 'Explodes and is unusable; refills after 2 hours'],
+        ],
+      )),
+      // ---------- 3. 特殊机制 ----------
       GuideBlock.heading('特殊机制：链接与高回报加成', 'Special mechanics: links & high reward'),
       GuideBlock.text(
         '链接：每场战斗通常会有两个建筑获得链接。如果同时占据了多个链接建筑（n 个），'
