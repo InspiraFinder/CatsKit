@@ -493,10 +493,10 @@ const List<GuideChapter> kGuideChapters = <GuideChapter>[
       ),
       GuideBlock.tip(
         '系数只按本场之前的胜场算，所以同一档里连胜不会马上提高系数，跨到下一档才会提高。'
-        '在「赛季统计」里填了赛前胜场就会按这张表自动带出系数（也可以手动改）。',
+        '在「赛季统计」里只要填好赛前胜场和本场胜负，系数与本场得分会自动算出来。',
         'The multiplier is read from your wins before the battle, so wins inside one band do not raise it — '
-            'you have to cross into the next band. In Season Stats the multiplier is filled in from this table '
-            '(and can be overridden).',
+            'you have to cross into the next band. In Season Stats, filling in your wins before the battle and '
+            'the result is enough — the multiplier and the score gained are computed for you.',
       ),
       // ---------- 3. 赛季什么时候结束 ----------
       GuideBlock.heading('赛季什么时候结束', 'When a season ends'),

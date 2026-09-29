@@ -2,17 +2,22 @@ import 'dart:convert';
 
 import 'package:shared_preferences/shared_preferences.dart';
 
-/// 一条「赛季统计」记录：开始时间 / 结束时间 / 持续时间 / 战斗分数
+/// 一条「赛季统计」记录：对战 / 开始时间 / 结束时间 / 持续时间 / 战斗分数
 ///
-/// 除了下面四个核心字段，还有两个可选字段参与表格里的派生计算：
-/// [winsAfter]（赛后胜场）与 [settleMultiplier]（结算系数）。
-/// 「赛前胜场 / 场次 / 与上场间隔 / 本场得分」都由相邻记录推导，见 [buildSeasonStatRows]。
+/// 还带上「赛前胜场」与「本场结果」两个手动填写的字段：
+/// - 结算系数只由 [winsBefore]（赛前已有胜场）决定
+/// - 赛后胜场 = 赛前胜场 +（本场获胜 ? 1 : 0）
+/// 「场次 / 赛后胜场 / 与上场间隔 / 结算系数 / 本场得分」都由相邻记录推导，
+/// 见 [buildSeasonStatRows]。
 ///
 /// 持续时间**不单独存储**，一律由「结束时间 - 开始时间」推导，
 /// 这样表格里不会出现三者互相矛盾的数据。
 class SeasonStatRecord {
   /// 唯一 id（创建时刻的微秒时间戳）
   final String id;
+
+  /// 本场战斗的敌方 ID（手动填，可空）
+  final String enemyId;
 
   /// 开始时间
   final DateTime startTime;
@@ -26,20 +31,21 @@ class SeasonStatRecord {
   /// 来源：`timer` = 由「时间计算」模块导入，`manual` = 在表格里手动新增
   final String source;
 
-  /// 本场结束之后的赛季胜场数；null = 还没填
-  final int? winsAfter;
+  /// 本场之前已有的赛季胜场数（决定结算系数）；null = 还没填
+  final int? winsBefore;
 
-  /// 战斗分数的结算系数（手动覆盖）；null = 按 [winsAfter] 从胜场里程碑自动取
-  final int? settleMultiplier;
+  /// 本场结果：true = 获胜，false = 未获胜，null = 还没填
+  final bool? won;
 
   const SeasonStatRecord({
     required this.id,
     required this.startTime,
     required this.endTime,
     required this.finalScore,
+    this.enemyId = '',
     this.source = 'manual',
-    this.winsAfter,
-    this.settleMultiplier,
+    this.winsBefore,
+    this.won,
   });
 
   /// 持续时间（分钟）；结束时间早于开始时间时按 0 处理
@@ -53,49 +59,59 @@ class SeasonStatRecord {
 
   SeasonStatRecord copyWith({
     String? id,
+    String? enemyId,
     DateTime? startTime,
     DateTime? endTime,
     int? finalScore,
     String? source,
-    int? winsAfter,
-    int? settleMultiplier,
-    bool clearMultiplier = false,
+    int? winsBefore,
+    bool? won,
   }) => SeasonStatRecord(
     id: id ?? this.id,
+    enemyId: enemyId ?? this.enemyId,
     startTime: startTime ?? this.startTime,
     endTime: endTime ?? this.endTime,
     finalScore: finalScore ?? this.finalScore,
     source: source ?? this.source,
-    winsAfter: winsAfter ?? this.winsAfter,
-    settleMultiplier: clearMultiplier
-        ? null
-        : (settleMultiplier ?? this.settleMultiplier),
+    winsBefore: winsBefore ?? this.winsBefore,
+    won: won ?? this.won,
   );
 
   Map<String, dynamic> toJson() => {
     'id': id,
+    'enemy': enemyId,
     'start': startTime.millisecondsSinceEpoch,
     'end': endTime.millisecondsSinceEpoch,
     'score': finalScore,
     'source': source,
-    'winsAfter': winsAfter,
-    'multiplier': settleMultiplier,
+    'winsBefore': winsBefore,
+    'won': won,
   };
 
-  factory SeasonStatRecord.fromJson(Map<String, dynamic> json) =>
-      SeasonStatRecord(
-        id: json['id'] as String? ?? '',
-        startTime: DateTime.fromMillisecondsSinceEpoch(
-          (json['start'] as num?)?.toInt() ?? 0,
-        ),
-        endTime: DateTime.fromMillisecondsSinceEpoch(
-          (json['end'] as num?)?.toInt() ?? 0,
-        ),
-        finalScore: (json['score'] as num?)?.toInt() ?? 0,
-        source: json['source'] as String? ?? 'manual',
-        winsAfter: (json['winsAfter'] as num?)?.toInt(),
-        settleMultiplier: (json['multiplier'] as num?)?.toInt(),
-      );
+  factory SeasonStatRecord.fromJson(Map<String, dynamic> json) {
+    // 兼容旧数据：早期存的是「赛后胜场」（winsAfter），按「本场获胜」回推赛前胜场
+    final legacyAfter = (json['winsAfter'] as num?)?.toInt();
+    var winsBefore = (json['winsBefore'] as num?)?.toInt();
+    var won = json['won'] as bool?;
+    if (winsBefore == null && legacyAfter != null) {
+      winsBefore = legacyAfter > 0 ? legacyAfter - 1 : 0;
+      won ??= true;
+    }
+    return SeasonStatRecord(
+      id: json['id'] as String? ?? '',
+      enemyId: json['enemy'] as String? ?? '',
+      startTime: DateTime.fromMillisecondsSinceEpoch(
+        (json['start'] as num?)?.toInt() ?? 0,
+      ),
+      endTime: DateTime.fromMillisecondsSinceEpoch(
+        (json['end'] as num?)?.toInt() ?? 0,
+      ),
+      finalScore: (json['score'] as num?)?.toInt() ?? 0,
+      source: json['source'] as String? ?? 'manual',
+      winsBefore: winsBefore,
+      won: won,
+    );
+  }
 
   /// 由「时间计算」的结果生成记录。
   ///
@@ -108,12 +124,13 @@ class SeasonStatRecord {
   /// 此时 [endMinutes] < [remainingMinutes]，战斗时长也就不到 24 小时。
   factory SeasonStatRecord.fromTimer({
     String? id,
+    String enemyId = '',
     required DateTime calcTime,
     required int remainingMinutes,
     required int endMinutes,
     required int finalScore,
-    int? winsAfter,
-    int? settleMultiplier,
+    int? winsBefore,
+    bool? won,
   }) {
     // 剩余时间钳制到 [0, 24h]：脏数据也不会算出反的区间
     var remain = remainingMinutes;
@@ -126,12 +143,13 @@ class SeasonStatRecord {
     if (end > remain) end = remain;
     return SeasonStatRecord(
       id: id ?? newSeasonStatId(),
+      enemyId: enemyId,
       startTime: calcTime.subtract(Duration(minutes: elapsed)),
       endTime: calcTime.add(Duration(minutes: end)),
       finalScore: finalScore,
       source: 'timer',
-      winsAfter: winsAfter,
-      settleMultiplier: settleMultiplier,
+      winsBefore: winsBefore,
+      won: won,
     );
   }
 }
@@ -203,10 +221,13 @@ class SeasonStatRow {
   /// 场次（按开始时间升序，从 1 开始）
   final int order;
 
-  /// 赛前胜场（上一条的赛后胜场；第一场为 0）
+  /// 赛前胜场（记录里填的值；没填就接上一条的赛后胜场，第一条按 0）
   final int? winsBefore;
 
-  /// 结算系数（手动覆盖优先，否则按胜场里程碑自动取）
+  /// 赛后胜场（= 赛前胜场 +（本场获胜 ? 1 : 0））；胜场或结果未知时为 null
+  final int? winsAfter;
+
+  /// 结算系数（只看赛前胜场）
   final int? multiplier;
 
   /// 本场得分 = 战斗分数 × 结算系数
@@ -219,21 +240,23 @@ class SeasonStatRow {
     required this.record,
     required this.order,
     required this.winsBefore,
+    required this.winsAfter,
     required this.multiplier,
     required this.gainedScore,
     required this.gapMinutes,
   });
 
   String get id => record.id;
+  String get enemyId => record.enemyId;
   DateTime get startTime => record.startTime;
   DateTime get endTime => record.endTime;
   int get finalScore => record.finalScore;
   int get durationMinutes => record.durationMinutes;
   bool get fromTimer => record.fromTimer;
-  int? get winsAfter => record.winsAfter;
+  bool? get won => record.won;
 }
 
-/// 把记录按开始时间排序，并算出「场次 / 赛前胜场 / 结算系数 / 本场得分 / 与上场间隔」
+/// 把记录按开始时间排序，并算出「场次 / 赛前胜场 / 赛后胜场 / 系数 / 本场得分 / 与上场间隔」
 ///
 /// ⚠️ 这些字段依赖战斗的先后顺序，所以要用**全部记录**算，
 /// 再拿去筛选 / 排序（筛选排序不会改变已算好的场次与间隔）。
@@ -248,10 +271,15 @@ List<SeasonStatRow> buildSeasonStatRows(List<SeasonStatRecord> records) {
   for (var i = 0; i < sorted.length; i++) {
     final r = sorted[i];
     final prev = i > 0 ? rows[i - 1] : null;
-    final winsBefore = prev == null ? 0 : prev.winsAfter;
-    // 结算系数只看「本场之前」的胜场；手填的系数优先
-    final multiplier =
-        r.settleMultiplier ?? seasonScoreMultiplierOf(winsBefore);
+    // 记录自己填了就用它，否则接上一条的赛后胜场（第一条按 0）
+    final winsBefore = r.winsBefore ?? (prev == null ? 0 : prev.winsAfter);
+    // 赛后胜场 = 赛前 +（本场获胜 ? 1 : 0）
+    final won = r.won;
+    final winsAfter = (winsBefore == null || won == null)
+        ? null
+        : winsBefore + (won ? 1 : 0);
+    // 结算系数只看「本场之前」的胜场
+    final multiplier = seasonScoreMultiplierOf(winsBefore);
     int? gap;
     if (prev != null) {
       final raw = r.startTime.difference(prev.endTime).inMinutes;
@@ -262,6 +290,7 @@ List<SeasonStatRow> buildSeasonStatRows(List<SeasonStatRecord> records) {
         record: r,
         order: i + 1,
         winsBefore: winsBefore,
+        winsAfter: winsAfter,
         multiplier: multiplier,
         gainedScore: multiplier == null ? null : r.finalScore * multiplier,
         gapMinutes: gap,
@@ -337,6 +366,7 @@ class SeasonStatsStore {
 /// 表格排序依据（点表头切换）
 enum SeasonStatSortKey {
   order,
+  enemyId,
   startTime,
   endTime,
   duration,
@@ -447,6 +477,8 @@ List<SeasonStatRow> filterAndSortSeasonStatRows(
     switch (sortKey) {
       case SeasonStatSortKey.order:
         c = a.order.compareTo(b.order);
+      case SeasonStatSortKey.enemyId:
+        c = a.enemyId.toLowerCase().compareTo(b.enemyId.toLowerCase());
       case SeasonStatSortKey.startTime:
         c = a.startTime.compareTo(b.startTime);
       case SeasonStatSortKey.endTime:
@@ -475,8 +507,9 @@ List<SeasonStatRow> filterAndSortSeasonStatRows(
   return filtered;
 }
 
-/// 一行的可搜索文本（时间 / 时长 / 间隔 / 分数 / 胜场 / 系数 / 来源都能被搜到）
+/// 一行的可搜索文本（对战 / 时间 / 时长 / 间隔 / 分数 / 胜场 / 系数 / 来源都能被搜到）
 String seasonStatHaystack(SeasonStatRow r) => [
+  r.enemyId,
   formatSeasonStatFullTime(r.startTime),
   formatSeasonStatTime(r.startTime),
   formatSeasonStatFullTime(r.endTime),
@@ -491,6 +524,7 @@ String seasonStatHaystack(SeasonStatRow r) => [
   formatSeasonStatScore(r.finalScore),
   if (r.winsAfter != null) '${r.winsAfter}胜',
   if (r.winsBefore != null) '${r.winsBefore}',
+  if (r.won != null) (r.won! ? '胜 获胜 win' : '负 失败 lose'),
   if (r.multiplier != null) 'x${r.multiplier} ×${r.multiplier}',
   if (r.gainedScore != null) formatSeasonStatScore(r.gainedScore!),
   '第${r.order}场',

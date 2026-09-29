@@ -25,6 +25,7 @@ const double _kTablePad = 8;
 
 /// 表格列宽（屏幕不够宽时整表横向滚动）
 const double _kColIndex = 48;
+const double _kColEnemy = 116;
 const double _kColTime = 122;
 const double _kColDuration = 84;
 const double _kColGap = 84;
@@ -36,6 +37,7 @@ const double _kColOps = 80;
 const double _kTableWidth =
     _kTablePad * 2 +
     _kColIndex +
+    _kColEnemy +
     _kColTime * 2 +
     _kColDuration +
     _kColGap +
@@ -371,7 +373,7 @@ class _SeasonStatsScreenState extends State<SeasonStatsScreen> {
         children: [
           tile(
             Icons.list_alt,
-            _t('场次', 'Battles'),
+            _t('总场次', 'Battles'),
             '${s.count}',
             Colors.blue,
           ),
@@ -625,6 +627,11 @@ class _SeasonStatsScreenState extends State<SeasonStatsScreen> {
         children: [
           cell(_t('场次', 'No.'), width: _kColIndex, sortKey: SeasonStatSortKey.order),
           cell(
+            _t('对战', 'Opponent'),
+            width: _kColEnemy,
+            sortKey: SeasonStatSortKey.enemyId,
+          ),
+          cell(
             _t('开始', 'Start'),
             width: _kColTime,
             sortKey: SeasonStatSortKey.startTime,
@@ -722,6 +729,11 @@ class _SeasonStatsScreenState extends State<SeasonStatsScreen> {
                     ),
                   ],
                 ),
+              ),
+              cell(
+                r.enemyId.isEmpty ? '-' : r.enemyId,
+                _kColEnemy,
+                style: r.enemyId.isEmpty ? dim : null,
               ),
               cell(formatSeasonStatTime(r.startTime), _kColTime),
               cell(formatSeasonStatTime(r.endTime), _kColTime),
@@ -905,8 +917,11 @@ class _SeasonStatDialogState extends State<_SeasonStatDialog> {
   late DateTime _start;
   late DateTime _end;
   late TextEditingController _scoreCtrl;
-  late TextEditingController _winsCtrl;
-  late TextEditingController _multiplierCtrl;
+  late TextEditingController _winsBeforeCtrl;
+  late TextEditingController _enemyCtrl;
+
+  /// 本场结果：true = 获胜
+  late bool _won;
 
   @override
   void initState() {
@@ -917,18 +932,17 @@ class _SeasonStatDialogState extends State<_SeasonStatDialog> {
     _scoreCtrl = TextEditingController(
       text: (widget.initial?.finalScore ?? widget.defaultScore ?? 0).toString(),
     );
-    final wins = widget.initial?.winsAfter ?? _defaultWinsAfter;
-    _winsCtrl = TextEditingController(text: wins?.toString() ?? '');
-    _multiplierCtrl = TextEditingController(
-      text: widget.initial?.settleMultiplier?.toString() ?? '',
-    );
+    final wins = widget.initial?.winsBefore ?? widget.winsBefore;
+    _winsBeforeCtrl = TextEditingController(text: wins?.toString() ?? '');
+    _enemyCtrl = TextEditingController(text: widget.initial?.enemyId ?? '');
+    _won = widget.initial?.won ?? true;
   }
 
   @override
   void dispose() {
     _scoreCtrl.dispose();
-    _winsCtrl.dispose();
-    _multiplierCtrl.dispose();
+    _winsBeforeCtrl.dispose();
+    _enemyCtrl.dispose();
     super.dispose();
   }
 
@@ -937,29 +951,24 @@ class _SeasonStatDialogState extends State<_SeasonStatDialog> {
     return d < 0 ? 0 : d;
   }
 
-  int get _winsAfter => int.tryParse(_winsCtrl.text.trim()) ?? 0;
-
-  bool get _hasWins => _winsCtrl.text.trim().isNotEmpty;
-
-  /// 「赛后胜场」的默认值：赛前 +1（先假定本场是胜场，可改）
-  int? get _defaultWinsAfter =>
-      widget.winsBefore == null ? null : widget.winsBefore! + 1;
-
-  /// 结算系数的自动值（系数输入框留空时用它）——只看**本场之前**的胜场
-  int? get _autoMultiplier => seasonScoreMultiplierOf(_winsBeforeForCalc);
-
-  /// 对话框里能拿到的「赛前胜场」：
-  /// 新增时由调用方传入；编辑时若没传，就用本场赛后胜场 −1 近似回推。
-  int? get _winsBeforeForCalc {
-    if (widget.winsBefore != null) return widget.winsBefore;
-    final after = widget.initial?.winsAfter;
-    if (after == null) return null;
-    return after > 0 ? after - 1 : 0;
+  /// 输入的赛前胜场（空 = 没填）
+  int? get _winsBeforeInput {
+    final text = _winsBeforeCtrl.text.trim();
+    if (text.isEmpty) return null;
+    return int.tryParse(text);
   }
 
-  /// 自动系数所在档位的文案（`0 - 1` / `30 及以上`）
+  /// 结算系数：完全由「赛前胜场」决定
+  int? get _multiplier => seasonScoreMultiplierOf(_winsBeforeInput);
+
+  /// 赛后胜场 = 赛前 +（本场获胜 ? 1 : 0）
+  int? get _winsAfter => _winsBeforeInput == null
+      ? null
+      : _winsBeforeInput! + (_won ? 1 : 0);
+
+  /// 系数所在档位的文案（`0 - 1` / `30 及以上`）
   String _multiplierBandLabel() {
-    final before = _winsBeforeForCalc;
+    final before = _winsBeforeInput;
     if (before == null) return '-';
     for (final band in kSeasonScoreMultipliers) {
       if (before < band.minWins) continue;
@@ -969,13 +978,11 @@ class _SeasonStatDialogState extends State<_SeasonStatDialog> {
     return '-';
   }
 
-  /// 最终生效的系数（手填优先）
-  int? get _effectiveMultiplier =>
-      int.tryParse(_multiplierCtrl.text.trim()) ?? _autoMultiplier;
+  int get _battleScore =>
+      int.tryParse(_scoreCtrl.text.replaceAll(',', '').trim()) ?? 0;
 
-  int get _gainedScore =>
-      (int.tryParse(_scoreCtrl.text.replaceAll(',', '').trim()) ?? 0) *
-      (_effectiveMultiplier ?? 0);
+  int? get _gainedScore =>
+      _multiplier == null ? null : _battleScore * _multiplier!;
 
   Future<void> _pick(bool isStart) async {
     final base = isStart ? _start : _end;
@@ -1083,37 +1090,16 @@ class _SeasonStatDialogState extends State<_SeasonStatDialog> {
               ),
             ),
             const SizedBox(height: 4),
-            Row(
-              children: [
-                SizedBox(
-                  width: 78,
-                  child: Text(
-                    _t('赛前胜场', 'Wins before'),
-                    style: const TextStyle(fontSize: 13),
-                  ),
-                ),
-                Text(
-                  widget.winsBefore?.toString() ?? '-',
-                  style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    _autoMultiplier == null
-                        ? _t('填赛前胜场后自动取系数', 'auto once wins are known')
-                        : _t(
-                            '赛前胜场落在「${_multiplierBandLabel()}」→ 系数自动 ×$_autoMultiplier',
-                            'auto ×$_autoMultiplier from this band',
-                          ),
-                    style: TextStyle(fontSize: 11, color: Colors.grey[600]),
-                  ),
-                ),
-              ],
+            TextField(
+              controller: _enemyCtrl,
+              onChanged: (_) => setState(() {}),
+              decoration: InputDecoration(
+                labelText: _t('对战（敌方 ID）', 'Opponent (enemy ID)'),
+                border: const OutlineInputBorder(),
+                isDense: true,
+              ),
             ),
-            const SizedBox(height: 4),
+            const SizedBox(height: 8),
             TextField(
               controller: _scoreCtrl,
               keyboardType: const TextInputType.numberWithOptions(
@@ -1128,68 +1114,93 @@ class _SeasonStatDialogState extends State<_SeasonStatDialog> {
             ),
             const SizedBox(height: 8),
             Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 Expanded(
                   child: TextField(
-                    controller: _winsCtrl,
+                    controller: _winsBeforeCtrl,
                     keyboardType: const TextInputType.numberWithOptions(
                       signed: false,
                     ),
                     onChanged: (_) => setState(() {}),
                     decoration: InputDecoration(
-                      labelText: _t('赛后胜场', 'Wins after'),
+                      labelText: _t('赛前胜场', 'Wins before'),
                       border: const OutlineInputBorder(),
                       isDense: true,
                     ),
                   ),
                 ),
                 const SizedBox(width: 8),
-                Expanded(
-                  child: TextField(
-                    controller: _multiplierCtrl,
-                    keyboardType: const TextInputType.numberWithOptions(
-                      signed: false,
-                    ),
-                    onChanged: (_) => setState(() {}),
-                    decoration: InputDecoration(
-                      labelText: _t('系数', 'Multiplier'),
-                      hintText: _autoMultiplier == null
-                          ? _t('自动', 'auto')
-                          : '${_t('自动', 'auto')} ×$_autoMultiplier',
-                      border: const OutlineInputBorder(),
-                      isDense: true,
+                SizedBox(
+                  width: 132,
+                  child: SegmentedButton<bool>(
+                    segments: <ButtonSegment<bool>>[
+                      ButtonSegment<bool>(
+                        value: true,
+                        label: Text(
+                          _t('胜', 'Win'),
+                          style: const TextStyle(fontSize: 13),
+                        ),
+                      ),
+                      ButtonSegment<bool>(
+                        value: false,
+                        label: Text(
+                          _t('负', 'Lose'),
+                          style: const TextStyle(fontSize: 13),
+                        ),
+                      ),
+                    ],
+                    selected: <bool>{_won},
+                    onSelectionChanged: (s) => setState(() => _won = s.first),
+                    showSelectedIcon: false,
+                    style: const ButtonStyle(
+                      visualDensity: VisualDensity.compact,
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                     ),
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 8),
+            Padding(
+              padding: const EdgeInsets.only(top: 4),
+              child: Text(
+                _t('本场结果', 'Result'),
+                style: TextStyle(fontSize: 11, color: Colors.grey[600]),
+              ),
+            ),
+            const SizedBox(height: 6),
             Row(
               children: [
                 Icon(
                   Icons.savings,
                   size: 16,
-                  color: _effectiveMultiplier == null
+                  color: _multiplier == null
                       ? Colors.grey
                       : Colors.deepOrange[700],
                 ),
                 const SizedBox(width: 6),
-                Text(
-                  _t('本场得分', 'Gained'),
-                  style: const TextStyle(fontSize: 13),
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  _effectiveMultiplier == null
-                      ? _t('待填赛后胜场 / 系数', 'needs wins or multiplier')
-                      : '${formatSeasonStatScore(_gainedScore)}'
-                            '   （${formatSeasonStatScore(int.tryParse(_scoreCtrl.text.replaceAll(',', '').trim()) ?? 0)} × $_effectiveMultiplier）',
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.bold,
-                    color: _effectiveMultiplier == null
-                        ? Colors.grey
-                        : Colors.deepOrange[700],
+                Expanded(
+                  child: Text(
+                    _multiplier == null
+                        ? _t(
+                            '填了赛前胜场后自动算系数与本场得分',
+                            'multiplier and score are auto once wins are filled',
+                          )
+                        : _t(
+                            '系数 ×$_multiplier（赛前 ${_multiplierBandLabel()} 胜）'
+                                ' · 赛后 ${_winsAfter ?? '-'} 胜 · '
+                                '本场得分 ${formatSeasonStatScore(_gainedScore ?? 0)}'
+                                '（${formatSeasonStatScore(_battleScore)} × $_multiplier）',
+                            '×$_multiplier · after ${_winsAfter ?? '-'} wins · '
+                                'gained ${formatSeasonStatScore(_gainedScore ?? 0)}',
+                          ),
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: _multiplier == null
+                          ? Colors.grey
+                          : Colors.deepOrange[700],
+                    ),
                   ),
                 ),
               ],
@@ -1204,17 +1215,15 @@ class _SeasonStatDialogState extends State<_SeasonStatDialog> {
         ),
         FilledButton(
           onPressed: () {
-            final score =
-                int.tryParse(_scoreCtrl.text.replaceAll(',', '').trim()) ?? 0;
             final record = SeasonStatRecord(
               id: widget.initial?.id ?? newSeasonStatId(),
+              enemyId: _enemyCtrl.text.trim(),
               startTime: _start,
               endTime: _end,
-              finalScore: score,
+              finalScore: _battleScore,
               source: widget.initial?.source ?? 'manual',
-              winsAfter: _hasWins ? _winsAfter : null,
-              settleMultiplier:
-                  int.tryParse(_multiplierCtrl.text.trim()),
+              winsBefore: _winsBeforeInput,
+              won: _won,
             );
             Navigator.pop(context, record);
           },
@@ -1264,8 +1273,7 @@ Future<bool> importSeasonStatFromTimer(
       content: Text(
         isZh
             ? '已导入赛季统计（${formatSeasonStatDuration(record.durationMinutes, zh: true)} · '
-                  '战斗分 ${formatSeasonStatScore(record.finalScore)}'
-                  '${record.settleMultiplier != null ? ' · ×${record.settleMultiplier}' : ''}）'
+                  '战斗分 ${formatSeasonStatScore(record.finalScore)}）'
             : 'Imported: ${formatSeasonStatDuration(record.durationMinutes, zh: false)} · '
                   '${formatSeasonStatScore(record.finalScore)}',
         style: const TextStyle(fontSize: 12),
