@@ -2,14 +2,16 @@
 """主界面周期性背景贴片生成器（离线跑一次即可，输出已提交到仓库）
 
 设计（按用户要求）：
-  · 主界面背景 = **纯色方块**拼成的周期构图（大元素）；方块本身不带任何图案，
-    颜色由 Flutter 侧的 `ColorFilter(黑/白, srcIn)` 决定，深浅由 `opacity` 决定，
-    所以这张贴片**只有 alpha 有意义**。
+  · 主界面背景**沿用 2.0.0 版那张贴片的构图**（128×128，3 个带倾斜的方块），
+    但把方块里的内容（当时那 3 个吉祥物贴纸的图案）清掉 —— 只留纯色方块；
+    当时的形状/位置/倾斜角度是从 git 历史里的 `cat_pattern.png` 量出来的，没有改。
+  · 方块本身不带任何图案，颜色由 Flutter 侧的 `ColorFilter(黑/白, srcIn)` 决定，
+    深浅由 `opacity` 决定，所以这张贴片**只有 alpha 有意义**。
   · 「猫生重开」横幅按钮里是 `activity_pattern.png`（活动图标 34-48px，小元素），
-    本脚本不动它 —— 一大一小形成层次。
+    本脚本不动它 —— 方块（大元素）与它们形成层次。
 
-构图：200×200 无缝贴片，2×2 交错网格放 4 个圆角方块（72-84px，旋转 ±2~5°），
-      其中一个特意压在接缝上，平铺后与另一侧拼成一块完整方块。
+构图：128×128 无缝贴片，3 个纯色圆角方块（边长 40 / 47 / 43，倾斜 -5°/-17°/+17.5°），
+      位置就是 2.0.0 版那三个贴纸的位置；其中一个跨上边界，靠 3×3 画布自动绕回。
 
 无缝做法：把方块按 3×3 重复画在大画布上，再裁中间一块 —— 跨边界的方块会自动「绕回」。
 
@@ -25,19 +27,18 @@ ROOT = os.path.dirname(os.path.dirname(os.path.dirname(HERE)))   # 仓库根目�
 OUT = os.path.join(ROOT, "assets", "patterns", "game_pattern.png")
 PREVIEW_DIR = os.path.join(ROOT, "build", "pattern_preview")
 
-TILE = 200          # 贴片边长（像素）
+TILE = 128          # 贴片边长（与 2.0.0 版一致）
 SOLID_ALPHA = 1.0   # 方块自身不透明度（界面里再乘 0.07 / 0.10）
-RADIUS = 0.14       # 圆角占边长的比例
+RADIUS = 0.12       # 圆角占边长的比例
 SUPERSAMPLE = 4     # 先放大 4 倍画圆角再缩小，边缘更平滑
 
-# 4 个方块：(中心 x, 中心 y, 边长, 旋转角度)
-# 2×2 交错网格（第二行错开半格，其中一个贴着接缝）；大小交替 + 轻微倾斜，
-# 既有规律又不死板（边长 62-74，明显大于横幅里的活动图标 34-48）
+# 3 个方块：(中心 x, 中心 y, 边长, 旋转角度)
+# ↓ 位置/边长/角度是从 2.0.0 版 `cat_pattern.png` 的 alpha 里量出来的
+#   （角度是当时贴纸的倾斜角：+5° / +17° / -17.5° 的镜像）
 SLOTS = [
-    (50, 50, 70, -3),
-    (150, 52, 62, 3),
-    (0, 150, 74, 3),
-    (100, 148, 64, -3),
+    (91.3, 20.8, 40, -5.0),
+    (33.2, 32.8, 47, -17.0),
+    (96.7, 90.8, 43, 17.5),
 ]
 
 
@@ -60,8 +61,9 @@ def build_tile():
         sq = rounded_square(side).rotate(angle, resample=Image.BICUBIC, expand=True)
         for dx in (-TILE, 0, TILE):
             for dy in (-TILE, 0, TILE):
-                canvas.alpha_composite(sq, (cx + TILE + dx - sq.width // 2,
-                                            cy + TILE + dy - sq.height // 2))
+                pos = (int(round(cx + TILE + dx - sq.width / 2)),
+                       int(round(cy + TILE + dy - sq.height / 2)))
+                canvas.alpha_composite(sq, pos)
     return canvas.crop((TILE, TILE, TILE * 2, TILE * 2))
 
 

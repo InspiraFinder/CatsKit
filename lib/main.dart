@@ -807,7 +807,7 @@ class _MainMenuScreenState extends State<MainMenuScreen> {
   }
 
   /// 一级分类：猫生重开（置顶）> 个人功能 > 帮派功能 > 数据查询 > 通用设置
-  /// 主界面背景：纯色方块贴片（大元素）；「猫生重开」横幅里是活动图标（小元素）
+  /// 主界面背景：纯色方块贴片（沿用 2.0.0 的构图，方块里的图案已清空）
   static const String _gamePattern = 'assets/patterns/game_pattern.png';
   static const String _activityPattern =
       'assets/patterns/activity_pattern.png';
