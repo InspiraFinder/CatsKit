@@ -20,12 +20,13 @@ import 'upgrade_plan_screen.dart';
 import 'gang_data.dart';
 import 'gang_stats_screen.dart';
 import 'my_gang_screen.dart';
+import 'season_stats_screen.dart';
 import 'balance_history_screen.dart';
 import 'max_stats_screen.dart';
 import 'mechanism_guide_screen.dart';
 import 'life_sim/life_sim_screen.dart';
 
-const String appVersion = '2.1.0';
+const String appVersion = '2.2.0';
 
 /// 获取部件在当前语言下的显示名称
 String pn(PartData part, String? locale) {
@@ -909,6 +910,13 @@ class _MainMenuScreenState extends State<MainMenuScreen> {
           label: _t('时间计算', 'Timer'),
           onTap: () =>
               _navigateAndAwaitLocale(TimeCalcScreen(locale: _locale)),
+        ),
+        _MenuSubItem(
+          icon: Icons.table_chart,
+          label: _t('赛季统计', 'Season Stats'),
+          onTap: () => _navigateAndAwaitLocale(
+            SeasonStatsScreen(locale: _locale),
+          ),
         ),
       ],
     ),

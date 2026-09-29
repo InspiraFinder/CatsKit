@@ -9,6 +9,8 @@ import 'package:image_picker/image_picker.dart';
 import 'ocr_box_painter.dart';
 import 'ocr_engine.dart';
 import 'ocr_postprocess.dart';
+import 'season_stats_data.dart';
+import 'season_stats_screen.dart';
 
 /// 战斗时间计算界面
 class TimeCalcScreen extends StatefulWidget {
@@ -23,6 +25,10 @@ class _TimeCalcScreenState extends State<TimeCalcScreen> {
   bool get _isZh => widget.locale == 'zh';
   final ImagePicker _picker = ImagePicker();
   File? _image;
+  /// 截图 / 拍照的时刻（选图那一刻；计算结果与赛季统计都以它为准）
+  DateTime? _capturedAt;
+  /// 敌方帮派名称（导入赛季统计时填）
+  final TextEditingController _enemyGangCtrl = TextEditingController();
   bool _isProcessing = false;
   String? _error;
 
@@ -43,6 +49,12 @@ class _TimeCalcScreenState extends State<TimeCalcScreen> {
   String? _resultWinner;
   String? _resultMyFinalScore;
   String? _resultEnemyFinalScore;
+  /// 本次计算发生的时刻（用于反推战斗开始时间）
+  DateTime? _resultCalcTime;
+  /// 识别到的「剩余时间」分钟数（已经经过 = 24h − 剩余时间）
+  int? _resultRemainingMinutes;
+  /// 距离战斗结束的分钟数（提前达线时会小于剩余时间）
+  double? _resultEndMinutes;
   bool _hasResult = false;
   // 识别到的文字框（用于叠加显示）
   List<Map<String, dynamic>> _textItems = [];
@@ -54,6 +66,7 @@ class _TimeCalcScreenState extends State<TimeCalcScreen> {
 
   @override
   void dispose() {
+    _enemyGangCtrl.dispose();
     super.dispose();
   }
 
@@ -89,6 +102,7 @@ class _TimeCalcScreenState extends State<TimeCalcScreen> {
       if (!mounted) return;
       setState(() {
         _image = tempFile;
+        _capturedAt = DateTime.now();
         _error = null;
         _hasResult = false;
         _textItems = [];
@@ -180,12 +194,15 @@ class _TimeCalcScreenState extends State<TimeCalcScreen> {
       final enemyScorePerMin = fields['enemy_score_per_min'] ?? '';
 
       // ---- 结算逻辑 ----
-      final now = DateTime.now();
+      // 以「截图/拍照时刻」为基准；没有记录时才退回此刻
+      final now = _capturedAt ?? DateTime.now();
       String resultTimeLeft = '未知';
       String? resultEndTime;
       String resultWinner = '无法判定';
       String resultMyFinal = myScore;
       String resultEnemyFinal = enemyScore;
+      // 实际结束分钟数（用于计算「结束时间」）
+      double? resultEndMinutes;
 
       final remainingMin = _parseTimeToMinutes(timeLeft);
       // 实际结束分钟数（默认正常结束，若有队伍达线则提前）
@@ -309,6 +326,7 @@ class _TimeCalcScreenState extends State<TimeCalcScreen> {
           resultEndTime =
               '${endTime.hour.toString().padLeft(2, '0')}:${endTime.minute.toString().padLeft(2, '0')}';
           resultTimeLeft = _formatMinutes(endMin);
+          resultEndMinutes = endMin;
         } else if (myScoreVal != null && enemyScoreVal != null) {
           // 缺少每分钟得分，只能按当前分数判断
           if (myScoreVal > enemyScoreVal) {
@@ -327,6 +345,7 @@ class _TimeCalcScreenState extends State<TimeCalcScreen> {
         resultEndTime =
             '${endTime.hour.toString().padLeft(2, '0')}:${endTime.minute.toString().padLeft(2, '0')}';
         resultTimeLeft = _formatMinutes(remainingMin);
+        resultEndMinutes = remainingMin;
       }
 
       if (!mounted) return;
@@ -342,6 +361,9 @@ class _TimeCalcScreenState extends State<TimeCalcScreen> {
         _resultWinner = resultWinner;
         _resultMyFinalScore = resultMyFinal;
         _resultEnemyFinalScore = resultEnemyFinal;
+        _resultCalcTime = now;
+        _resultRemainingMinutes = remainingMin?.round();
+        _resultEndMinutes = resultEndMinutes;
         _textItems = androidItems;
         _hasResult = true;
       });
@@ -367,38 +389,86 @@ class _TimeCalcScreenState extends State<TimeCalcScreen> {
     );
     final enemyScoreCtrl = TextEditingController(text: _rawEnemyScore);
     final enemySpmCtrl = TextEditingController(text: _rawEnemyScorePerMin);
+    // 截图时间：只用一个日期（天 ±1 按钮调）+ 时/分 直接输入，不用日期/时间选择控件
+    final capturedBase = _capturedAt ?? DateTime.now();
+    var capturedDate = DateTime(
+      capturedBase.year,
+      capturedBase.month,
+      capturedBase.day,
+    );
+    final capHourCtrl = TextEditingController(
+      text: capturedBase.hour.toString(),
+    );
+    final capMinCtrl = TextEditingController(
+      text: capturedBase.minute.toString(),
+    );
 
     final saved = await showDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(_isZh ? '编辑原始数据' : 'Edit Raw Data'),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              _editField(_isZh ? '我方每分钟得分' : 'Our SPM', mySpmCtrl),
-              _editField(_isZh ? '我方分数' : 'Our Score', myScoreCtrl),
-              _editField(_isZh ? '分数线' : 'Target Score', lineCtrl),
-              _editTimeFields(hourCtrl, minCtrl),
-              _editField(_isZh ? '敌方分数' : 'Enemy Score', enemyScoreCtrl),
-              _editField(_isZh ? '敌方每分钟得分' : 'Enemy SPM', enemySpmCtrl),
-            ],
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          title: Text(_isZh ? '编辑原始数据' : 'Edit Raw Data'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _editField(_isZh ? '我方每分钟得分' : 'Our SPM', mySpmCtrl),
+                _editField(_isZh ? '我方分数' : 'Our Score', myScoreCtrl),
+                _editField(_isZh ? '分数线' : 'Target Score', lineCtrl),
+                _editTimeFields(hourCtrl, minCtrl),
+                _editCapturedAtFields(
+                  date: capturedDate,
+                  hourCtrl: capHourCtrl,
+                  minCtrl: capMinCtrl,
+                  onPrevDay: () => setDialogState(
+                    () => capturedDate = capturedDate.subtract(
+                      const Duration(days: 1),
+                    ),
+                  ),
+                  onNextDay: () => setDialogState(
+                    () => capturedDate = capturedDate.add(
+                      const Duration(days: 1),
+                    ),
+                  ),
+                ),
+                _editField(_isZh ? '敌方分数' : 'Enemy Score', enemyScoreCtrl),
+                _editField(
+                  _isZh ? '敌方每分钟得分' : 'Enemy SPM',
+                  enemySpmCtrl,
+                ),
+              ],
+            ),
           ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: Text(_isZh ? '取消' : 'Cancel'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: Text(_isZh ? '保存并重新计算' : 'Save & Recalculate'),
+            ),
+          ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: Text(_isZh ? '取消' : 'Cancel'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: Text(_isZh ? '保存并重新计算' : 'Save & Recalculate'),
-          ),
-        ],
       ),
     );
 
     // 先取出文本再释放控制器
+    var capturedHour =
+        int.tryParse(capHourCtrl.text.trim()) ?? capturedBase.hour;
+    if (capturedHour < 0) capturedHour = 0;
+    if (capturedHour > 23) capturedHour = 23;
+    var capturedMin =
+        int.tryParse(capMinCtrl.text.trim()) ?? capturedBase.minute;
+    if (capturedMin < 0) capturedMin = 0;
+    if (capturedMin > 59) capturedMin = 59;
+    final capturedAt = DateTime(
+      capturedDate.year,
+      capturedDate.month,
+      capturedDate.day,
+      capturedHour,
+      capturedMin,
+    );
     final textValues = {
       'my_score_per_min': mySpmCtrl.text.trim(),
       'my_score': myScoreCtrl.text.trim(),
@@ -413,6 +483,8 @@ class _TimeCalcScreenState extends State<TimeCalcScreen> {
       lineCtrl,
       hourCtrl,
       minCtrl,
+      capHourCtrl,
+      capMinCtrl,
       enemyScoreCtrl,
       enemySpmCtrl,
     ]) {
@@ -422,6 +494,7 @@ class _TimeCalcScreenState extends State<TimeCalcScreen> {
     if (saved != true || !mounted) return;
 
     _manualFields = textValues;
+    setState(() => _capturedAt = capturedAt);
     await _calculate();
   }
 
@@ -506,6 +579,95 @@ class _TimeCalcScreenState extends State<TimeCalcScreen> {
                   keyboardType: TextInputType.number,
                   decoration: InputDecoration(
                     labelText: _isZh ? '分钟' : 'Minutes',
+                    border: const OutlineInputBorder(),
+                    isDense: true,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Text(_isZh ? '分' : 'm'),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// 截图时间编辑区：天数 ±1 按钮 + 时 / 分 直接输入（不用日期 / 时间选择控件）
+  Widget _editCapturedAtFields({
+    required DateTime date,
+    required TextEditingController hourCtrl,
+    required TextEditingController minCtrl,
+    required VoidCallback onPrevDay,
+    required VoidCallback onNextDay,
+  }) {
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    String two(int v) => v.toString().padLeft(2, '0');
+
+    Widget dayButton(String label, VoidCallback onTap) => OutlinedButton(
+      onPressed: onTap,
+      style: OutlinedButton.styleFrom(
+        padding: const EdgeInsets.symmetric(horizontal: 10),
+        minimumSize: const Size(0, 36),
+        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        visualDensity: VisualDensity.compact,
+      ),
+      child: Text(label, style: const TextStyle(fontSize: 12)),
+    );
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            _isZh ? '截图时间' : 'Captured at',
+            style: TextStyle(
+              fontSize: 13,
+              color: dark ? Colors.white70 : Colors.grey[700],
+            ),
+          ),
+          const SizedBox(height: 4),
+          Row(
+            children: [
+              dayButton(_isZh ? '-1 天' : '-1d', onPrevDay),
+              Expanded(
+                child: Center(
+                  child: Text(
+                    '${date.year}-${two(date.month)}-${two(date.day)}',
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ),
+              dayButton(_isZh ? '+1 天' : '+1d', onNextDay),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: hourCtrl,
+                  keyboardType: TextInputType.number,
+                  decoration: InputDecoration(
+                    labelText: _isZh ? '时' : 'h',
+                    border: const OutlineInputBorder(),
+                    isDense: true,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Text(_isZh ? '时' : 'h'),
+              const SizedBox(width: 8),
+              Expanded(
+                child: TextField(
+                  controller: minCtrl,
+                  keyboardType: TextInputType.number,
+                  decoration: InputDecoration(
+                    labelText: _isZh ? '分' : 'm',
                     border: const OutlineInputBorder(),
                     isDense: true,
                   ),
@@ -884,6 +1046,12 @@ class _TimeCalcScreenState extends State<TimeCalcScreen> {
                   _dataRow(_isZh ? '我方分数' : 'Our Score', _rawMyScore),
                   _dataRow(_isZh ? '分数线' : 'Target Score', _rawScoreLine),
                   _dataRow(_isZh ? '剩余时间' : 'Time Left', _rawTimeLeft),
+                  _dataRow(
+                    _isZh ? '截图时间' : 'Captured at',
+                    _capturedAt == null
+                        ? ''
+                        : formatSeasonStatFullTime(_capturedAt!),
+                  ),
                   _dataRow(_isZh ? '敌方分数' : 'Enemy Score', _rawEnemyScore),
                   _dataRow(
                     _isZh ? '敌方每分钟得分' : 'Enemy SPM',
@@ -1038,10 +1206,156 @@ class _TimeCalcScreenState extends State<TimeCalcScreen> {
                 _isZh ? '敌方最终分数' : 'Enemy Final Score',
                 _resultEnemyFinalScore ?? '',
               ),
+              if (_resultCalcTime != null &&
+                  (_resultRemainingMinutes ?? 0) > 0 &&
+                  _resultEndMinutes != null) ...[
+                const Divider(height: 20),
+                _buildSeasonStatPreview(),
+              ],
             ],
           ),
         ),
       ),
+    );
+  }
+
+  /// 导入「赛季统计」前的预览：开始时间 / 结束时间 / 持续时间 / 战斗分
+  Widget _buildSeasonStatPreview() {
+    final preview = _seasonStatPreviewRecord();
+
+    Widget line(String label, String value, {bool bold = false}) => Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2),
+      child: Row(
+        children: [
+          SizedBox(
+            width: 100,
+            child: Text(
+              label,
+              style: TextStyle(fontSize: 13, color: Colors.grey[700]),
+            ),
+          ),
+          Expanded(
+            child: Text(
+              value,
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: bold ? FontWeight.bold : FontWeight.normal,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Icon(Icons.table_chart, size: 18, color: Colors.blue[700]),
+            const SizedBox(width: 8),
+            Text(
+              _isZh ? '导入赛季统计' : 'Import to Season Stats',
+              style: const TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 4),
+        line(
+          _isZh ? '开始时间' : 'Start',
+          formatSeasonStatFullTime(preview.startTime),
+        ),
+        line(
+          _isZh ? '结束时间' : 'End',
+          formatSeasonStatFullTime(preview.endTime),
+        ),
+        line(
+          _isZh ? '持续时间' : 'Duration',
+          formatSeasonStatDuration(preview.durationMinutes, zh: _isZh),
+        ),
+        line(
+          _isZh ? '战斗分' : 'Battle score',
+          formatSeasonStatScore(preview.finalScore),
+          bold: true,
+        ),
+        Padding(
+          padding: const EdgeInsets.only(top: 2),
+          child: Text(
+            _isZh
+                ? '开始时间 = 计算时刻 −（24h − 剩余时间）；结束时间可能提前（提前达线）'
+                : 'Start = now - (24h - time left); end may be earlier than 24h',
+            style: TextStyle(fontSize: 11, color: Colors.grey[600]),
+          ),
+        ),
+        const SizedBox(height: 8),
+        TextField(
+          controller: _enemyGangCtrl,
+          style: const TextStyle(fontSize: 14),
+          decoration: InputDecoration(
+            isDense: true,
+            labelText: _isZh ? '敌方帮派名称' : 'Enemy gang',
+            hintText: _isZh ? '填进赛季统计的「对战」列' : 'goes into the Opponent column',
+            hintStyle: const TextStyle(fontSize: 12),
+            border: const OutlineInputBorder(),
+            prefixIcon: const Icon(Icons.groups_2, size: 18),
+          ),
+        ),
+        const SizedBox(height: 8),
+        Row(
+          children: [
+            Expanded(
+              child: FilledButton.tonalIcon(
+                onPressed: () => _importToSeasonStats(overwriteLast: false),
+                icon: const Icon(Icons.playlist_add, size: 18),
+                label: Text(_isZh ? '新增' : 'Add new'),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: OutlinedButton.icon(
+                onPressed: () => _importToSeasonStats(overwriteLast: true),
+                icon: const Icon(Icons.save_as, size: 18),
+                label: Text(_isZh ? '覆盖最近一条' : 'Overwrite last'),
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  /// 根据本次计算结果拼出待写入的赛季统计记录
+  SeasonStatRecord _seasonStatPreviewRecord() {
+    final score =
+        int.tryParse(
+          (_resultMyFinalScore ?? '').replaceAll(',', '').replaceAll(' ', ''),
+        ) ??
+        0;
+    return SeasonStatRecord.fromTimer(
+      calcTime: _resultCalcTime ?? DateTime.now(),
+      remainingMinutes: _resultRemainingMinutes ?? 0,
+      endMinutes: _resultEndMinutes?.round() ?? 0,
+      finalScore: score,
+    );
+  }
+
+  /// 把本次计算结果导入「赛季统计」表格
+  ///
+  /// [overwriteLast] = true 时覆盖表格里最近的一条（开始时间最新的那场），
+  /// 否则作为新的一条追加。
+  Future<void> _importToSeasonStats({required bool overwriteLast}) async {
+    final preview = _seasonStatPreviewRecord();
+    await importSeasonStatFromTimer(
+      context,
+      locale: widget.locale,
+      startTime: preview.startTime,
+      endTime: preview.endTime,
+      finalScore: preview.finalScore,
+      enemyId: _enemyGangCtrl.text.trim(),
+      overwriteLast: overwriteLast,
     );
   }
 
