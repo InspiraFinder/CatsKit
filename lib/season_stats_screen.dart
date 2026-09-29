@@ -5,8 +5,10 @@ import 'package:flutter/services.dart';
 
 import 'season_stats_data.dart';
 
-/// 赛季统计：可查询的表格（开始时间 / 结束时间 / 持续时间 / 最终分数）
+/// 赛季统计：可查询的表格
 ///
+/// 列：场次 / 开始 / 结束 / 持续 / 间隔 / 战斗分 / 赛前胜场 / 赛后胜场 / 系数 / 本场得分
+/// - 「场次、间隔、赛前胜场、系数、本场得分」由相邻记录推导，见 [buildSeasonStatRows]
 /// - 支持关键词搜索、时间范围筛选、点击表头排序
 /// - 支持手动新增、编辑、删除、清空，以及一键复制整张表
 /// - 「时间计算」模块可以直接把一条计算结果导入到这里
@@ -18,19 +20,29 @@ class SeasonStatsScreen extends StatefulWidget {
   State<SeasonStatsScreen> createState() => _SeasonStatsScreenState();
 }
 
+/// 表格左右内边距（表头与数据行都用它，算总宽时要带上）
+const double _kTablePad = 8;
+
 /// 表格列宽（屏幕不够宽时整表横向滚动）
-const double _kColIndex = 44;
-const double _kColTime = 132;
-const double _kColDuration = 96;
-const double _kColScore = 110;
-const double _kColSource = 68;
-const double _kColOps = 84;
+const double _kColIndex = 48;
+const double _kColTime = 122;
+const double _kColDuration = 84;
+const double _kColGap = 84;
+const double _kColScore = 92;
+const double _kColWins = 80;
+const double _kColMultiplier = 62;
+const double _kColGained = 100;
+const double _kColOps = 80;
 const double _kTableWidth =
+    _kTablePad * 2 +
     _kColIndex +
     _kColTime * 2 +
     _kColDuration +
+    _kColGap +
     _kColScore +
-    _kColSource +
+    _kColWins * 2 +
+    _kColMultiplier +
+    _kColGained +
     _kColOps;
 
 const double _kRowHeight = 46;
@@ -44,6 +56,9 @@ class _SeasonStatsScreenState extends State<SeasonStatsScreen> {
   final ScrollController _hCtrl = ScrollController();
 
   List<SeasonStatRecord> _records = <SeasonStatRecord>[];
+  /// 派生行（场次 / 间隔 / 胜场 / 系数 / 本场得分）——依赖战斗先后顺序，
+  /// 所以每次数据变化都用**全部记录**重算一次，筛选排序不会影响它。
+  List<SeasonStatRow> _rows = <SeasonStatRow>[];
   bool _loading = true;
   String _query = '';
   SeasonStatRange _range = SeasonStatRange.all;
@@ -64,17 +79,26 @@ class _SeasonStatsScreenState extends State<SeasonStatsScreen> {
     super.dispose();
   }
 
-  Future<void> _load() async {
-    final records = await SeasonStatsStore.load();
-    if (!mounted) return;
+  /// 数据变化后统一刷新原始记录与派生行
+  void _setRecords(List<SeasonStatRecord> records, {bool loading = false}) {
     setState(() {
       _records = records;
-      _loading = false;
+      _rows = buildSeasonStatRows(records);
+      if (loading) _loading = false;
     });
   }
 
-  /// 当前筛选条件（含自定义范围）下的记录
-  List<SeasonStatRecord> get _visible {
+  Future<void> _load() async {
+    final records = await SeasonStatsStore.load();
+    if (!mounted) return;
+    _setRecords(records, loading: true);
+  }
+
+  /// 上一条的赛后胜场（用于「本场默认又是胜场」）
+  int get _lastWins => _rows.isEmpty ? 0 : (_rows.last.winsAfter ?? 0);
+
+  /// 当前筛选条件（含自定义范围）下的行
+  List<SeasonStatRow> get _visible {
     DateTime? from;
     DateTime? to;
     if (_range == SeasonStatRange.custom) {
@@ -87,8 +111,8 @@ class _SeasonStatsScreenState extends State<SeasonStatsScreen> {
     } else {
       from = rangeStart(_range);
     }
-    return filterAndSortSeasonStats(
-      _records,
+    return filterAndSortSeasonStatRows(
+      _rows,
       query: _query,
       from: from,
       to: to,
@@ -111,11 +135,15 @@ class _SeasonStatsScreenState extends State<SeasonStatsScreen> {
   // ==================== 增删改 ====================
 
   Future<void> _addRecord() async {
-    final record = await showSeasonStatRecordDialog(context, locale: widget.locale);
+    final record = await showSeasonStatRecordDialog(
+      context,
+      locale: widget.locale,
+      defaultWinsAfter: _lastWins + 1,
+    );
     if (record == null) return;
     final list = await SeasonStatsStore.add(record);
     if (!mounted) return;
-    setState(() => _records = list);
+    _setRecords(list);
   }
 
   Future<void> _editRecord(SeasonStatRecord record) async {
@@ -127,7 +155,7 @@ class _SeasonStatsScreenState extends State<SeasonStatsScreen> {
     if (edited == null) return;
     final list = await SeasonStatsStore.update(edited);
     if (!mounted) return;
-    setState(() => _records = list);
+    _setRecords(list);
   }
 
   Future<void> _deleteRecord(SeasonStatRecord record) async {
@@ -154,7 +182,7 @@ class _SeasonStatsScreenState extends State<SeasonStatsScreen> {
     if (ok != true) return;
     final list = await SeasonStatsStore.remove(record.id);
     if (!mounted) return;
-    setState(() => _records = list);
+    _setRecords(list);
   }
 
   Future<void> _clearAll() async {
@@ -183,7 +211,7 @@ class _SeasonStatsScreenState extends State<SeasonStatsScreen> {
     if (ok != true) return;
     await SeasonStatsStore.clear();
     if (!mounted) return;
-    setState(() => _records = <SeasonStatRecord>[]);
+    _setRecords(<SeasonStatRecord>[]);
   }
 
   /// 复制整张表（TSV，可直接粘贴进 Excel / 表格软件）
@@ -193,19 +221,33 @@ class _SeasonStatsScreenState extends State<SeasonStatsScreen> {
     final buf = StringBuffer()
       ..writeln(
         [
-          _t('开始时间', 'Start'),
-          _t('结束时间', 'End'),
-          _t('持续时间', 'Duration'),
-          _t('最终分数', 'Final Score'),
+          _t('场次', 'No.'),
+          _t('开始', 'Start'),
+          _t('结束', 'End'),
+          _t('持续', 'Duration'),
+          _t('间隔', 'Gap'),
+          _t('战斗分', 'Battle'),
+          _t('赛前胜场', 'Wins before'),
+          _t('赛后胜场', 'Wins after'),
+          _t('系数', 'Multiplier'),
+          _t('本场得分', 'Gained'),
         ].join('\t'),
       );
     for (final r in rows) {
       buf.writeln(
         [
+          r.order.toString(),
           formatSeasonStatFullTime(r.startTime),
           formatSeasonStatFullTime(r.endTime),
           formatSeasonStatDuration(r.durationMinutes, zh: _isZh),
+          r.gapMinutes == null
+              ? ''
+              : formatSeasonStatDuration(r.gapMinutes!, zh: _isZh),
           r.finalScore.toString(),
+          r.winsBefore?.toString() ?? '',
+          r.winsAfter?.toString() ?? '',
+          r.multiplier?.toString() ?? '',
+          r.gainedScore?.toString() ?? '',
         ].join('\t'),
       );
     }
@@ -320,10 +362,17 @@ class _SeasonStatsScreenState extends State<SeasonStatsScreen> {
         children: [
           tile(
             Icons.list_alt,
-            _t('记录', 'Rows'),
+            _t('场次', 'Battles'),
             '${s.count}',
             Colors.blue,
           ),
+          if (s.lastWins != null)
+            tile(
+              Icons.emoji_events,
+              _t('当前胜场', 'Wins'),
+              '${s.lastWins}',
+              Colors.amber[800]!,
+            ),
           tile(
             Icons.timer_outlined,
             _t('总时长', 'Total'),
@@ -338,22 +387,29 @@ class _SeasonStatsScreenState extends State<SeasonStatsScreen> {
           ),
           tile(
             Icons.star,
-            _t('最高分', 'Best'),
+            _t('最高战斗分', 'Best'),
             formatSeasonStatScore(s.bestScore),
             Colors.orange,
           ),
           tile(
             Icons.summarize,
-            _t('总分', 'Sum'),
+            _t('战斗分合计', 'Sum'),
             formatSeasonStatScore(s.totalScore),
             Colors.deepPurple,
           ),
           tile(
             Icons.trending_up,
-            _t('平均分', 'Avg score'),
+            _t('平均战斗分', 'Avg'),
             formatSeasonStatScore(s.averageScore.round()),
             Colors.green,
           ),
+          if (s.gainedCount > 0)
+            tile(
+              Icons.savings,
+              _t('本场得分合计', 'Gained'),
+              formatSeasonStatScore(s.totalGained),
+              Colors.pink,
+            ),
           if (s.count > 0)
             tile(
               Icons.trending_down,
@@ -458,8 +514,8 @@ class _SeasonStatsScreenState extends State<SeasonStatsScreen> {
             alignment: Alignment.centerLeft,
             child: Text(
               _t(
-                '共 ${_records.length} 条记录，当前显示 ${_visible.length} 条',
-                '${_records.length} records, ${_visible.length} shown',
+                '共 ${_records.length} 场，当前显示 ${_visible.length} 场',
+                '${_records.length} battles, ${_visible.length} shown',
               ),
               style: TextStyle(
                 fontSize: 11,
@@ -472,7 +528,7 @@ class _SeasonStatsScreenState extends State<SeasonStatsScreen> {
     );
   }
 
-  Widget _buildTable(List<SeasonStatRecord> rows) {
+  Widget _buildTable(List<SeasonStatRow> rows) {
     final dark = Theme.of(context).brightness == Brightness.dark;
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -555,38 +611,62 @@ class _SeasonStatsScreenState extends State<SeasonStatsScreen> {
       height: _kHeaderHeight,
       width: double.infinity,
       color: dark ? Colors.white10 : Colors.grey[200],
-      padding: const EdgeInsets.symmetric(horizontal: 8),
+      padding: const EdgeInsets.symmetric(horizontal: _kTablePad),
       child: Row(
         children: [
-          cell('#', width: _kColIndex),
+          cell(_t('场次', 'No.'), width: _kColIndex, sortKey: SeasonStatSortKey.order),
           cell(
-            _t('开始时间', 'Start'),
+            _t('开始', 'Start'),
             width: _kColTime,
             sortKey: SeasonStatSortKey.startTime,
           ),
           cell(
-            _t('结束时间', 'End'),
+            _t('结束', 'End'),
             width: _kColTime,
             sortKey: SeasonStatSortKey.endTime,
           ),
           cell(
-            _t('持续时间', 'Duration'),
+            _t('持续', 'Duration'),
             width: _kColDuration,
             sortKey: SeasonStatSortKey.duration,
           ),
           cell(
-            _t('最终分数', 'Final Score'),
+            _t('间隔', 'Gap'),
+            width: _kColGap,
+            sortKey: SeasonStatSortKey.gap,
+          ),
+          cell(
+            _t('战斗分', 'Battle'),
             width: _kColScore,
             sortKey: SeasonStatSortKey.finalScore,
           ),
-          cell(_t('来源', 'Source'), width: _kColSource),
+          cell(
+            _t('赛前胜场', 'Wins before'),
+            width: _kColWins,
+            sortKey: SeasonStatSortKey.winsBefore,
+          ),
+          cell(
+            _t('赛后胜场', 'Wins after'),
+            width: _kColWins,
+            sortKey: SeasonStatSortKey.winsAfter,
+          ),
+          cell(
+            _t('系数', 'x'),
+            width: _kColMultiplier,
+            sortKey: SeasonStatSortKey.multiplier,
+          ),
+          cell(
+            _t('本场得分', 'Gained'),
+            width: _kColGained,
+            sortKey: SeasonStatSortKey.gainedScore,
+          ),
           cell(_t('操作', 'Actions'), width: _kColOps),
         ],
       ),
     );
   }
 
-  Widget _buildRow(SeasonStatRecord r, int index, bool dark) {
+  Widget _buildRow(SeasonStatRow r, int index, bool dark) {
     Widget cell(String text, double width, {TextStyle? style}) => SizedBox(
       width: width,
       child: Text(
@@ -597,14 +677,19 @@ class _SeasonStatsScreenState extends State<SeasonStatsScreen> {
       ),
     );
 
+    final dim = TextStyle(
+      fontSize: 12,
+      color: dark ? Colors.white38 : Colors.grey[500],
+    );
+
     return Material(
       color: index.isEven
           ? Colors.transparent
           : (dark ? Colors.white.withValues(alpha: 0.03) : Colors.grey[50]),
       child: InkWell(
-        onTap: () => _editRecord(r),
+        onTap: () => _editRecord(r.record),
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 8),
+          padding: const EdgeInsets.symmetric(horizontal: _kTablePad),
           decoration: BoxDecoration(
             border: Border(
               bottom: BorderSide(
@@ -615,12 +700,18 @@ class _SeasonStatsScreenState extends State<SeasonStatsScreen> {
           ),
           child: Row(
             children: [
-              cell(
-                '${index + 1}',
-                _kColIndex,
-                style: TextStyle(
-                  fontSize: 12,
-                  color: dark ? Colors.white38 : Colors.grey[500],
+              SizedBox(
+                width: _kColIndex,
+                child: Row(
+                  children: [
+                    Text('${r.order}', style: dim),
+                    const SizedBox(width: 3),
+                    Icon(
+                      r.fromTimer ? Icons.timer : Icons.edit_note,
+                      size: 12,
+                      color: r.fromTimer ? Colors.teal : Colors.blueGrey,
+                    ),
+                  ],
                 ),
               ),
               cell(formatSeasonStatTime(r.startTime), _kColTime),
@@ -630,34 +721,54 @@ class _SeasonStatsScreenState extends State<SeasonStatsScreen> {
                 _kColDuration,
               ),
               cell(
+                r.gapMinutes == null
+                    ? '-'
+                    : formatSeasonStatDuration(r.gapMinutes!, zh: _isZh),
+                _kColGap,
+                style: r.gapMinutes == null ? dim : null,
+              ),
+              cell(
                 formatSeasonStatScore(r.finalScore),
                 _kColScore,
-                style: const TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.bold,
-                ),
+                style: const TextStyle(fontSize: 13),
               ),
-              SizedBox(
-                width: _kColSource,
-                child: Row(
-                  children: [
-                    Icon(
-                      r.fromTimer ? Icons.timer : Icons.edit_note,
-                      size: 14,
-                      color: r.fromTimer ? Colors.teal : Colors.blueGrey,
-                    ),
-                    const SizedBox(width: 3),
-                    Text(
-                      r.fromTimer
-                          ? _t('计时', 'Timer')
-                          : _t('手动', 'Manual'),
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: dark ? Colors.white54 : Colors.grey[600],
+              cell(
+                r.winsBefore?.toString() ?? '-',
+                _kColWins,
+                style: r.winsBefore == null ? dim : null,
+              ),
+              cell(
+                r.winsAfter?.toString() ?? '-',
+                _kColWins,
+                style: r.winsAfter == null
+                    ? dim
+                    : const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.bold,
                       ),
-                    ),
-                  ],
-                ),
+              ),
+              cell(
+                r.multiplier == null ? '-' : '×${r.multiplier}',
+                _kColMultiplier,
+                style: r.multiplier == null
+                    ? dim
+                    : TextStyle(
+                        fontSize: 13,
+                        color: Colors.deepOrange[700],
+                        fontWeight: FontWeight.bold,
+                      ),
+              ),
+              cell(
+                r.gainedScore == null
+                    ? '-'
+                    : formatSeasonStatScore(r.gainedScore!),
+                _kColGained,
+                style: r.gainedScore == null
+                    ? dim
+                    : const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.bold,
+                      ),
               ),
               SizedBox(
                 width: _kColOps,
@@ -667,13 +778,13 @@ class _SeasonStatsScreenState extends State<SeasonStatsScreen> {
                       icon: const Icon(Icons.edit, size: 16),
                       tooltip: _t('编辑', 'Edit'),
                       visualDensity: VisualDensity.compact,
-                      onPressed: () => _editRecord(r),
+                      onPressed: () => _editRecord(r.record),
                     ),
                     IconButton(
                       icon: const Icon(Icons.delete_outline, size: 16),
                       tooltip: _t('删除', 'Delete'),
                       visualDensity: VisualDensity.compact,
-                      onPressed: () => _deleteRecord(r),
+                      onPressed: () => _deleteRecord(r.record),
                     ),
                   ],
                 ),
@@ -730,8 +841,8 @@ class _SeasonStatsScreenState extends State<SeasonStatsScreen> {
 
 /// 弹出「新增 / 编辑记录」对话框，取消返回 null。
 ///
-/// [initial] 非空表示编辑已有记录；[defaultStart] / [defaultEnd] / [defaultScore]
-/// 用于「时间计算」导入时预填。
+/// [initial] 非空表示编辑已有记录；[defaultStart] / [defaultEnd] / [defaultScore] /
+/// [defaultWinsAfter] 用于「时间计算」导入时预填。
 Future<SeasonStatRecord?> showSeasonStatRecordDialog(
   BuildContext context, {
   String locale = 'zh',
@@ -739,6 +850,7 @@ Future<SeasonStatRecord?> showSeasonStatRecordDialog(
   DateTime? defaultStart,
   DateTime? defaultEnd,
   int? defaultScore,
+  int? defaultWinsAfter,
 }) {
   return showDialog<SeasonStatRecord>(
     context: context,
@@ -748,6 +860,7 @@ Future<SeasonStatRecord?> showSeasonStatRecordDialog(
       defaultStart: defaultStart,
       defaultEnd: defaultEnd,
       defaultScore: defaultScore,
+      defaultWinsAfter: defaultWinsAfter,
     ),
   );
 }
@@ -758,6 +871,7 @@ class _SeasonStatDialog extends StatefulWidget {
   final DateTime? defaultStart;
   final DateTime? defaultEnd;
   final int? defaultScore;
+  final int? defaultWinsAfter;
 
   const _SeasonStatDialog({
     required this.locale,
@@ -765,6 +879,7 @@ class _SeasonStatDialog extends StatefulWidget {
     this.defaultStart,
     this.defaultEnd,
     this.defaultScore,
+    this.defaultWinsAfter,
   });
 
   @override
@@ -778,6 +893,8 @@ class _SeasonStatDialogState extends State<_SeasonStatDialog> {
   late DateTime _start;
   late DateTime _end;
   late TextEditingController _scoreCtrl;
+  late TextEditingController _winsCtrl;
+  late TextEditingController _multiplierCtrl;
 
   @override
   void initState() {
@@ -788,11 +905,18 @@ class _SeasonStatDialogState extends State<_SeasonStatDialog> {
     _scoreCtrl = TextEditingController(
       text: (widget.initial?.finalScore ?? widget.defaultScore ?? 0).toString(),
     );
+    final wins = widget.initial?.winsAfter ?? widget.defaultWinsAfter;
+    _winsCtrl = TextEditingController(text: wins?.toString() ?? '');
+    _multiplierCtrl = TextEditingController(
+      text: widget.initial?.settleMultiplier?.toString() ?? '',
+    );
   }
 
   @override
   void dispose() {
     _scoreCtrl.dispose();
+    _winsCtrl.dispose();
+    _multiplierCtrl.dispose();
     super.dispose();
   }
 
@@ -800,6 +924,22 @@ class _SeasonStatDialogState extends State<_SeasonStatDialog> {
     final d = _end.difference(_start).inMinutes;
     return d < 0 ? 0 : d;
   }
+
+  int get _winsAfter => int.tryParse(_winsCtrl.text.trim()) ?? 0;
+
+  bool get _hasWins => _winsCtrl.text.trim().isNotEmpty;
+
+  /// 自动取到的系数（系数输入框留空时用它）
+  int? get _autoMultiplier =>
+      _hasWins ? seasonStatMultiplierOf(_winsAfter) : null;
+
+  /// 最终生效的系数（手填优先）
+  int? get _effectiveMultiplier =>
+      int.tryParse(_multiplierCtrl.text.trim()) ?? _autoMultiplier;
+
+  int get _gainedScore =>
+      (int.tryParse(_scoreCtrl.text.replaceAll(',', '').trim()) ?? 0) *
+      (_effectiveMultiplier ?? 0);
 
   Future<void> _pick(bool isStart) async {
     final base = isStart ? _start : _end;
@@ -912,11 +1052,80 @@ class _SeasonStatDialogState extends State<_SeasonStatDialog> {
               keyboardType: const TextInputType.numberWithOptions(
                 signed: false,
               ),
+              onChanged: (_) => setState(() {}),
               decoration: InputDecoration(
-                labelText: _t('最终分数', 'Final score'),
+                labelText: _t('战斗分', 'Battle score'),
                 border: const OutlineInputBorder(),
                 isDense: true,
               ),
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _winsCtrl,
+                    keyboardType: const TextInputType.numberWithOptions(
+                      signed: false,
+                    ),
+                    onChanged: (_) => setState(() {}),
+                    decoration: InputDecoration(
+                      labelText: _t('赛后胜场', 'Wins after'),
+                      border: const OutlineInputBorder(),
+                      isDense: true,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: TextField(
+                    controller: _multiplierCtrl,
+                    keyboardType: const TextInputType.numberWithOptions(
+                      signed: false,
+                    ),
+                    onChanged: (_) => setState(() {}),
+                    decoration: InputDecoration(
+                      labelText: _t('系数', 'Multiplier'),
+                      hintText: _autoMultiplier == null
+                          ? _t('自动', 'auto')
+                          : '${_t('自动', 'auto')} ×$_autoMultiplier',
+                      border: const OutlineInputBorder(),
+                      isDense: true,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                Icon(
+                  Icons.savings,
+                  size: 16,
+                  color: _effectiveMultiplier == null
+                      ? Colors.grey
+                      : Colors.deepOrange[700],
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  _t('本场得分', 'Gained'),
+                  style: const TextStyle(fontSize: 13),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  _effectiveMultiplier == null
+                      ? _t('待填赛后胜场 / 系数', 'needs wins or multiplier')
+                      : '${formatSeasonStatScore(_gainedScore)}'
+                            '   （${formatSeasonStatScore(int.tryParse(_scoreCtrl.text.replaceAll(',', '').trim()) ?? 0)} × $_effectiveMultiplier）',
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.bold,
+                    color: _effectiveMultiplier == null
+                        ? Colors.grey
+                        : Colors.deepOrange[700],
+                  ),
+                ),
+              ],
             ),
           ],
         ),
@@ -936,6 +1145,9 @@ class _SeasonStatDialogState extends State<_SeasonStatDialog> {
               endTime: _end,
               finalScore: score,
               source: widget.initial?.source ?? 'manual',
+              winsAfter: _hasWins ? _winsAfter : null,
+              settleMultiplier:
+                  int.tryParse(_multiplierCtrl.text.trim()),
             );
             Navigator.pop(context, record);
           },
@@ -958,6 +1170,12 @@ Future<bool> importSeasonStatFromTimer(
   required int finalScore,
 }) async {
   final isZh = locale == 'zh';
+  // 「赛后胜场」默认接上一条 +1（先假定本场是胜场，用户可在对话框里改）
+  final existing = await SeasonStatsStore.load();
+  final rows = buildSeasonStatRows(existing);
+  final defaultWins = rows.isEmpty ? 1 : (rows.last.winsAfter ?? 0) + 1;
+
+  if (!context.mounted) return false;
   final record = await showSeasonStatRecordDialog(
     context,
     locale: locale,
@@ -967,6 +1185,7 @@ Future<bool> importSeasonStatFromTimer(
       endTime: endTime,
       finalScore: finalScore,
       source: 'timer',
+      winsAfter: defaultWins,
     ),
   );
   if (record == null) return false;
@@ -977,7 +1196,8 @@ Future<bool> importSeasonStatFromTimer(
       content: Text(
         isZh
             ? '已导入赛季统计（${formatSeasonStatDuration(record.durationMinutes, zh: true)} · '
-                  '${formatSeasonStatScore(record.finalScore)} 分）'
+                  '战斗分 ${formatSeasonStatScore(record.finalScore)}'
+                  '${record.settleMultiplier != null ? ' · ×${record.settleMultiplier}' : ''}）'
             : 'Imported: ${formatSeasonStatDuration(record.durationMinutes, zh: false)} · '
                   '${formatSeasonStatScore(record.finalScore)}',
         style: const TextStyle(fontSize: 12),

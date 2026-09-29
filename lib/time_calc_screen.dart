@@ -1066,7 +1066,7 @@ class _TimeCalcScreenState extends State<TimeCalcScreen> {
     );
   }
 
-  /// 导入「赛季统计」前的预览：开始时间 / 结束时间 / 持续时间 / 最终分数
+  /// 导入「赛季统计」前的预览：开始时间 / 结束时间 / 持续时间 / 战斗分
   Widget _buildSeasonStatPreview() {
     final preview = _seasonStatPreviewRecord();
 
@@ -1124,11 +1124,10 @@ class _TimeCalcScreenState extends State<TimeCalcScreen> {
           formatSeasonStatDuration(preview.durationMinutes, zh: _isZh),
         ),
         line(
-          _isZh ? '最终分数' : 'Final Score',
+          _isZh ? '战斗分' : 'Battle score',
           formatSeasonStatScore(preview.finalScore),
           bold: true,
-        ),
-        Padding(
+        ),        Padding(
           padding: const EdgeInsets.only(top: 2),
           child: Text(
             _isZh
