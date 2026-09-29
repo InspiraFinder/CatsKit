@@ -994,11 +994,12 @@ class _BattleBuildingsFigure extends StatelessWidget {
   const _BattleBuildingsFigure({required this.locale, required this.isDark});
 
   /// (车位总数, 我方占几个, 对方占几个, 是否链接建筑, 是否高回报建筑)
+  /// 注意：车位永远是满的（人机或对方帮派的车），所以「我方 + 对方 = 总数」
   static const List<(int, int, int, bool, bool)> _buildings =
       <(int, int, int, bool, bool)>[
     (5, 4, 1, true, false),
     (3, 0, 3, false, true),
-    (5, 3, 1, false, false),
+    (5, 3, 2, false, false),
     (7, 2, 5, true, false),
     (3, 2, 1, false, false),
     (5, 1, 4, false, false),
@@ -1045,7 +1046,6 @@ class _BattleBuildingsFigure extends StatelessWidget {
     final label = ours
         ? (zh ? '我方占领' : 'Ours')
         : (theirsWin ? (zh ? '对方占领' : 'Theirs') : (zh ? '未占领' : 'None'));
-    final emptyColor = isDark ? Colors.white24 : Colors.black12;
     return Container(
       width: 94,
       padding: const EdgeInsets.all(6),
@@ -1077,7 +1077,9 @@ class _BattleBuildingsFigure extends StatelessWidget {
                     shape: BoxShape.circle,
                     color: i < mine
                         ? Colors.blue
-                        : (i < mine + theirs ? Colors.red : emptyColor),
+                        : (i < mine + theirs
+                            ? Colors.red
+                            : (isDark ? Colors.white24 : Colors.black12)),
                   ),
                 ),
             ],

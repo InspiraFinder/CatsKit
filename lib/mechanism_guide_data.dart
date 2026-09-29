@@ -362,20 +362,21 @@ const List<GuideChapter> kGuideChapters = <GuideChapter>[
         GuideFigure.diagram(
           'battleBuildings',
           captionZh:
-              '建筑与车位示意（蓝＝我方、红＝对方、灰＝空车位；带「链接」/「×5」的是特殊加成建筑）',
+              '建筑与车位示意（蓝＝我方、红＝对方 —— 人机或对方帮派的车；带「链接」/「×5」的是特殊加成建筑）',
           captionEn:
-              'Buildings and slots (blue = ours, red = theirs, grey = empty; "link" and "×5" mark special bonuses)',
+              'Buildings and slots (blue = ours, red = opponents — bots or the other gang\'s cars; "link" and "×5" mark special bonuses)',
         ),
       ]),
       // ---------- 2. 车位争夺 ----------
       GuideBlock.heading('车位争夺：一辆车怎么打', 'Taking a slot: how a single fight works'),
       GuideBlock.text(
-        '战斗开始时，所有建筑的所有车位都会被人机的车填满；之后我方成员各自派空闲的车去抢车位。'
-        '抢车位的流程是：挑一个「还没被我方占领」的车位发起攻击 → 派一辆空闲的车跟车位上的车单挑 → '
-        '一方 HP 归零则战斗结束。车位不会出现空着的情况：要么是我方的车在防守，要么还是人机占着。',
-        'When a battle starts, every slot of every building is filled by bot vehicles; from then on our members send idle cars to take slots. '
-            'Taking a slot works like this: pick a slot that is not held by our side → send one idle car to duel the car on that slot → '
-            'the duel ends when one side\'s HP reaches zero. A slot is never left empty: either one of our cars defends it or a bot still holds it.',
+        '战斗开始时，所有建筑的所有车位都会被人机的车填满；之后车位上的车可能是人机，'
+        '也可能是对方帮派成员的车。我方成员各自派空闲的车去抢车位，流程是：'
+        '挑一个「还没被我方占领」的车位发起攻击 → 派一辆空闲的车跟车位上的车单挑 → 一方 HP 归零则战斗结束。'
+        '车位不会出现空着的情况：要么是我方的车在防守，要么还是对方的车（人机或对方帮派）占着。',
+        'When a battle starts, every slot of every building is filled by bot vehicles; from then on a slot may hold a bot or a car belonging to the opposing gang. '
+            'Our members send idle cars to take slots: pick a slot that is not held by our side → send one idle car to duel the car on that slot → '
+            'the duel ends when one side\'s HP reaches zero. A slot is never left empty: either one of our cars defends it or the opposing side still holds it.',
       ),
       GuideBlock.bullets(<GuideBullet>[
         GuideBullet(
@@ -383,8 +384,10 @@ const List<GuideChapter> kGuideChapters = <GuideChapter>[
           'If we win (the car on the slot is destroyed) → our attacking car **occupies the slot with the HP it has when the duel ends** and enters the defending state',
         ),
         GuideBullet(
-          '我方打输（我方出战的车被打爆）→ 人机**以战斗结束时的血量留在车位上**，并持续回血直到满血',
-          'If we lose (our car is destroyed) → the bot **stays on the slot with the HP it has when the duel ends** and keeps regenerating until full HP',
+          '我方打输（我方出战的车被打爆）→ 车位上的那辆车（人机或对方帮派的车）'
+          '**以战斗结束时的血量留在车位上**，并持续回血直到满血',
+          'If we lose (our car is destroyed) → the car on the slot (a bot or a car of the opposing gang) '
+              '**stays there with the HP it has when the duel ends** and keeps regenerating until full HP',
         ),
         GuideBullet(
           '战斗结束时记录胜方的**当前 HP** 并保存状态 —— 车不会因为打赢就回满血',
