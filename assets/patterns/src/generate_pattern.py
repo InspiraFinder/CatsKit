@@ -10,7 +10,7 @@
   · 「猫生重开」横幅按钮里是 `activity_pattern.png`（活动图标 34-48px，小元素），
     本脚本不动它 —— 方块（大元素）与它们形成层次。
 
-构图：128×128 无缝贴片，3 个纯色圆角方块（边长 40 / 47 / 43，倾斜 -5°/-17°/+17.5°），
+构图：128×128 无缝贴片，3 个纯色**直角**方块（边长 40 / 47 / 43，倾斜 -5°/-17°/+17.5°），
       位置就是 2.0.0 版那三个贴纸的位置；其中一个跨上边界，靠 3×3 画布自动绕回。
 
 无缝做法：把方块按 3×3 重复画在大画布上，再裁中间一块 —— 跨边界的方块会自动「绕回」。
@@ -29,8 +29,8 @@ PREVIEW_DIR = os.path.join(ROOT, "build", "pattern_preview")
 
 TILE = 128          # 贴片边长（与 2.0.0 版一致）
 SOLID_ALPHA = 1.0   # 方块自身不透明度（界面里再乘 0.07 / 0.10）
-RADIUS = 0.12       # 圆角占边长的比例
-SUPERSAMPLE = 4     # 先放大 4 倍画圆角再缩小，边缘更平滑
+RADIUS = 0.0        # 圆角占边长的比例（0 = 直角/有棱角）
+SUPERSAMPLE = 4     # 先放大 4 倍画再缩小，边缘平滑不毛糙
 
 # 3 个方块：(中心 x, 中心 y, 边长, 旋转角度)
 # ↓ 位置/边长/角度是从 2.0.0 版 `cat_pattern.png` 的 alpha 里量出来的
@@ -43,11 +43,15 @@ SLOTS = [
 
 
 def rounded_square(side, radius_ratio=RADIUS, alpha=SOLID_ALPHA):
-    """纯色圆角方块（只关心 alpha）。"""
+    """纯色方块（只关心 alpha）；radius_ratio 为 0 时是直角（有棱角）。"""
     s = side * SUPERSAMPLE
     big = Image.new("L", (s, s), 0)
-    ImageDraw.Draw(big).rounded_rectangle(
-        [0, 0, s - 1, s - 1], radius=max(1, int(s * radius_ratio)), fill=255)
+    draw = ImageDraw.Draw(big)
+    if radius_ratio <= 0:
+        draw.rectangle([0, 0, s - 1, s - 1], fill=255)
+    else:
+        draw.rounded_rectangle(
+            [0, 0, s - 1, s - 1], radius=max(1, int(s * radius_ratio)), fill=255)
     small = big.resize((side, side), Image.LANCZOS).point(
         lambda v: min(255, int(v * alpha)))
     im = Image.new("RGBA", (side, side), (0, 0, 0, 0))
