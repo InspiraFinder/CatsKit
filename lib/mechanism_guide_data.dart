@@ -27,7 +27,7 @@ class GuideFigure {
   /// `carLayout`（车辆结构） / `partSample`（四类部件示例） / `sponsors`（赞助商）
   /// / `activityIcons`（活动图标一览） / `jokerTiers`（王牌 R1-R5）
   /// / `chestTypes`（自选箱 / 固定箱） / `gangTiers`（帮派四个组别）
-  /// / `seasonFlow`（赛季收尾流程）
+  /// / `seasonFlow`（赛季收尾流程） / `battleBuildings`（战斗建筑与车位）
   final String? diagram;
 
   final String captionZh;
@@ -413,12 +413,13 @@ const List<GuideChapter> kGuideChapters = <GuideChapter>[
         'Conquering region 10 (30 wins) additionally grants 25,000 purple tickets and a season-exclusive kitty outfit.',
       ),
       GuideBlock.text(
-        '赛季什么时候结束：不按固定天数，而是看「已方多少个帮派打满 30 胜」——'
-        '所有组别中累计有 10 个帮派达到 30 胜场的那一刻，赛季进入收尾；'
-        '收尾期间依次是：再过 7 天关闭战斗入口（之后不能加入新战斗）→ 再过 1 天所有帮派战斗完成 → '
+        '赛季什么时候结束：不按固定天数，而是看「有多少个帮派打满 30 胜」——'
+        '统计的是**所有组别、任何帮派**：只要有帮派达到 30 胜场，30 胜帮派计数就 +1；'
+        '计数达到 10 时，赛季准备结束：'
+        '再过 7 天关闭战斗入口（之后不能加入新战斗）→ 再过 1 天所有帮派战斗完成 → '
         '发放赛季结算奖励 → 1 天缓冲（领奖励、换帮派）→ 开启新赛季。',
-        'How a season ends: not by a fixed number of days but by "how many gangs have hit 30 wins" — '
-            'the moment 10 gangs across all divisions reach 30 wins, the season starts to wrap up: '
+        'How a season ends: not by a fixed number of days but by counting gangs that reach 30 wins — '
+            'any gang, in any division: every gang that hits 30 wins bumps the counter by 1, and when it reaches 10 the season starts to end: '
             '7 more days until battle entry closes (no new battles), then 1 more day for every gang to finish its battles, '
             'then season rewards are granted, then a 1-day buffer (claim rewards, switch gangs) and a new season begins.',
       ),
@@ -431,8 +432,10 @@ const List<GuideChapter> kGuideChapters = <GuideChapter>[
         ),
       ]),
       GuideBlock.tip(
-        '单场战斗不一定是严格意义上的一天，最长 1 天；具体时长可以看「时间计算」模块。',
-        'A single battle is not strictly one day — it lasts up to 1 day; check the "Timer" module for the duration.',
+        '单场战斗不一定是严格意义上的一天，最长 1 天；具体时长可以看「时间计算」模块。'
+        '战斗怎么打（6 个建筑、车位、占领、链接与高回报加成）见「战斗规则」一章。',
+        'A single battle is not strictly one day — it lasts up to 1 day; check the "Timer" module for the duration. '
+            'See the "Battle Rules" chapter for how a battle works (6 buildings, slots, occupation, links, high reward).',
       ),
       GuideBlock.text(
         '赛季结算奖励：所有帮派战斗完成后发放（发完有 1 天缓冲用来领奖励、换帮派），'
@@ -490,6 +493,72 @@ const List<GuideChapter> kGuideChapters = <GuideChapter>[
       GuideBlock.tip(
         '木组的帮派比其它组多（200 家以上），所以后三档的名次区间不一样（21-50 / 51-120 / 121-200）。',
         'The wood league holds more gangs (200+), so its last three rank bands differ (21-50 / 51-120 / 121-200).',
+      ),
+    ],
+  ),
+  // ==================== 战斗规则 ====================
+  GuideChapter(
+    id: 'battle',
+    titleZh: '战斗规则',
+    titleEn: 'Battle Rules',
+    summaryZh: '6 个建筑、车位过半即占领；链接与高回报加成怎么算',
+    summaryEn:
+        'Six buildings, occupy by holding over half the slots, plus link and high-reward bonuses',
+    icon: Icons.location_city,
+    color: Colors.indigo,
+    keywords: <String>[
+      '战斗',
+      '建筑',
+      '车位',
+      '占领',
+      '链接',
+      '高回报',
+      'battle',
+      'building',
+      'slot',
+      'link',
+      'high reward',
+    ],
+    blocks: <GuideBlock>[
+      GuideBlock.text(
+        '城市之王的战斗是「夺建筑」：每场战斗一般有 6 个建筑，每个建筑里有若干个车位（奇数个）。',
+        'A City King battle is a fight over buildings: a battle usually has 6 buildings, and each building has an odd number of parking slots.',
+      ),
+      GuideBlock.bullets(<GuideBullet>[
+        GuideBullet(
+          '占领：一方占据某座建筑的车位总数的一半以上，就占领了这座建筑（例如 5 车位占 3 个、3 车位占 2 个）',
+          'Occupation: a side holding more than half of a building\'s slots occupies it (3 of 5 slots, 2 of 3 slots, ...)',
+        ),
+        GuideBullet(
+          '得分：分钟计时器归零时，从所有已占领的建筑获得「该建筑车位数」的分数',
+          'Scoring: when the minute timer hits zero you score, for each occupied building, points equal to that building\'s slot count',
+        ),
+      ]),
+      GuideBlock.figures(<GuideFigure>[
+        GuideFigure.diagram(
+          'battleBuildings',
+          captionZh: '建筑与车位示意（蓝＝我方、红＝对方、灰＝空车位；带「链接」/「×5」的是特殊加成建筑）',
+          captionEn:
+              'Buildings and slots (blue = ours, red = theirs, grey = empty; "link" and "×5" mark special bonuses)',
+        ),
+      ]),
+      GuideBlock.text(
+        '特殊机制 1 · 链接：每场战斗通常会有两个建筑获得链接。'
+        '如果同时占据了多个链接建筑（n 个），这些链接建筑获得的分数会 ×n（只作用于链接建筑）。',
+        'Special 1 · Link: usually two buildings in a battle are linked. '
+            'If you occupy several linked buildings (n of them), those linked buildings score ×n (only the linked ones).',
+      ),
+      GuideBlock.text(
+        '特殊机制 2 · 高回报加成：在赛季准备结束的时间点之后开启的战斗里，'
+        '每隔一段时间会随机挑一个建筑，该建筑的分数获得 5 倍加成（例如原来 +21，加成后变成 +105）；'
+        '加成持续 2 小时，且与链接相互独立 —— 链接建筑也可以同时吃到高回报加成。',
+        'Special 2 · High reward: in battles started after the season wrap-up point, '
+            'one random building periodically gets a 5x score bonus (e.g. +21 becomes +105). '
+            'It lasts 2 hours and is independent of links — a linked building can also carry the high-reward bonus.',
+      ),
+      GuideBlock.tip(
+        '高回报加成只在「赛季收尾之后」开启的战斗里出现（收尾的触发条件见「城市之王」一章）。',
+        'The high-reward bonus only appears in battles started after the season wrap-up point (see the City King chapter for the trigger).',
       ),
     ],
   ),

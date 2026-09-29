@@ -517,6 +517,8 @@ Widget buildGuideFigure(
       return const _JokerTiersFigure();
     case 'chestTypes':
       return _ChestTypesFigure(locale: locale);
+    case 'battleBuildings':
+      return _BattleBuildingsFigure(locale: locale, isDark: isDark);
     case 'gangTiers':
       return _GangTiersFigure(locale: locale, isDark: isDark);
     case 'seasonFlow':
@@ -850,6 +852,139 @@ class _ChestTypesFigure extends StatelessWidget {
         const SizedBox(height: 4),
         Text(label, style: const TextStyle(fontSize: 10)),
       ],
+    );
+  }
+}
+
+/// 战斗建筑与车位示意：6 个建筑（车位为奇数），蓝＝我方、红＝对方、灰＝空车位
+class _BattleBuildingsFigure extends StatelessWidget {
+  final String locale;
+  final bool isDark;
+  const _BattleBuildingsFigure({required this.locale, required this.isDark});
+
+  /// (车位总数, 我方占几个, 对方占几个, 是否链接建筑, 是否高回报建筑)
+  static const List<(int, int, int, bool, bool)> _buildings =
+      <(int, int, int, bool, bool)>[
+    (5, 4, 1, true, false),
+    (3, 0, 3, false, true),
+    (5, 3, 1, false, false),
+    (7, 2, 5, true, false),
+    (3, 2, 1, false, false),
+    (5, 1, 4, false, false),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    final zh = locale == 'zh';
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        Wrap(
+          spacing: 6,
+          runSpacing: 6,
+          children: <Widget>[
+            for (final (total, mine, theirs, linked, high) in _buildings)
+              _building(total, mine, theirs, linked, high, zh),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Text(
+          zh
+              ? '车位过半即占领；计时器归零时每个已占领建筑按车位数给分；'
+                  '链接建筑分数 ×n（n = 同时占领的链接建筑数）；高回报建筑 ×5（持续 2 小时）。'
+              : 'Hold over half the slots to occupy; at the timer each occupied building scores its slot count; '
+                  'linked buildings score ×n (n = linked buildings you hold); high-reward building ×5 (lasts 2 hours).',
+          style: TextStyle(
+            fontSize: 10,
+            height: 1.4,
+            color: isDark ? Colors.white54 : Colors.black54,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _building(
+      int total, int mine, int theirs, bool linked, bool high, bool zh) {
+    final ours = mine > total / 2;
+    final theirsWin = theirs > total / 2;
+    final color = ours
+        ? Colors.blue
+        : (theirsWin ? Colors.red : Colors.blueGrey);
+    final label = ours
+        ? (zh ? '我方占领' : 'Ours')
+        : (theirsWin ? (zh ? '对方占领' : 'Theirs') : (zh ? '未占领' : 'None'));
+    final emptyColor = isDark ? Colors.white24 : Colors.black12;
+    return Container(
+      width: 94,
+      padding: const EdgeInsets.all(6),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: isDark ? 0.20 : 0.08),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: color.withValues(alpha: 0.8)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Text(
+            zh ? '$total 车位' : '$total slots',
+            style: TextStyle(
+              fontSize: 10,
+              fontWeight: FontWeight.bold,
+              color: isDark ? Colors.white70 : Colors.black87,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Row(
+            children: <Widget>[
+              for (var i = 0; i < total; i++)
+                Container(
+                  width: 7,
+                  height: 7,
+                  margin: const EdgeInsets.only(right: 2),
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: i < mine
+                        ? Colors.blue
+                        : (i < mine + theirs ? Colors.red : emptyColor),
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text(label, style: TextStyle(fontSize: 9, color: color)),
+          if (linked || high) ...<Widget>[
+            const SizedBox(height: 4),
+            Wrap(
+              spacing: 4,
+              runSpacing: 2,
+              children: <Widget>[
+                if (linked) _badge(zh ? '链接' : 'link', Colors.teal),
+                if (high) _badge('×5', Colors.pink),
+              ],
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _badge(String text, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.18),
+        borderRadius: BorderRadius.circular(4),
+        border: Border.all(color: color, width: 0.8),
+      ),
+      child: Text(
+        text,
+        style: TextStyle(
+          fontSize: 8.5,
+          fontWeight: FontWeight.bold,
+          color: color,
+        ),
+      ),
     );
   }
 }
