@@ -1,98 +1,67 @@
 # -*- coding: utf-8 -*-
 """主界面周期性背景贴片生成器（离线跑一次即可，输出已提交到仓库）
 
-素材：`assets/patterns/src/badge_*.png` —— 游戏安装包里的 **方块徽章**
-（`D:\\projects\\cats\\extract\\game_images\\gp`，取 0101 / 0102 / 0201 / 0301 四张：
-红 V 形箭头 / 宝石+扳手 / 紫色纹章），刻意选最早的那几级：只有方框 + 圆 + 图形，
-没有后面的花纹与金边。
+设计（按用户要求）：
+  · 主界面背景 = **纯色方块**拼成的周期构图（大元素）；方块本身不带任何图案，
+    颜色由 Flutter 侧的 `ColorFilter(黑/白, srcIn)` 决定，深浅由 `opacity` 决定，
+    所以这张贴片**只有 alpha 有意义**。
+  · 「猫生重开」横幅按钮里是 `activity_pattern.png`（活动图标 34-48px，小元素），
+    本脚本不动它 —— 一大一小形成层次。
 
-输出：`assets/patterns/game_pattern.png`
-      —— 200×200 无缝贴片，**大元素**（方块徽章 72-84px）；
-      「猫生重开」横幅按钮里的 `activity_pattern.png` 是**小元素**（活动图标 34-48px），
-      一大一小形成层次感（本脚本不动那张图）。
+构图：200×200 无缝贴片，2×2 交错网格放 4 个圆角方块（72-84px，旋转 ±2~5°），
+      其中一个特意压在接缝上，平铺后与另一侧拼成一块完整方块。
 
-关键处理：徽章原本是一整块不透明方块，直接染成单色就是一坨实心方块，看不出内容。
-所以拆成两层 alpha：
-  · 方块面板本体 → 很浅（PANEL_ALPHA ≈ 0.22），平铺后是一层若隐若现的方块底；
-  · 内部线条（圆盘 / 图形 / 边角装饰的**边缘**）→ 实心，凑近看能认出红 V、宝石、
-    纹章等游戏图案，而且比填色更透气。
-边缘用「先轻微高斯模糊再做 Sobel，取三通道最大梯度」得到，避免噪点。
-
-无缝做法：按 3×3 重复画在大画布上，再裁中间一块 —— 跨边界的徽章会自动「绕回」。
+无缝做法：把方块按 3×3 重复画在大画布上，再裁中间一块 —— 跨边界的方块会自动「绕回」。
 
 用法：
     python assets/patterns/src/generate_pattern.py
 预览图输出到 build/pattern_preview/（按真实 opacity + ColorFilter(srcIn) 合成）。
 """
 import os
-import numpy as np
-from PIL import Image, ImageDraw, ImageFilter
+from PIL import Image, ImageDraw
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(HERE)))   # 仓库根目录
 OUT = os.path.join(ROOT, "assets", "patterns", "game_pattern.png")
 PREVIEW_DIR = os.path.join(ROOT, "build", "pattern_preview")
 
-TILE = 200                     # 贴片边长（像素）
-PANEL_ALPHA = 0.22             # 方块面板本体的不透明度
-EDGE_TOL = 58.0                # 边缘强度阈值（越小线条越粗）
-EDGE_BLUR = 1.3                # 求边缘前的轻微模糊（去噪）
+TILE = 200          # 贴片边长（像素）
+SOLID_ALPHA = 1.0   # 方块自身不透明度（界面里再乘 0.07 / 0.10）
+RADIUS = 0.14       # 圆角占边长的比例
+SUPERSAMPLE = 4     # 先放大 4 倍画圆角再缩小，边缘更平滑
 
-# 4 个摆放位置：(中心 x, 中心 y, 目标大小, 旋转角度)
-# 2×2 交错网格（第二行错开半格，其中一个贴着接缝，平铺后自动拼回完整方块）
+# 4 个方块：(中心 x, 中心 y, 边长, 旋转角度)
+# 2×2 交错网格（第二行错开半格，其中一个贴着接缝）；大小交替 + 轻微倾斜，
+# 既有规律又不死板（边长 62-74，明显大于横幅里的活动图标 34-48）
 SLOTS = [
-    (50, 50, 80, -4),
-    (150, 52, 72, 3),
-    (0, 150, 84, 5),
-    (100, 148, 74, -2),
+    (50, 50, 70, -3),
+    (150, 52, 62, 3),
+    (0, 150, 74, 3),
+    (100, 148, 64, -3),
 ]
-ICONS = ["badge_chevron.png", "badge_gem.png", "badge_crest.png", "badge_chevron2.png"]
 
 
-def edge_strength(rgb, blur=EDGE_BLUR):
-    """Sobel 边缘强度（三通道取最大），先轻微模糊去噪。"""
-    im = Image.fromarray(rgb.astype(np.uint8)).filter(ImageFilter.GaussianBlur(blur))
-    a = np.asarray(im).astype(np.float32)
-    mag = np.zeros(a.shape[:2], np.float32)
-    for c in range(3):
-        ch = a[..., c]
-        gx = np.zeros_like(ch)
-        gy = np.zeros_like(ch)
-        gx[:, 1:-1] = (ch[:, 2:] - ch[:, :-2]) / 2
-        gy[1:-1, :] = (ch[2:, :] - ch[:-2, :]) / 2
-        mag = np.maximum(mag, np.hypot(gx, gy))
-    return mag
-
-
-def to_alpha(im, panel=PANEL_ALPHA, tol=EDGE_TOL):
-    """徽章 → 水印 alpha：方块面板浅 + 内部线条实心（线条只出现在方块范围内）。"""
-    a = np.asarray(im.convert("RGBA")).astype(np.float32)
-    shape = (a[..., 3] > 128).astype(np.float32)
-    v = np.maximum(np.clip(edge_strength(a[..., :3]) / tol, 0, 1), panel * shape)
-    out = im.convert("RGBA")
-    out.putalpha(Image.fromarray((np.clip(v * shape, 0, 1) * 255).astype(np.uint8), "L"))
-    return out
-
-
-def prep_icon(path, size, angle):
-    im = to_alpha(Image.open(path))
-    bbox = im.getchannel("A").getbbox()
-    if bbox:
-        im = im.crop(bbox)
-    im = im.rotate(angle, resample=Image.BICUBIC, expand=True)
-    w, h = im.size
-    s = size / max(w, h)
-    return im.resize((max(1, round(w * s)), max(1, round(h * s))), Image.LANCZOS)
+def rounded_square(side, radius_ratio=RADIUS, alpha=SOLID_ALPHA):
+    """纯色圆角方块（只关心 alpha）。"""
+    s = side * SUPERSAMPLE
+    big = Image.new("L", (s, s), 0)
+    ImageDraw.Draw(big).rounded_rectangle(
+        [0, 0, s - 1, s - 1], radius=max(1, int(s * radius_ratio)), fill=255)
+    small = big.resize((side, side), Image.LANCZOS).point(
+        lambda v: min(255, int(v * alpha)))
+    im = Image.new("RGBA", (side, side), (0, 0, 0, 0))
+    im.putalpha(small)
+    return im
 
 
 def build_tile():
     canvas = Image.new("RGBA", (TILE * 3, TILE * 3), (0, 0, 0, 0))
-    for (cx, cy, size, angle), name in zip(SLOTS, ICONS):
-        icon = prep_icon(os.path.join(HERE, name), size, angle)
+    for cx, cy, side, angle in SLOTS:
+        sq = rounded_square(side).rotate(angle, resample=Image.BICUBIC, expand=True)
         for dx in (-TILE, 0, TILE):
             for dy in (-TILE, 0, TILE):
-                canvas.alpha_composite(icon, (cx + TILE + dx - icon.width // 2,
-                                              cy + TILE + dy - icon.height // 2))
+                canvas.alpha_composite(sq, (cx + TILE + dx - sq.width // 2,
+                                            cy + TILE + dy - sq.height // 2))
     return canvas.crop((TILE, TILE, TILE * 2, TILE * 2))
 
 

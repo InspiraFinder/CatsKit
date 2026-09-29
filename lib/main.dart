@@ -807,7 +807,7 @@ class _MainMenuScreenState extends State<MainMenuScreen> {
   }
 
   /// 一级分类：猫生重开（置顶）> 个人功能 > 帮派功能 > 数据查询 > 通用设置
-  /// 主界面背景：游戏内**方块徽章**贴片（大元素）；「猫生重开」横幅里是活动图标（小元素）
+  /// 主界面背景：纯色方块贴片（大元素）；「猫生重开」横幅里是活动图标（小元素）
   static const String _gamePattern = 'assets/patterns/game_pattern.png';
   static const String _activityPattern =
       'assets/patterns/activity_pattern.png';
@@ -989,7 +989,7 @@ class _MainMenuScreenState extends State<MainMenuScreen> {
       appBar: AppBar(title: const Text('CatsKit'), centerTitle: true),
       body: Stack(
         children: <Widget>[
-          // 周期性图案背景（游戏内方块徽章贴片，低透明度当水印）
+          // 周期性图案背景（纯色方块贴片，低透明度当水印）
           Positioned.fill(
             child: DecoratedBox(
               decoration: BoxDecoration(
