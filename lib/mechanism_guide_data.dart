@@ -292,9 +292,9 @@ const List<GuideChapter> kGuideChapters = <GuideChapter>[
     id: 'city_king',
     titleZh: '城市之王',
     titleEn: 'City King',
-    summaryZh: '赛季节奏、战斗规则（建筑 / 车位 / 链接 / 高回报）与胜场 · 地区 · 赛季结算奖励',
+    summaryZh: '赛季节奏、战斗规则（建筑 / 车位 / 链接 / 高回报）、升降级与胜场 · 地区 · 赛季结算奖励',
     summaryEn:
-        'Season flow, battle rules (buildings, slots, links, high reward) and the win / region / season rewards',
+        'Season flow, battle rules (buildings, slots, links, high reward), promotion / demotion and the win / region / season rewards',
     icon: Icons.emoji_events,
     color: Colors.amber,
     keywords: <String>[
@@ -576,6 +576,72 @@ const List<GuideChapter> kGuideChapters = <GuideChapter>[
       GuideBlock.tip(
         '木组的帮派比其它组多（200 家以上），所以后三档的名次区间不一样（21-50 / 51-120 / 121-200）。',
         'The wood league holds more gangs (200+), so its last three rank bands differ (21-50 / 51-120 / 121-200).',
+      ),
+      // ---------- 7. 晋级与退级 ----------
+      GuideBlock.heading('晋级与退级', 'Promotion & demotion'),
+      GuideBlock.text(
+        '赛季结束时，除了发结算奖励，还会按组内名次决定下个赛季待在哪个组别：'
+        '前 20 名晋级到上一组，第 81 名及之后退级到下一组，中间名次（21-80）留在原组。',
+        'When a season ends, besides the settlement rewards your rank in the division decides where you play next season: '
+            'the top 20 are promoted, rank 81 and below are demoted, and the middle ranks (21-80) stay put.',
+      ),
+      GuideBlock.table(GuideTable(
+        headZh: <String>['组别', '前 20 名', '第 81 名及之后'],
+        headEn: <String>['Division', 'Top 20', 'Rank 81+'],
+        rowsZh: <List<String>>[
+          <String>['金组', '不再晋级（最高组别）', '退到银组'],
+          <String>['银组', '晋级到金组', '退到铜组'],
+          <String>['铜组', '晋级到银组', '退到木组'],
+          <String>['木组', '晋级到铜组', '不再退级（最低组别）'],
+        ],
+        rowsEn: <List<String>>[
+          <String>['Gold', 'No promotion (top league)', 'Demoted to Silver'],
+          <String>['Silver', 'Promoted to Gold', 'Demoted to Bronze'],
+          <String>['Bronze', 'Promoted to Silver', 'Demoted to Wood'],
+          <String>['Wood', 'Promoted to Bronze', 'No demotion (lowest league)'],
+        ],
+      )),
+      GuideBlock.bullets(<GuideBullet>[
+        GuideBullet(
+          '自建帮派从木组起步；加入帮派可以加入任意组别',
+          'A gang you found starts in the wood league; joining an existing gang can put you in any division',
+        ),
+        GuideBullet(
+          '成员不足 5 人的帮派无法参战；整季未参战的帮派不上榜（自然也不参与升降级）',
+          'Gangs with fewer than 5 members cannot fight; a gang that never fights during the season never appears on the board '
+          '(and therefore is not promoted or demoted)',
+        ),
+        GuideBullet(
+          '金 / 银 / 铜三组各约 100 家，木组更多（200 家以上），所以木组的后段名次区间和其它组不一样',
+          'Gold / Silver / Bronze hold around 100 gangs each while Wood holds more (200+), so the lower rank bands differ there',
+        ),
+      ]),
+      // ---------- 8. 赛季城市与头像奖励 ----------
+      GuideBlock.heading('赛季城市与帮派头像', 'Season city & gang avatars'),
+      GuideBlock.text(
+        '每个赛季会绑定一座「城市」，城市一共有 5 座；下一个赛季会换成另一座城市，'
+        '但城市之间的轮换顺序不确定（不是固定的循环顺序）。城市的主题会体现在赛季专属装扮等内容里。',
+        'Each season is tied to a city, and there are 5 cities in total. The next season switches to another city, '
+            'but the rotation order between cities is not fixed (it is not a deterministic cycle). '
+            'The city theme shows up in things like the season-exclusive outfit.',
+      ),
+      GuideBlock.table(GuideTable(
+        headZh: <String>['组别', '前 20 名的帮派头像'],
+        headEn: <String>['Division', 'Avatar for the top 20'],
+        rowsZh: <List<String>>[
+          <String>['金组', '彩色（当季城市主题）'],
+          <String>['银组', '金色（当季城市主题）'],
+          <String>['铜组', '蓝色（当季城市主题）'],
+        ],
+        rowsEn: <List<String>>[
+          <String>['Gold', 'Colourful (current city theme)'],
+          <String>['Silver', 'Golden (current city theme)'],
+          <String>['Bronze', 'Blue (current city theme)'],
+        ],
+      )),
+      GuideBlock.tip(
+        '头像奖励只有金 / 银 / 铜三组的前 20 名有；头像与赛季专属装扮用的都是当季城市的主题。',
+        'The avatar reward is only for the top 20 of Gold / Silver / Bronze; both avatars and the season-exclusive outfit use the current city theme.',
       ),
     ],
   ),
