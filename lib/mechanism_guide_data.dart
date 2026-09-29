@@ -370,29 +370,33 @@ const List<GuideChapter> kGuideChapters = <GuideChapter>[
       // ---------- 2. 车位争夺 ----------
       GuideBlock.heading('车位争夺：一辆车怎么打', 'Taking a slot: how a single fight works'),
       GuideBlock.text(
-        '战斗开始时，所有建筑的所有车位都会被人机的车填满；之后双方成员各自派空闲的车去抢车位。'
+        '战斗开始时，所有建筑的所有车位都会被人机的车填满；之后我方成员各自派空闲的车去抢车位。'
         '抢车位的流程是：挑一个「还没被我方占领」的车位发起攻击 → 派一辆空闲的车跟车位上的车单挑 → '
-        '一方 HP 归零则战斗结束。',
-        'When a battle starts, every slot of every building is filled by bot vehicles; from then on both sides send idle cars to take slots. '
-            'Taking a slot works like this: pick a slot that is not held by your side → send one idle car to duel the car on that slot → '
-            'the duel ends when one side\'s HP reaches zero.',
+        '一方 HP 归零则战斗结束。车位不会出现空着的情况：要么是我方的车在防守，要么还是人机占着。',
+        'When a battle starts, every slot of every building is filled by bot vehicles; from then on our members send idle cars to take slots. '
+            'Taking a slot works like this: pick a slot that is not held by our side → send one idle car to duel the car on that slot → '
+            'the duel ends when one side\'s HP reaches zero. A slot is never left empty: either one of our cars defends it or a bot still holds it.',
       ),
       GuideBlock.bullets(<GuideBullet>[
         GuideBullet(
-          '战斗结束时记录胜方**当前的 HP** 并保存状态 —— 车不会因为打赢就回满血',
-          'When the duel ends, the winner\'s **current HP** is recorded and saved — winning does not refill the car',
+          '我方打赢（车位上的车被打爆）→ 我方出战的车**以战斗结束时的血量占领车位**，进入防守状态',
+          'If we win (the car on the slot is destroyed) → our attacking car **occupies the slot with the HP it has when the duel ends** and enters the defending state',
         ),
         GuideBullet(
-          '胜方以结算时的血量进入**防守状态**（如果本来就是这个车位的主人，就以该血量继续持有）',
-          'The winner enters the **defending state** with the HP it had at the end of the duel (if it already held the slot, it keeps it at that HP)',
+          '我方打输（我方出战的车被打爆）→ 人机**以战斗结束时的血量留在车位上**，并持续回血直到满血',
+          'If we lose (our car is destroyed) → the bot **stays on the slot with the HP it has when the duel ends** and keeps regenerating until full HP',
+        ),
+        GuideBullet(
+          '战斗结束时记录胜方的**当前 HP** 并保存状态 —— 车不会因为打赢就回满血',
+          'When the duel ends the winner\'s **current HP** is recorded and saved — winning does not refill the car',
         ),
         GuideBullet(
           'HP 归零的车会爆炸、暂时无法使用，需要 2 小时才能回满 HP',
           'A car whose HP hits zero explodes and becomes unusable; it needs 2 hours to refill',
         ),
         GuideBullet(
-          '没满血的车也会慢慢回血，速度就是「2 小时回满」',
-          'Damaged cars also regenerate, at the rate of "full HP in 2 hours"',
+          '没满血的车（双方都一样）也会慢慢回血，速度就是「2 小时回满」',
+          'Damaged cars on both sides also regenerate, at the rate of "full HP in 2 hours"',
         ),
       ]),
       GuideBlock.table(GuideTable(
