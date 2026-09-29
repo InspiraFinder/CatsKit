@@ -20,6 +20,7 @@ import 'upgrade_plan_screen.dart';
 import 'gang_data.dart';
 import 'gang_stats_screen.dart';
 import 'my_gang_screen.dart';
+import 'season_stats_screen.dart';
 import 'balance_history_screen.dart';
 import 'max_stats_screen.dart';
 import 'mechanism_guide_screen.dart';
@@ -909,6 +910,13 @@ class _MainMenuScreenState extends State<MainMenuScreen> {
           label: _t('时间计算', 'Timer'),
           onTap: () =>
               _navigateAndAwaitLocale(TimeCalcScreen(locale: _locale)),
+        ),
+        _MenuSubItem(
+          icon: Icons.table_chart,
+          label: _t('赛季统计', 'Season Stats'),
+          onTap: () => _navigateAndAwaitLocale(
+            SeasonStatsScreen(locale: _locale),
+          ),
         ),
       ],
     ),

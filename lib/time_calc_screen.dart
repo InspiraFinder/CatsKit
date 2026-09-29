@@ -9,6 +9,8 @@ import 'package:image_picker/image_picker.dart';
 import 'ocr_box_painter.dart';
 import 'ocr_engine.dart';
 import 'ocr_postprocess.dart';
+import 'season_stats_data.dart';
+import 'season_stats_screen.dart';
 
 /// 战斗时间计算界面
 class TimeCalcScreen extends StatefulWidget {
@@ -43,6 +45,10 @@ class _TimeCalcScreenState extends State<TimeCalcScreen> {
   String? _resultWinner;
   String? _resultMyFinalScore;
   String? _resultEnemyFinalScore;
+  /// 本次计算发生的时刻（作为导入赛季统计时的「开始时间」）
+  DateTime? _resultCalcTime;
+  /// 距离战斗结束的分钟数（作为导入赛季统计时的「持续时间」）
+  double? _resultEndMinutes;
   bool _hasResult = false;
   // 识别到的文字框（用于叠加显示）
   List<Map<String, dynamic>> _textItems = [];
@@ -186,6 +192,8 @@ class _TimeCalcScreenState extends State<TimeCalcScreen> {
       String resultWinner = '无法判定';
       String resultMyFinal = myScore;
       String resultEnemyFinal = enemyScore;
+      // 实际结束分钟数（用于计算「结束时间」与「持续时间」）
+      double? resultEndMinutes;
 
       final remainingMin = _parseTimeToMinutes(timeLeft);
       // 实际结束分钟数（默认正常结束，若有队伍达线则提前）
@@ -309,6 +317,7 @@ class _TimeCalcScreenState extends State<TimeCalcScreen> {
           resultEndTime =
               '${endTime.hour.toString().padLeft(2, '0')}:${endTime.minute.toString().padLeft(2, '0')}';
           resultTimeLeft = _formatMinutes(endMin);
+          resultEndMinutes = endMin;
         } else if (myScoreVal != null && enemyScoreVal != null) {
           // 缺少每分钟得分，只能按当前分数判断
           if (myScoreVal > enemyScoreVal) {
@@ -327,6 +336,7 @@ class _TimeCalcScreenState extends State<TimeCalcScreen> {
         resultEndTime =
             '${endTime.hour.toString().padLeft(2, '0')}:${endTime.minute.toString().padLeft(2, '0')}';
         resultTimeLeft = _formatMinutes(remainingMin);
+        resultEndMinutes = remainingMin;
       }
 
       if (!mounted) return;
@@ -342,6 +352,8 @@ class _TimeCalcScreenState extends State<TimeCalcScreen> {
         _resultWinner = resultWinner;
         _resultMyFinalScore = resultMyFinal;
         _resultEnemyFinalScore = resultEnemyFinal;
+        _resultCalcTime = now;
+        _resultEndMinutes = resultEndMinutes;
         _textItems = androidItems;
         _hasResult = true;
       });
@@ -1038,10 +1050,117 @@ class _TimeCalcScreenState extends State<TimeCalcScreen> {
                 _isZh ? '敌方最终分数' : 'Enemy Final Score',
                 _resultEnemyFinalScore ?? '',
               ),
+              if (_resultCalcTime != null && _resultEndMinutes != null) ...[
+                const Divider(height: 20),
+                _buildSeasonStatPreview(),
+              ],
             ],
           ),
         ),
       ),
+    );
+  }
+
+  /// 导入「赛季统计」前的预览：开始时间 / 结束时间 / 持续时间 / 最终分数
+  Widget _buildSeasonStatPreview() {
+    final preview = _seasonStatPreviewRecord();
+
+    Widget line(String label, String value, {bool bold = false}) => Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2),
+      child: Row(
+        children: [
+          SizedBox(
+            width: 100,
+            child: Text(
+              label,
+              style: TextStyle(fontSize: 13, color: Colors.grey[700]),
+            ),
+          ),
+          Expanded(
+            child: Text(
+              value,
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: bold ? FontWeight.bold : FontWeight.normal,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Icon(Icons.table_chart, size: 18, color: Colors.blue[700]),
+            const SizedBox(width: 8),
+            Text(
+              _isZh ? '导入赛季统计' : 'Import to Season Stats',
+              style: const TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 4),
+        line(
+          _isZh ? '开始时间' : 'Start',
+          formatSeasonStatFullTime(preview.startTime),
+        ),
+        line(
+          _isZh ? '结束时间' : 'End',
+          formatSeasonStatFullTime(preview.endTime),
+        ),
+        line(
+          _isZh ? '持续时间' : 'Duration',
+          formatSeasonStatDuration(preview.durationMinutes, zh: _isZh),
+        ),
+        line(
+          _isZh ? '最终分数' : 'Final Score',
+          formatSeasonStatScore(preview.finalScore),
+          bold: true,
+        ),
+        const SizedBox(height: 8),
+        SizedBox(
+          width: double.infinity,
+          child: FilledButton.tonalIcon(
+            onPressed: _importToSeasonStats,
+            icon: const Icon(Icons.playlist_add, size: 18),
+            label: Text(_isZh ? '写入赛季统计表格' : 'Add to season table'),
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// 根据本次计算结果拼出待写入的赛季统计记录
+  SeasonStatRecord _seasonStatPreviewRecord() {
+    final start = _resultCalcTime ?? DateTime.now();
+    final minutes = _resultEndMinutes?.round() ?? 0;
+    final score =
+        int.tryParse(
+          (_resultMyFinalScore ?? '').replaceAll(',', '').replaceAll(' ', ''),
+        ) ??
+        0;
+    return SeasonStatRecord.fromTimer(
+      calcTime: start,
+      endMinutes: minutes,
+      finalScore: score,
+    );
+  }
+
+  /// 把本次计算结果导入「赛季统计」表格
+  Future<void> _importToSeasonStats() async {
+    final preview = _seasonStatPreviewRecord();
+    await importSeasonStatFromTimer(
+      context,
+      locale: widget.locale,
+      startTime: preview.startTime,
+      endTime: preview.endTime,
+      finalScore: preview.finalScore,
     );
   }
 
