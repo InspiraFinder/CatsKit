@@ -218,7 +218,13 @@ class SeasonStatRow {
   /// 原始记录
   final SeasonStatRecord record;
 
-  /// 场次（按开始时间升序，从 1 开始）
+  /// 所属赛季名（跨赛季查询时用来区分；空 = 未指定）
+  final String seasonName;
+
+  /// 所属赛季的稳定 id（`''` = 当前赛季，其余 = 归档 id）
+  final String seasonId;
+
+  /// 场次（**在所属赛季内**按开始时间升序，从 1 开始）
   final int order;
 
   /// 赛前胜场（记录里填的值；没填就接上一条的赛后胜场，第一条按 0）
@@ -233,7 +239,7 @@ class SeasonStatRow {
   /// 本场得分 = 战斗分数 × 结算系数
   final int? gainedScore;
 
-  /// 与上一场的间隔分钟数（本场开始 − 上场结束）；第一场为 null
+  /// 与上一场的间隔分钟数（本场开始 − 上场结束）；赛季第一场为 null
   final int? gapMinutes;
 
   const SeasonStatRow({
@@ -244,6 +250,8 @@ class SeasonStatRow {
     required this.multiplier,
     required this.gainedScore,
     required this.gapMinutes,
+    this.seasonName = '',
+    this.seasonId = '',
   });
 
   String get id => record.id;
@@ -258,9 +266,13 @@ class SeasonStatRow {
 
 /// 把记录按开始时间排序，并算出「场次 / 赛前胜场 / 赛后胜场 / 系数 / 本场得分 / 与上场间隔」
 ///
-/// ⚠️ 这些字段依赖战斗的先后顺序，所以要用**全部记录**算，
-/// 再拿去筛选 / 排序（筛选排序不会改变已算好的场次与间隔）。
-List<SeasonStatRow> buildSeasonStatRows(List<SeasonStatRecord> records) {
+/// ⚠️ 这些字段依赖战斗的先后顺序，所以要用**同一赛季的全部记录**算（见
+/// [buildSeasonStatRowsForGroups]），再拿去筛选 / 排序（筛选排序不会改变已算好的场次与间隔）。
+List<SeasonStatRow> buildSeasonStatRows(
+  List<SeasonStatRecord> records, {
+  String seasonName = '',
+  String seasonId = '',
+}) {
   final sorted = records.toList()
     ..sort((a, b) {
       final c = a.startTime.compareTo(b.startTime);
@@ -288,6 +300,8 @@ List<SeasonStatRow> buildSeasonStatRows(List<SeasonStatRecord> records) {
     rows.add(
       SeasonStatRow(
         record: r,
+        seasonName: seasonName,
+        seasonId: seasonId,
         order: i + 1,
         winsBefore: winsBefore,
         winsAfter: winsAfter,
@@ -300,13 +314,227 @@ List<SeasonStatRow> buildSeasonStatRows(List<SeasonStatRecord> records) {
   return rows;
 }
 
+/// 一个可查询的「赛季」：当前赛季（[archived] = false）或一个归档
+class SeasonGroup {
+  /// 当前赛季用 `''`，归档用归档 id
+  final String id;
+
+  /// 展示用名称，如「第 1 赛季」「2026-09 赛季」
+  final String name;
+
+  /// 是否是已归档的赛季
+  final bool archived;
+
+  /// 归档时间（当前赛季为 null）
+  final DateTime? archivedAt;
+
+  /// 备注（归档才有）
+  final String note;
+
+  final List<SeasonStatRecord> records;
+
+  const SeasonGroup({
+    required this.id,
+    required this.name,
+    required this.records,
+    this.archived = false,
+    this.archivedAt,
+    this.note = '',
+  });
+
+  bool get isEmpty => records.isEmpty;
+
+  /// 首场开始时间
+  DateTime? get startTime => records.isEmpty
+      ? null
+      : records.map((r) => r.startTime).reduce((a, b) => a.isBefore(b) ? a : b);
+
+  /// 末场结束时间
+  DateTime? get endTime => records.isEmpty
+      ? null
+      : records.map((r) => r.endTime).reduce((a, b) => a.isAfter(b) ? a : b);
+}
+
+/// 把多个赛季的记录各自建行后合并（**每个赛季的场次从 1 重新开始**）
+List<SeasonStatRow> buildSeasonStatRowsForGroups(List<SeasonGroup> groups) {
+  final rows = <SeasonStatRow>[];
+  for (final g in groups) {
+    rows.addAll(
+      buildSeasonStatRows(g.records, seasonName: g.name, seasonId: g.id),
+    );
+  }
+  return rows;
+}
+
+/// 一个赛季的汇总（用于归档确认、归档列表、赛季选择器）
+class SeasonGroupSummary {
+  final int battleCount;
+  final int winCount;
+  final int totalGained;
+  final DateTime? startTime;
+  final DateTime? endTime;
+
+  const SeasonGroupSummary({
+    required this.battleCount,
+    required this.winCount,
+    required this.totalGained,
+    this.startTime,
+    this.endTime,
+  });
+
+  static const SeasonGroupSummary empty = SeasonGroupSummary(
+    battleCount: 0,
+    winCount: 0,
+    totalGained: 0,
+  );
+}
+
+/// 汇总一个赛季：场数 / 胜场 / 本场得分合计 / 起止时间
+SeasonGroupSummary summarizeSeasonGroup(List<SeasonStatRecord> records) {
+  if (records.isEmpty) return SeasonGroupSummary.empty;
+  final rows = buildSeasonStatRows(records);
+  var wins = 0;
+  for (final r in rows) {
+    if (r.won == true) wins++;
+  }
+  var gained = 0;
+  for (final r in rows) {
+    if (r.gainedScore != null) gained += r.gainedScore!;
+  }
+  return SeasonGroupSummary(
+    battleCount: rows.length,
+    winCount: wins,
+    totalGained: gained,
+    startTime: records
+        .map((r) => r.startTime)
+        .reduce((a, b) => a.isBefore(b) ? a : b),
+    endTime: records
+        .map((r) => r.endTime)
+        .reduce((a, b) => a.isAfter(b) ? a : b),
+  );
+}
+
+/// 一个已归档的赛季：名称 + 备注 + 归档时间 + 当时的全部记录
+///
+/// 「首场 / 末场时间、场数、胜场、得分合计」都不单独存储，一律从 [records] 推导，
+/// 避免存两份互相矛盾的数据。
+class SeasonArchive {
+  /// 唯一 id
+  final String id;
+
+  /// 赛季名称，如「第 1 赛季」「2026-09 赛季」（用来确定是哪个赛季）
+  final String name;
+
+  /// 备注（可空）
+  final String note;
+
+  /// 归档时间
+  final DateTime archivedAt;
+
+  /// 归档时的赛季记录
+  final List<SeasonStatRecord> records;
+
+  const SeasonArchive({
+    required this.id,
+    required this.name,
+    required this.records,
+    required this.archivedAt,
+    this.note = '',
+  });
+
+  int get battleCount => records.length;
+
+  DateTime? get startTime => records.isEmpty
+      ? null
+      : records.map((r) => r.startTime).reduce((a, b) => a.isBefore(b) ? a : b);
+
+  DateTime? get endTime => records.isEmpty
+      ? null
+      : records.map((r) => r.endTime).reduce((a, b) => a.isAfter(b) ? a : b);
+
+  SeasonGroup toGroup() => SeasonGroup(
+    id: id,
+    name: name,
+    archived: true,
+    archivedAt: archivedAt,
+    note: note,
+    records: records,
+  );
+
+  SeasonArchive copyWith({
+    String? id,
+    String? name,
+    String? note,
+    DateTime? archivedAt,
+    List<SeasonStatRecord>? records,
+  }) => SeasonArchive(
+    id: id ?? this.id,
+    name: name ?? this.name,
+    note: note ?? this.note,
+    archivedAt: archivedAt ?? this.archivedAt,
+    records: records ?? this.records,
+  );
+
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'name': name,
+    'note': note,
+    'archivedAt': archivedAt.millisecondsSinceEpoch,
+    'records': [for (final r in records) r.toJson()],
+  };
+
+  factory SeasonArchive.fromJson(Map<String, dynamic> json) => SeasonArchive(
+    id: json['id'] as String? ?? newSeasonStatId(),
+    name: json['name'] as String? ?? '',
+    note: json['note'] as String? ?? '',
+    archivedAt: DateTime.fromMillisecondsSinceEpoch(
+      (json['archivedAt'] as num?)?.toInt() ??
+          DateTime.now().millisecondsSinceEpoch,
+    ),
+    records: <SeasonStatRecord>[
+      for (final m in (json['records'] as List?) ?? const <dynamic>[])
+        if (m != null)
+          SeasonStatRecord.fromJson((m as Map).cast<String, dynamic>()),
+    ],
+  );
+}
+
 /// 生成一个新的记录 id
 String newSeasonStatId() =>
     DateTime.now().microsecondsSinceEpoch.toString();
 
+/// 根据记录的时间范围提出一个默认赛季名：
+/// 同月 → `2026-09 赛季`；跨月 → `2026-09~10 赛季`；跨年 → `2026 赛季`。
+String suggestSeasonName(List<SeasonStatRecord> records, {int? index}) {
+  if (records.isEmpty) {
+    return index == null ? '' : '第 $index 赛季';
+  }
+  final start = records
+      .map((r) => r.startTime)
+      .reduce((a, b) => a.isBefore(b) ? a : b);
+  final end = records
+      .map((r) => r.endTime)
+      .reduce((a, b) => a.isAfter(b) ? a : b);
+  String two(int v) => v.toString().padLeft(2, '0');
+  if (start.year != end.year) return '${start.year} 赛季';
+  if (start.month == end.month) {
+    return '${start.year}-${two(start.month)} 赛季';
+  }
+  return '${start.year}-${two(start.month)}~${two(end.month)} 赛季';
+}
+
 /// 赛季统计存储：全部记录序列化成一条 JSON 放进 SharedPreferences
 class SeasonStatsStore {
   static const String prefsKey = 'season_stats_records';
+
+  /// 归档列表
+  static const String archivesKey = 'season_stats_archives';
+
+  /// 当前赛季的名称
+  static const String currentNameKey = 'season_stats_current_name';
+
+  /// 当前赛季的默认名称
+  static const String defaultCurrentName = '当前赛季';
 
   static Future<List<SeasonStatRecord>> load() async {
     final prefs = await SharedPreferences.getInstance();
@@ -361,10 +589,126 @@ class SeasonStatsStore {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(prefsKey);
   }
+
+  // ==================== 赛季名称 ====================
+
+  static Future<String> loadCurrentName() async {
+    final prefs = await SharedPreferences.getInstance();
+    final v = prefs.getString(currentNameKey);
+    return (v == null || v.trim().isEmpty) ? defaultCurrentName : v;
+  }
+
+  static Future<void> saveCurrentName(String name) async {
+    final prefs = await SharedPreferences.getInstance();
+    final v = name.trim();
+    if (v.isEmpty) {
+      await prefs.remove(currentNameKey);
+    } else {
+      await prefs.setString(currentNameKey, v);
+    }
+  }
+
+  // ==================== 归档 ====================
+
+  /// 读取全部归档（归档时间新的在前）
+  static Future<List<SeasonArchive>> loadArchives() async {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString(archivesKey);
+    if (raw == null || raw.isEmpty) return <SeasonArchive>[];
+    try {
+      final list = (jsonDecode(raw) as List).cast<dynamic>();
+      final out = <SeasonArchive>[
+        for (final m in list)
+          if (m != null) SeasonArchive.fromJson((m as Map).cast<String, dynamic>()),
+      ];
+      out.sort((a, b) => b.archivedAt.compareTo(a.archivedAt));
+      return out;
+    } catch (_) {
+      return <SeasonArchive>[];
+    }
+  }
+
+  static Future<void> saveArchives(List<SeasonArchive> archives) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(
+      archivesKey,
+      jsonEncode([for (final a in archives) a.toJson()]),
+    );
+  }
+
+  /// 归档：把当前记录移入一个新归档，并清空当前表格
+  static Future<List<SeasonArchive>> archiveCurrent({
+    required String name,
+    String note = '',
+    DateTime? archivedAt,
+  }) async {
+    final records = await load();
+    final archives = await loadArchives();
+    archives.insert(
+      0,
+      SeasonArchive(
+        id: newSeasonStatId(),
+        name: name.trim().isEmpty ? suggestSeasonName(records) : name.trim(),
+        note: note.trim(),
+        archivedAt: archivedAt ?? DateTime.now(),
+        records: records,
+      ),
+    );
+    await saveArchives(archives);
+    await clear();
+    return archives;
+  }
+
+  /// 新增 / 覆盖一个归档（按 id）
+  static Future<List<SeasonArchive>> upsertArchive(SeasonArchive archive) async {
+    final archives = await loadArchives();
+    final i = archives.indexWhere((a) => a.id == archive.id);
+    if (i >= 0) {
+      archives[i] = archive;
+    } else {
+      archives.insert(0, archive);
+    }
+    await saveArchives(archives);
+    return archives;
+  }
+
+  /// 删除一个归档
+  static Future<List<SeasonArchive>> removeArchive(String id) async {
+    final archives = await loadArchives();
+    archives.removeWhere((a) => a.id == id);
+    await saveArchives(archives);
+    return archives;
+  }
+
+  /// 清空归档（测试 / 重置用）
+  static Future<void> clearArchives() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(archivesKey);
+  }
+
+  /// 把归档里的记录取回当前表格（归档保持不动），返回追加后的当前记录
+  static Future<List<SeasonStatRecord>> restoreFromArchive(
+    SeasonArchive archive, {
+    bool replace = false,
+  }) async {
+    final existing = replace ? <SeasonStatRecord>[] : await load();
+    final usedIds = <String>{for (final r in existing) r.id};
+    for (final r in archive.records) {
+      // 重新分配重复的 id，避免互相覆盖
+      final rec = usedIds.contains(r.id)
+          ? r.copyWith(id: newSeasonStatId())
+          : r;
+      usedIds.add(rec.id);
+      existing.add(rec);
+    }
+    await save(existing);
+    return existing;
+  }
 }
 
 /// 表格排序依据（点表头切换）
 enum SeasonStatSortKey {
+  season,
   order,
   enemyId,
   startTime,
@@ -475,6 +819,9 @@ List<SeasonStatRow> filterAndSortSeasonStatRows(
   int compare(SeasonStatRow a, SeasonStatRow b) {
     int c;
     switch (sortKey) {
+      case SeasonStatSortKey.season:
+        c = a.seasonName.compareTo(b.seasonName);
+        // 同一赛季内仍然按开始时间排（下面兜底那一行完成）
       case SeasonStatSortKey.order:
         c = a.order.compareTo(b.order);
       case SeasonStatSortKey.enemyId:
@@ -507,8 +854,9 @@ List<SeasonStatRow> filterAndSortSeasonStatRows(
   return filtered;
 }
 
-/// 一行的可搜索文本（对战 / 时间 / 时长 / 间隔 / 分数 / 胜场 / 系数 / 来源都能被搜到）
+/// 一行的可搜索文本（赛季 / 对战 / 时间 / 时长 / 间隔 / 分数 / 胜场 / 系数 / 来源都能被搜到）
 String seasonStatHaystack(SeasonStatRow r) => [
+  r.seasonName,
   r.enemyId,
   formatSeasonStatFullTime(r.startTime),
   formatSeasonStatTime(r.startTime),
@@ -609,4 +957,166 @@ String formatSeasonStatDuration(int minutes, {bool zh = true}) {
   if (days > 0) return '${days}d ${hours}h';
   if (hours > 0) return mins > 0 ? '${hours}h ${mins}m' : '${hours}h';
   return '${mins}m';
+}
+
+/// 只保留 `yyyy-MM-dd HH:mm`（导出用，秒/毫秒不入档）
+String formatSeasonStatExportTime(DateTime dt) =>
+    '${dt.year}-${_p2(dt.month)}-${_p2(dt.day)} '
+    '${_p2(dt.hour)}:${_p2(dt.minute)}';
+
+/// 文件名里的时间戳：`20260930-1412`
+String formatSeasonStatFileStamp(DateTime dt) =>
+    '${dt.year}${_p2(dt.month)}${_p2(dt.day)}-'
+    '${_p2(dt.hour)}${_p2(dt.minute)}';
+
+// ==================== 文件导入 / 导出 ====================
+
+/// 导出文件的 `kind` 标记，用来识别是不是赛季统计的存档
+const String kSeasonStatsExportKind = 'catskit.seasonStats';
+
+/// 导出 / 导入的整包数据（一个 JSON 文件）
+class SeasonStatsBundle {
+  /// 当前赛季的名称
+  final String currentSeasonName;
+
+  /// 当前赛季的记录
+  final List<SeasonStatRecord> records;
+
+  /// 所有归档
+  final List<SeasonArchive> archives;
+
+  const SeasonStatsBundle({
+    required this.currentSeasonName,
+    required this.records,
+    required this.archives,
+  });
+
+  bool get isEmpty => records.isEmpty && archives.isEmpty;
+
+  int get totalRecords =>
+      records.length + archives.fold<int>(0, (s, a) => s + a.records.length);
+
+  Map<String, dynamic> toJson() => {
+    'app': 'CatsKit',
+    'kind': kSeasonStatsExportKind,
+    'version': 1,
+    'exportedAt': DateTime.now().toIso8601String(),
+    'currentSeasonName': currentSeasonName,
+    'records': [for (final r in records) r.toJson()],
+    'archives': [for (final a in archives) a.toJson()],
+  };
+}
+
+/// 解析导出文件的内容；格式不对时抛 [FormatException]
+SeasonStatsBundle decodeSeasonStatsBundle(String text) {
+  dynamic data;
+  try {
+    data = jsonDecode(text);
+  } catch (_) {
+    throw const FormatException('不是合法的 JSON 文件');
+  }
+  if (data is! Map) {
+    throw const FormatException('文件内容不是赛季统计存档（应为 JSON 对象）');
+  }
+  final map = data.cast<String, dynamic>();
+  final kind = map['kind'] as String?;
+  // 也允许直接导入一个「记录数组」
+  if (kind != null && kind != kSeasonStatsExportKind) {
+    throw FormatException('不是赛季统计存档（kind = $kind）');
+  }
+  final records = <SeasonStatRecord>[
+    for (final m in (map['records'] as List?) ?? const <dynamic>[])
+      if (m != null)
+        SeasonStatRecord.fromJson((m as Map).cast<String, dynamic>()),
+  ];
+  final archives = <SeasonArchive>[
+    for (final m in (map['archives'] as List?) ?? const <dynamic>[])
+      if (m != null)
+        SeasonArchive.fromJson((m as Map).cast<String, dynamic>()),
+  ];
+  if (kind == null && records.isEmpty && archives.isEmpty) {
+    throw const FormatException('文件里没有任何赛季记录');
+  }
+  return SeasonStatsBundle(
+    currentSeasonName: map['currentSeasonName'] as String? ?? '',
+    records: records,
+    archives: archives,
+  );
+}
+
+/// 把一整个赛季生成表格文本（TSV，Excel 可直接打开）
+///
+/// 第一行表头，之后每场一行；列与界面上的表格一致。
+String seasonGroupToTsv(SeasonGroup group, {bool zh = true}) {
+  final rows = buildSeasonStatRows(
+    group.records,
+    seasonName: group.name,
+    seasonId: group.id,
+  );
+  final buf = StringBuffer();
+  buf.writeln(
+    <String>[
+      zh ? '赛季' : 'Season',
+      zh ? '场次' : 'No.',
+      zh ? '对战' : 'Opponent',
+      zh ? '开始' : 'Start',
+      zh ? '结束' : 'End',
+      zh ? '持续' : 'Duration',
+      zh ? '间隔' : 'Gap',
+      zh ? '战斗分' : 'Battle',
+      zh ? '赛前胜场' : 'Wins before',
+      zh ? '赛后胜场' : 'Wins after',
+      zh ? '系数' : 'Multiplier',
+      zh ? '本场得分' : 'Gained',
+    ].join('\t'),
+  );
+  for (final r in rows) {
+    buf.writeln(
+      <String>[
+        group.name,
+        r.order.toString(),
+        r.enemyId,
+        formatSeasonStatExportTime(r.startTime),
+        formatSeasonStatExportTime(r.endTime),
+        formatSeasonStatDuration(r.durationMinutes, zh: zh),
+        r.gapMinutes == null
+            ? ''
+            : formatSeasonStatDuration(r.gapMinutes!, zh: zh),
+        r.finalScore.toString(),
+        r.winsBefore?.toString() ?? '',
+        r.winsAfter?.toString() ?? '',
+        r.multiplier?.toString() ?? '',
+        r.gainedScore?.toString() ?? '',
+      ].join('\t'),
+    );
+  }
+  return buf.toString();
+}
+
+/// 把多个赛季拼成一份 TSV（每个赛季之间空一行，并加一行赛季小计）
+String seasonGroupsToTsv(List<SeasonGroup> groups, {bool zh = true}) {
+  final buf = StringBuffer();
+  for (final g in groups) {
+    if (g.records.isEmpty) continue;
+    if (buf.isNotEmpty) buf.writeln();
+    buf.write(seasonGroupToTsv(g, zh: zh));
+    final s = summarizeSeasonGroup(g.records);
+    buf.writeln(
+      <String>[
+        zh ? '${g.name} 小计' : '${g.name} total',
+        '${s.battleCount}',
+        '',
+        s.startTime == null ? '' : formatSeasonStatExportTime(s.startTime!),
+        s.endTime == null ? '' : formatSeasonStatExportTime(s.endTime!),
+        '',
+        '',
+        '',
+        '',
+        '${s.winCount}',
+        '',
+        '${s.totalGained}',
+      ].join('\t'),
+    );
+  }
+  return buf.toString();
 }
