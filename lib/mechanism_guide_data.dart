@@ -28,6 +28,7 @@ class GuideFigure {
   /// / `activityIcons`（活动图标一览） / `jokerTiers`（王牌 R1-R5）
   /// / `chestTypes`（自选箱 / 固定箱） / `gangTiers`（帮派四个组别）
   /// / `seasonFlow`（赛季收尾流程） / `battleBuildings`（战斗建筑与车位）
+  /// / `statPipeline`（单车数值乘区链路）
   final String? diagram;
 
   final String captionZh;
@@ -708,6 +709,222 @@ const List<GuideChapter> kGuideChapters = <GuideChapter>[
         '头像奖励只有金 / 银 / 铜三组的前 20 名有；头像与赛季专属装扮用的都是当季城市的主题。',
         'The avatar reward is only for the top 20 of Gold / Silver / Bronze; both avatars and the season-exclusive outfit use the current city theme.',
       ),
+    ],
+  ),
+  // ==================== 终极联赛战车 ====================
+  GuideChapter(
+    id: 'ultimate_car',
+    titleZh: '终极联赛战车',
+    titleEn: 'Ultimate League Car',
+    summaryZh: '一辆战车的 HP / ATK 是怎么算出来的：等级成长、分类 / 额外 / 工具箱 / 赞助乘区、电力校验',
+    summaryEn:
+        'How a battle car\'s HP / ATK are computed: level growth, category / extra / toolbox / sponsor multipliers and the power check',
+    icon: Icons.build_circle,
+    color: Colors.teal,
+    keywords: <String>[
+      '战车',
+      '组车',
+      '数值',
+      'HP',
+      'ATK',
+      '电力',
+      '分类加成',
+      '额外加成',
+      '赞助',
+      '工具箱',
+      '成长',
+      '等级',
+      'car',
+      'build',
+      'power',
+      'bonus',
+      'sponsor',
+      'level',
+    ],
+    blocks: <GuideBlock>[
+      GuideBlock.text(
+        '终极联赛里出场的战车，就是「组车工具」（个人功能 → 组车工具）里拼出来的那辆车。'
+        '这一章把它的数值拆开讲清楚：先看一辆车由什么组成，再看每个部件的数值怎么来，'
+        '最后看整车 HP / ATK 是怎么乘出来的、以及出车要过哪些校验。',
+        'The car you field in the league is exactly the car built with the "Build Tool" (Personal → Build Tool). '
+            'This chapter breaks its numbers down: what a car is made of, how each part\'s stats grow with level, '
+            'how the whole car\'s HP / ATK are multiplied together, and which checks a car must pass.',
+      ),
+      // ---------- 1. 战车由什么组成 ----------
+      GuideBlock.heading('战车由什么组成', 'What a car is made of'),
+      GuideBlock.text(
+        '1 个车身 + 最多 1 个特殊武器（额外武器）+ 若干武器 / 车轮 / 配件；'
+        '后三者的数量上限由车身的插槽数决定，不能超装。',
+        '1 body + up to 1 special (extra) weapon + weapons / wheels / gadgets. '
+            'The maximum counts of the last three come from the body\'s slots and cannot be exceeded.',
+      ),
+      GuideBlock.bullets(<GuideBullet>[
+        GuideBullet(
+          '车身：提供基础 HP，并决定武器 / 车轮 / 配件各有几个插槽',
+          'Body: gives base HP and decides how many weapon / wheel / gadget slots you have',
+        ),
+        GuideBullet(
+          '武器（含特殊武器）：主要提供 ATK；车轮：提供 HP（有些也带 ATK）；配件：提供 HP 或 ATK',
+          'Weapons (including the special one): mainly ATK; wheels: HP (some also ATK); gadgets: HP or ATK',
+        ),
+        GuideBullet(
+          '特殊武器不占武器的插槽，也**不耗电**',
+          'The special weapon does not use a weapon slot and **does not consume power**',
+        ),
+      ]),
+      GuideBlock.figures(<GuideFigure>[
+        GuideFigure.diagram(
+          'carLayout',
+          captionZh: '车辆结构：车身（橙）、武器（红）、车轮（绿）、配件（紫）、特殊武器（棕）',
+          captionEn:
+              'Car layout: body (orange), weapons (red), wheels (green), gadgets (purple), special weapon (brown)',
+        ),
+      ]),
+      // ---------- 2. 部件数值随等级成长 ----------
+      GuideBlock.heading('部件数值随等级成长', 'How part stats grow with level'),
+      GuideBlock.text(
+        '每个部件的 HP / ATK 都由「1 级基础值」和等级算出来：1 级就是基础值，等级越高涨得越快。'
+        '不同稀有度的等级上限不一样。',
+        'Every part\'s HP / ATK is derived from its level-1 base value and its level: level 1 is the base value, and higher levels grow faster. '
+            'Different rarities have different level caps.',
+      ),
+      GuideBlock.bullets(<GuideBullet>[
+        GuideBullet(
+          '普通部件（绝大多数）：2~16 级每一级把当前值 ×1.2 向下取整；17 级起改为固定步长'
+          '（约等于 16 级值的 8.75%）继续加，最高 20 级',
+          'Normal parts (the vast majority): from level 2 to 16 each level multiplies the current value by 1.2 (rounded down); '
+          'from level 17 on it adds a fixed step (about 8.75% of the level-16 value), up to level 20',
+        ),
+        GuideBullet(
+          'R6 旧版部件（少数早期 R6）：每级增量本身还会递增 —— '
+          'delta = 向下取整(基础值 × 0.19163)、delta2 = 向下取整(基础值 ÷ 15)（固定），'
+          '每级「值 += delta；delta += delta2」，最高 18 级',
+          'Legacy R6 parts (a few early R6s): the increment itself grows — '
+          'delta = floor(base × 0.19163), delta2 = floor(base ÷ 15) (fixed), each level does "value += delta; delta += delta2", up to level 18',
+        ),
+      ]),
+      GuideBlock.table(GuideTable(
+        headZh: <String>['稀有度', '最高等级'],
+        headEn: <String>['Rarity', 'Max level'],
+        rowsZh: <List<String>>[
+          <String>['R1 - R5', '20 级'],
+          <String>['R6', '18 级'],
+        ],
+        rowsEn: <List<String>>[
+          <String>['R1 - R5', 'Level 20'],
+          <String>['R6', 'Level 18'],
+        ],
+      )),
+      // ---------- 3. 整车 HP/ATK ----------
+      GuideBlock.heading('一辆车的 HP / ATK 怎么算', 'How the car\'s HP / ATK are computed'),
+      GuideBlock.text(
+        '整车的 HP / ATK 是「逐个部件算完再相加」，而每个部件的贡献由下面几个乘区相乘得到：',
+        'The car\'s HP / ATK is the sum over all parts, and each part\'s contribution is the product of the multipliers below:',
+      ),
+      GuideBlock.figures(<GuideFigure>[
+        GuideFigure.diagram(
+          'statPipeline',
+          captionZh: '单车数值链路：裸值 × 分类加成 × 额外加成 × 工具箱 × 赞助加成 = 整车数值',
+          captionEn:
+              'Stat pipeline: base × category × extra × toolbox × sponsor = car stats',
+        ),
+      ]),
+      GuideBlock.table(GuideTable(
+        headZh: <String>['乘区', '来源与算法'],
+        headEn: <String>['Multiplier', 'Where it comes from'],
+        rowsZh: <List<String>>[
+          <String>['裸值', '该部件在当前等级下的 HP / ATK（见上一节）'],
+          <String>[
+            '分类加成',
+            '全车部件里「加成类型」等于该部件分类的百分比之和'
+                '（车身 / 武器 / 车轮 / 配件 各一份；看的是部件提供的加成类型，不是部件自身分类）',
+          ],
+          <String>['额外加成', '每个部件自己的独立乘区，0-150%、10% 一档（组车工具里逐部件选）'],
+          <String>[
+            '工具箱加成',
+            '城市之王掉的生命 / 攻击工具箱，只加对应数值：R1 +10% / R2 +20% / R3 +30% / R4 +40%',
+          ],
+          <String>[
+            '赞助加成',
+            '整车最后再乘一次：同一赞助商有 3 个及以上部件时 +10%，每再多 1 个 +5%'
+                '（多个赞助商各自算，再加起来）',
+          ],
+        ],
+        rowsEn: <List<String>>[
+          <String>['Base', 'The part\'s HP / ATK at its current level (see the previous section)'],
+          <String>[
+            'Category',
+            'Sum of the percentages whose "bonus type" equals that part\'s category '
+                '(one sum each for body / weapon / wheel / gadget; it is the bonus a part gives, not the part\'s own category)',
+          ],
+          <String>['Extra', 'Per-part independent multiplier, 0-150% in steps of 10% (chosen per part in the Build Tool)'],
+          <String>[
+            'Toolbox',
+            'Life / attack toolboxes from City King, each only boosts its own stat: R1 +10% / R2 +20% / R3 +30% / R4 +40%',
+          ],
+          <String>[
+            'Sponsor',
+            'Applied once to the whole car at the end: 3 or more parts of the same sponsor gives +10%, plus +5% for every extra one '
+                '(each sponsor counts separately, then they add up)',
+          ],
+        ],
+      )),
+      GuideBlock.bullets(<GuideBullet>[
+        GuideBullet(
+          '车轮特殊：车轮的 HP 与 ATK 都用「车轮加成」这一个百分比',
+          'Wheels are special: both their HP and ATK use the single "wheel" percentage',
+        ),
+        GuideBullet(
+          '随从（随车的小帮手）的 HP **不吃任何加成**，只按裸值显示',
+          'A minion\'s HP gets **no bonus at all** — only its base value is used',
+        ),
+        GuideBullet(
+          '把这些贡献加起来就是整车的 HP 与 ATK；本程序把一辆车的「战力」粗略记作 HP + ATK',
+          'Adding all contributions up gives the car\'s HP and ATK; this app roughly treats a car\'s "power" as HP + ATK',
+        ),
+      ]),
+      // ---------- 4. 电力与出车校验 ----------
+      GuideBlock.heading('电力与出车校验', 'Power and car checks'),
+      GuideBlock.bullets(<GuideBullet>[
+        GuideBullet(
+          '电力：所有部件里正的电力相加是「供电」，负的电力绝对值相加是「耗电」；特殊武器不耗电',
+          'Power: positive power of all parts is the supply, the absolute value of negative power is the consumption; the special weapon consumes none',
+        ),
+        GuideBullet(
+          '校验顺序（和组车工具的报错一致）：缺少车身 → 车身过多 → 武器过多 → 车轮过多 → 配件过多 → 电力不足',
+          'Check order (same as the Build Tool errors): no body → too many bodies → too many weapons → too many wheels → too many gadgets → not enough power',
+        ),
+        GuideBullet(
+          '耗电超过供电就出不了车，只能换更省电的部件或降低等级需求',
+          'If consumption exceeds supply the car cannot be used — swap in more efficient parts',
+        ),
+      ]),
+      GuideBlock.tip(
+        '组车工具里改任何一处（等级、额外加成、部位）都会立刻重算整车 HP / ATK 与电力，'
+        '报错就是上面那几种。',
+        'Any change in the Build Tool (level, extra bonus, parts) immediately recomputes the car\'s HP / ATK and power; '
+            'the errors are exactly the ones listed above.',
+      ),
+      // ---------- 5. 在组车工具里怎么看 ----------
+      GuideBlock.heading('在组车工具里怎么看这些数', 'Reading these numbers in the Build Tool'),
+      GuideBlock.bullets(<GuideBullet>[
+        GuideBullet(
+          '组车区里每个部件展开后是「裸值 → 分类加成 → 额外加成 → 赞助加成 → 最终」，和上面的公式一一对应',
+          'Each part in the build area expands to "base → category → extra → sponsor → final", matching the formula above',
+        ),
+        GuideBullet(
+          '等级和额外加成（0-150%、10% 一档）都是逐部件选的，改完实时重算',
+          'Level and extra bonus (0-150%, steps of 10%) are per part and recompute instantly',
+        ),
+        GuideBullet(
+          '保存到车位后：「我的车库」看整车数值与重量，「升级计划」算材料需求，「碎片计算」算碎片',
+          'After saving to a garage slot: "My Garage" shows the car\'s stats and weight, "Upgrade Plan" works out materials and "Fragment Calc" works out fragments',
+        ),
+        GuideBullet(
+          '三辆车不能重复使用同一个部件（猫生重开里要凑三辆车）',
+          'The three cars cannot share a part (Life Restart needs three cars)',
+        ),
+      ]),
     ],
   ),
 ];

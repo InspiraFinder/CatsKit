@@ -650,6 +650,8 @@ Widget buildGuideFigure(
       return _ChestTypesFigure(locale: locale);
     case 'battleBuildings':
       return _BattleBuildingsFigure(locale: locale, isDark: isDark);
+    case 'statPipeline':
+      return _StatPipelineFigure(locale: locale, isDark: isDark);
     case 'gangTiers':
       return _GangTiersFigure(locale: locale, isDark: isDark);
     case 'seasonFlow':
@@ -1120,6 +1122,69 @@ class _BattleBuildingsFigure extends StatelessWidget {
           color: color,
         ),
       ),
+    );
+  }
+}
+
+/// 单车数值乘区链路：裸值 × 分类加成 × 额外加成 × 工具箱 × 赞助加成 = 整车 HP / ATK
+class _StatPipelineFigure extends StatelessWidget {
+  final String locale;
+  final bool isDark;
+  const _StatPipelineFigure({required this.locale, required this.isDark});
+
+  /// (中文, English, 颜色)
+  static const List<(String, String, Color)> _steps =
+      <(String, String, Color)>[
+    ('裸值', 'Base', Colors.blueGrey),
+    ('× 分类加成', '× Category', Colors.blue),
+    ('× 额外加成', '× Extra', Colors.purple),
+    ('× 工具箱', '× Toolbox', Colors.green),
+    ('× 赞助加成', '× Sponsor', Colors.amber),
+    ('= 整车 HP / ATK', '= Car HP / ATK', Colors.pink),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    final zh = locale == 'zh';
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        Wrap(
+          spacing: 6,
+          runSpacing: 6,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          children: <Widget>[
+            for (final (zhText, enText, color) in _steps)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: color.withValues(alpha: isDark ? 0.22 : 0.10),
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: color, width: 0.9),
+                ),
+                child: Text(
+                  zh ? zhText : enText,
+                  style: TextStyle(
+                    fontSize: 10.5,
+                    fontWeight: FontWeight.bold,
+                    color: isDark ? Colors.white : Colors.black87,
+                  ),
+                ),
+              ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Text(
+          zh
+              ? 'HP 与 ATK 各按这条链路算一遍再相加；车轮的 HP / ATK 都用「车轮加成」。'
+              : 'HP and ATK each run through this pipeline and are then summed; a wheel uses the same "wheel" percentage for both.',
+          style: TextStyle(
+            fontSize: 10,
+            height: 1.4,
+            color: isDark ? Colors.white54 : Colors.black54,
+          ),
+        ),
+      ],
     );
   }
 }
