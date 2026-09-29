@@ -993,16 +993,16 @@ class _BattleBuildingsFigure extends StatelessWidget {
   final bool isDark;
   const _BattleBuildingsFigure({required this.locale, required this.isDark});
 
-  /// (车位总数, 我方占几个, 对方占几个, 是否链接建筑, 是否高回报建筑)
-  /// 注意：车位永远是满的（人机或对方帮派的车），所以「我方 + 对方 = 总数」
-  static const List<(int, int, int, bool, bool)> _buildings =
-      <(int, int, int, bool, bool)>[
-    (5, 4, 1, true, false),
-    (3, 0, 3, false, true),
-    (5, 3, 2, false, false),
-    (7, 2, 5, true, false),
-    (3, 2, 1, false, false),
-    (5, 1, 4, false, false),
+  /// (车位总数, 我方占几个, 对方占几个, 人机占几个, 是否链接建筑, 是否高回报建筑)
+  /// 三类加起来就是车位总数；人机不属于任何一方
+  static const List<(int, int, int, int, bool, bool)> _buildings =
+      <(int, int, int, int, bool, bool)>[
+    (5, 4, 0, 1, true, false),
+    (3, 0, 2, 1, false, true),
+    (5, 3, 0, 2, false, false),
+    (7, 1, 4, 2, true, false),
+    (3, 2, 1, 0, false, false),
+    (5, 1, 1, 3, false, false),
   ];
 
   @override
@@ -1015,16 +1015,18 @@ class _BattleBuildingsFigure extends StatelessWidget {
           spacing: 6,
           runSpacing: 6,
           children: <Widget>[
-            for (final (total, mine, theirs, linked, high) in _buildings)
-              _building(total, mine, theirs, linked, high, zh),
+            for (final (total, mine, theirs, bots, linked, high) in _buildings)
+              _building(total, mine, theirs, bots, linked, high, zh),
           ],
         ),
         const SizedBox(height: 8),
         Text(
           zh
-              ? '车位过半即占领；计时器归零时每个已占领建筑按车位数给分；'
+              ? '蓝＝我方车、红＝对方帮派的车、灰＝人机车（不属于任何一方，只是开局把车位占住、可以被选中攻击）。\n'
+                  '车位过半即占领；计时器归零时每个已占领建筑按车位数给分；'
                   '链接建筑分数 ×n（n = 同时占领的链接建筑数）；高回报建筑 ×5（持续 2 小时）。'
-              : 'Hold over half the slots to occupy; at the timer each occupied building scores its slot count; '
+              : 'Blue = ours, red = the opposing gang, grey = bots (they belong to neither side and only keep the slot occupied and attackable at the start).\n'
+                  'Hold over half the slots to occupy; at the timer each occupied building scores its slot count; '
                   'linked buildings score ×n (n = linked buildings you hold); high-reward building ×5 (lasts 2 hours).',
           style: TextStyle(
             fontSize: 10,
@@ -1036,8 +1038,8 @@ class _BattleBuildingsFigure extends StatelessWidget {
     );
   }
 
-  Widget _building(
-      int total, int mine, int theirs, bool linked, bool high, bool zh) {
+  Widget _building(int total, int mine, int theirs, int bots, bool linked,
+      bool high, bool zh) {
     final ours = mine > total / 2;
     final theirsWin = theirs > total / 2;
     final color = ours
@@ -1079,7 +1081,7 @@ class _BattleBuildingsFigure extends StatelessWidget {
                         ? Colors.blue
                         : (i < mine + theirs
                             ? Colors.red
-                            : (isDark ? Colors.white24 : Colors.black12)),
+                            : (isDark ? Colors.white30 : Colors.black26)),
                   ),
                 ),
             ],

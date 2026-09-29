@@ -362,19 +362,21 @@ const List<GuideChapter> kGuideChapters = <GuideChapter>[
         GuideFigure.diagram(
           'battleBuildings',
           captionZh:
-              '建筑与车位示意（蓝＝我方、红＝对方 —— 人机或对方帮派的车；带「链接」/「×5」的是特殊加成建筑）',
+              '建筑与车位示意（蓝＝我方车、红＝对方帮派的车、灰＝人机车；带「链接」/「×5」的是特殊加成建筑）',
           captionEn:
-              'Buildings and slots (blue = ours, red = opponents — bots or the other gang\'s cars; "link" and "×5" mark special bonuses)',
+              'Buildings and slots (blue = ours, red = the opposing gang, grey = bots; "link" and "×5" mark special bonuses)',
         ),
       ]),
       // ---------- 2. 车位争夺 ----------
       GuideBlock.heading('车位争夺：一辆车怎么打', 'Taking a slot: how a single fight works'),
       GuideBlock.text(
-        '战斗开始时，所有建筑的所有车位都会被人机的车填满；之后车位上的车可能是人机，'
-        '也可能是对方帮派成员的车。我方成员各自派空闲的车去抢车位，流程是：'
-        '挑一个「还没被我方占领」的车位发起攻击 → 派一辆空闲的车跟车位上的车单挑 → 一方 HP 归零则战斗结束。'
-        '车位不会出现空着的情况：要么是我方的车在防守，要么还是对方的车（人机或对方帮派）占着。',
-        'When a battle starts, every slot of every building is filled by bot vehicles; from then on a slot may hold a bot or a car belonging to the opposing gang. '
+        '战斗开始时，所有建筑的所有车位都被人机占着；人机**不属于任何一方**，只是让车位一开始就处于'
+        '「已被占领、可以被选中攻击」的状态。之后车位上的车可能是人机，也可能是对方帮派成员的车，'
+        '我方成员各自派空闲的车去抢车位，流程是：挑一个「还没被我方占领」的车位发起攻击 → '
+        '派一辆空闲的车跟车位上的车单挑 → 一方 HP 归零则战斗结束。车位不会出现空着的情况：'
+        '要么是我方的车在防守，要么还是对方（人机或对方帮派）占着。',
+        'When a battle starts every slot is held by a bot; bots **belong to neither side** — they only put the slot into an '
+            '"occupied, attackable" state from the start. From then on a slot may hold a bot or a car belonging to the opposing gang. '
             'Our members send idle cars to take slots: pick a slot that is not held by our side → send one idle car to duel the car on that slot → '
             'the duel ends when one side\'s HP reaches zero. A slot is never left empty: either one of our cars defends it or the opposing side still holds it.',
       ),
