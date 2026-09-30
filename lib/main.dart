@@ -26,7 +26,7 @@ import 'max_stats_screen.dart';
 import 'mechanism_guide_screen.dart';
 import 'life_sim/life_sim_screen.dart';
 
-const String appVersion = '2.2.0';
+const String appVersion = '2.2.1';
 
 /// 获取部件在当前语言下的显示名称
 String pn(PartData part, String? locale) {
