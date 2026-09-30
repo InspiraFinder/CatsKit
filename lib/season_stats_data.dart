@@ -533,6 +533,12 @@ class SeasonStatsStore {
   /// 当前赛季的名称
   static const String currentNameKey = 'season_stats_current_name';
 
+  /// 自定义导出目录（空 = 用默认目录）
+  static const String exportDirKey = 'season_stats_export_dir';
+
+  /// 表格列顺序（存列名列表）
+  static const String columnOrderKey = 'season_stats_column_order';
+
   /// 当前赛季的默认名称
   static const String defaultCurrentName = '当前赛季';
 
@@ -605,6 +611,40 @@ class SeasonStatsStore {
       await prefs.remove(currentNameKey);
     } else {
       await prefs.setString(currentNameKey, v);
+    }
+  }
+
+  // ==================== 导出目录 / 列顺序 ====================
+
+  /// 读取自定义导出目录（空串 = 用默认目录）
+  static Future<String> loadExportDir() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(exportDirKey)?.trim() ?? '';
+  }
+
+  static Future<void> saveExportDir(String dir) async {
+    final prefs = await SharedPreferences.getInstance();
+    final v = dir.trim();
+    if (v.isEmpty) {
+      await prefs.remove(exportDirKey);
+    } else {
+      await prefs.setString(exportDirKey, v);
+    }
+  }
+
+  /// 读取表格列顺序（列名列表；没存过返回空列表 = 用默认顺序）
+  static Future<List<String>> loadColumnOrder() async {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getStringList(columnOrderKey);
+    return raw ?? <String>[];
+  }
+
+  static Future<void> saveColumnOrder(List<String> order) async {
+    final prefs = await SharedPreferences.getInstance();
+    if (order.isEmpty) {
+      await prefs.remove(columnOrderKey);
+    } else {
+      await prefs.setStringList(columnOrderKey, order);
     }
   }
 

@@ -40,23 +40,157 @@ const double _kColMultiplier = 62;
 const double _kColGained = 100;
 const double _kColOps = 80;
 
-/// 表格总宽（跨赛季查询时会多一列「赛季」）
-double _tableWidth({required bool showSeason}) =>
+/// 表格总宽（按当前列顺序算；「操作」列固定在最右）
+double _tableWidth(List<SeasonStatColumn> columns) =>
     _kTablePad * 2 +
-    _kColIndex +
-    (showSeason ? _kColSeason : 0) +
-    _kColEnemy +
-    _kColTime * 2 +
-    _kColDuration +
-    _kColGap +
-    _kColScore +
-    _kColWins * 2 +
-    _kColMultiplier +
-    _kColGained +
+    columns.fold<double>(0, (s, c) => s + seasonStatColumnWidth(c)) +
     _kColOps;
 
 const double _kRowHeight = 46;
 const double _kHeaderHeight = 40;
+
+/// 表格的一列（顺序可由用户自定义）
+enum SeasonStatColumn {
+  season,
+  order,
+  enemy,
+  start,
+  end,
+  duration,
+  gap,
+  battleScore,
+  winsBefore,
+  winsAfter,
+  multiplier,
+  gained,
+}
+
+/// 默认列顺序（「操作」列固定在最右，不参与排序）
+const List<SeasonStatColumn> kDefaultSeasonStatColumns = <SeasonStatColumn>[
+  SeasonStatColumn.order,
+  SeasonStatColumn.enemy,
+  SeasonStatColumn.start,
+  SeasonStatColumn.end,
+  SeasonStatColumn.duration,
+  SeasonStatColumn.gap,
+  SeasonStatColumn.battleScore,
+  SeasonStatColumn.winsBefore,
+  SeasonStatColumn.winsAfter,
+  SeasonStatColumn.multiplier,
+  SeasonStatColumn.gained,
+];
+
+/// 列名（持久化用，别改）
+String seasonStatColumnName(SeasonStatColumn c) => c.name;
+
+/// 从持久化的名字还原列（未知名字忽略）
+SeasonStatColumn? seasonStatColumnFromName(String name) {
+  for (final c in SeasonStatColumn.values) {
+    if (c.name == name) return c;
+  }
+  return null;
+}
+
+/// 把存下来的顺序补齐成完整顺序（缺的按默认顺序追加到末尾）
+List<SeasonStatColumn> normalizeColumnOrder(List<String> saved) {
+  final out = <SeasonStatColumn>[];
+  for (final n in saved) {
+    final c = seasonStatColumnFromName(n);
+    if (c != null && !out.contains(c)) out.add(c);
+  }
+  for (final c in kDefaultSeasonStatColumns) {
+    if (!out.contains(c)) out.add(c);
+  }
+  return out;
+}
+
+/// 列的宽度
+double seasonStatColumnWidth(SeasonStatColumn c) {
+  switch (c) {
+    case SeasonStatColumn.season:
+      return _kColSeason;
+    case SeasonStatColumn.order:
+      return _kColIndex;
+    case SeasonStatColumn.enemy:
+      return _kColEnemy;
+    case SeasonStatColumn.start:
+    case SeasonStatColumn.end:
+      return _kColTime;
+    case SeasonStatColumn.duration:
+      return _kColDuration;
+    case SeasonStatColumn.gap:
+      return _kColGap;
+    case SeasonStatColumn.battleScore:
+      return _kColScore;
+    case SeasonStatColumn.winsBefore:
+    case SeasonStatColumn.winsAfter:
+      return _kColWins;
+    case SeasonStatColumn.multiplier:
+      return _kColMultiplier;
+    case SeasonStatColumn.gained:
+      return _kColGained;
+  }
+}
+
+/// 列的表头文案
+String seasonStatColumnLabel(SeasonStatColumn c, bool zh) {
+  switch (c) {
+    case SeasonStatColumn.season:
+      return zh ? '赛季' : 'Season';
+    case SeasonStatColumn.order:
+      return zh ? '场次' : 'No.';
+    case SeasonStatColumn.enemy:
+      return zh ? '对战' : 'Opponent';
+    case SeasonStatColumn.start:
+      return zh ? '开始' : 'Start';
+    case SeasonStatColumn.end:
+      return zh ? '结束' : 'End';
+    case SeasonStatColumn.duration:
+      return zh ? '持续' : 'Duration';
+    case SeasonStatColumn.gap:
+      return zh ? '间隔' : 'Gap';
+    case SeasonStatColumn.battleScore:
+      return zh ? '战斗分' : 'Battle';
+    case SeasonStatColumn.winsBefore:
+      return zh ? '赛前胜场' : 'Wins before';
+    case SeasonStatColumn.winsAfter:
+      return zh ? '赛后胜场' : 'Wins after';
+    case SeasonStatColumn.multiplier:
+      return zh ? '系数' : 'x';
+    case SeasonStatColumn.gained:
+      return zh ? '本场得分' : 'Gained';
+  }
+}
+
+/// 列对应的排序键（null = 该列不可排序）
+SeasonStatSortKey? seasonStatColumnSortKey(SeasonStatColumn c) {
+  switch (c) {
+    case SeasonStatColumn.season:
+      return SeasonStatSortKey.season;
+    case SeasonStatColumn.order:
+      return SeasonStatSortKey.order;
+    case SeasonStatColumn.enemy:
+      return SeasonStatSortKey.enemyId;
+    case SeasonStatColumn.start:
+      return SeasonStatSortKey.startTime;
+    case SeasonStatColumn.end:
+      return SeasonStatSortKey.endTime;
+    case SeasonStatColumn.duration:
+      return SeasonStatSortKey.duration;
+    case SeasonStatColumn.gap:
+      return SeasonStatSortKey.gap;
+    case SeasonStatColumn.battleScore:
+      return SeasonStatSortKey.finalScore;
+    case SeasonStatColumn.winsBefore:
+      return SeasonStatSortKey.winsBefore;
+    case SeasonStatColumn.winsAfter:
+      return SeasonStatSortKey.winsAfter;
+    case SeasonStatColumn.multiplier:
+      return SeasonStatSortKey.multiplier;
+    case SeasonStatColumn.gained:
+      return SeasonStatSortKey.gainedScore;
+  }
+}
 
 class _SeasonStatsScreenState extends State<SeasonStatsScreen> {
   bool get _isZh => widget.locale == 'zh';
@@ -95,6 +229,14 @@ class _SeasonStatsScreenState extends State<SeasonStatsScreen> {
   SeasonStatSortKey _sortKey = SeasonStatSortKey.startTime;
   bool _ascending = false;
 
+  /// 用户自定义的列顺序（不含固定的「操作」列）
+  List<SeasonStatColumn> _columns = List<SeasonStatColumn>.of(
+    kDefaultSeasonStatColumns,
+  );
+
+  /// 自定义导出目录（空 = 用默认目录）
+  String _exportDir = '';
+
   @override
   void initState() {
     super.initState();
@@ -127,6 +269,16 @@ class _SeasonStatsScreenState extends State<SeasonStatsScreen> {
 
   /// 跨赛季查询时（不止一个赛季在表里）才显示「赛季」列
   bool get _showSeasonColumn => _groups.length > 1;
+
+  /// 实际要渲染的列（跨赛季时才插入「赛季」列，位置跟着用户顺序走）
+  List<SeasonStatColumn> get _visibleColumns {
+    if (!_showSeasonColumn) return _columns;
+    // 「赛季」列插在用户顺序里「场次」之前；用户没排过就放最前
+    final out = List<SeasonStatColumn>.of(_columns);
+    final idx = out.indexOf(SeasonStatColumn.order);
+    out.insert(idx < 0 ? 0 : idx, SeasonStatColumn.season);
+    return out;
+  }
 
   /// 切换赛季筛选（派生行要跟着重算，否则场次/胜场还是旧赛季的）
   void _setSeasonFilter(String v) {
@@ -163,7 +315,11 @@ class _SeasonStatsScreenState extends State<SeasonStatsScreen> {
     final records = await SeasonStatsStore.load();
     final archives = await SeasonStatsStore.loadArchives();
     final name = await SeasonStatsStore.loadCurrentName();
+    final order = await SeasonStatsStore.loadColumnOrder();
+    final exportDir = await SeasonStatsStore.loadExportDir();
     if (!mounted) return;
+    setState(() => _columns = normalizeColumnOrder(order));
+    _exportDir = exportDir;
     _setData(
       records: records,
       archives: archives,
@@ -440,6 +596,10 @@ class _SeasonStatsScreenState extends State<SeasonStatsScreen> {
                   _manageArchives();
                 case 'rename':
                   _renameCurrentSeason();
+                case 'columns':
+                  _editColumnOrder();
+                case 'exportDir':
+                  _editExportSettings();
                 case 'export':
                   _exportToFile();
                 case 'import':
@@ -471,6 +631,21 @@ class _SeasonStatsScreenState extends State<SeasonStatsScreen> {
                 child: _menuRow(
                   Icons.drive_file_rename_outline,
                   _t('重命名当前赛季', 'Rename season'),
+                ),
+              ),
+              const PopupMenuDivider(),
+              PopupMenuItem(
+                value: 'columns',
+                child: _menuRow(
+                  Icons.view_column_outlined,
+                  _t('调整列顺序', 'Column order'),
+                ),
+              ),
+              PopupMenuItem(
+                value: 'exportDir',
+                child: _menuRow(
+                  Icons.folder_outlined,
+                  _t('导出设置（目录）', 'Export folder'),
                 ),
               ),
               const PopupMenuDivider(),
@@ -889,17 +1064,159 @@ class _SeasonStatsScreenState extends State<SeasonStatsScreen> {
 
   // ==================== 文件导入 / 导出 ====================
 
-  /// 导出目录：手机用应用缓存，桌面用「下载/CatsKit」
-  Directory _exportDir() {
+  /// 默认导出目录
+  ///
+  /// - 桌面：`~/Downloads/CatsKit`（用户能直接看到）
+  /// - Android：`/storage/emulated/0/Download/CatsKit`（公共下载目录，比应用私有目录好找；
+  ///   若系统不允许写入，导出时会报错并提示改用自定义目录）
+  /// - iOS：应用缓存目录（iOS 没有公共可写目录，导出后走「打开文件」分享出去）
+  String _defaultExportDir() {
     final sep = Platform.pathSeparator;
-    if (Platform.isAndroid || Platform.isIOS) {
-      return Directory('${Directory.systemTemp.path}${sep}CatsKit');
+    if (Platform.isAndroid) {
+      return '/storage/emulated/0/Download${sep}CatsKit';
+    }
+    if (Platform.isIOS) {
+      return '${Directory.systemTemp.path}${sep}CatsKit';
     }
     final home =
         Platform.environment['USERPROFILE'] ??
         Platform.environment['HOME'] ??
         Directory.current.path;
-    return Directory('$home${sep}Downloads${sep}CatsKit');
+    return '$home${sep}Downloads${sep}CatsKit';
+  }
+
+  /// 当前生效的导出目录（自定义优先）
+  String get _effectiveExportDir =>
+      _exportDir.trim().isEmpty ? _defaultExportDir() : _exportDir.trim();
+
+  /// 列顺序设置：上下移动调整，可恢复默认
+  Future<void> _editColumnOrder() async {
+    var order = List<SeasonStatColumn>.of(_columns);
+    final saved = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) {
+          void move(int i, int delta) {
+            final j = i + delta;
+            if (j < 0 || j >= order.length) return;
+            setDialogState(() {
+              final tmp = order[i];
+              order[i] = order[j];
+              order[j] = tmp;
+            });
+          }
+
+          return AlertDialog(
+            title: Text(_t('调整列顺序', 'Column order')),
+            content: SizedBox(
+              width: 380,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    _t(
+                      '用箭头调整左右顺序（越靠上越靠左）。「操作」列固定在最右。',
+                      'Use the arrows to reorder columns (top = leftmost). '
+                          'The Actions column stays rightmost.',
+                    ),
+                    style: const TextStyle(fontSize: 12),
+                  ),
+                  const SizedBox(height: 8),
+                  Flexible(
+                    child: ListView.builder(
+                      shrinkWrap: true,
+                      itemCount: order.length,
+                      itemBuilder: (ctx, i) {
+                        final c = order[i];
+                        return ListTile(
+                          dense: true,
+                          contentPadding: EdgeInsets.zero,
+                          leading: Text(
+                            '${i + 1}',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey[600],
+                            ),
+                          ),
+                          title: Text(
+                            seasonStatColumnLabel(c, _isZh),
+                            style: const TextStyle(fontSize: 14),
+                          ),
+                          trailing: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              IconButton(
+                                icon: const Icon(Icons.arrow_upward, size: 18),
+                                tooltip: _t('左移', 'Move left'),
+                                visualDensity: VisualDensity.compact,
+                                onPressed: i == 0 ? null : () => move(i, -1),
+                              ),
+                              IconButton(
+                                icon: const Icon(
+                                  Icons.arrow_downward,
+                                  size: 18,
+                                ),
+                                tooltip: _t('右移', 'Move right'),
+                                visualDensity: VisualDensity.compact,
+                                onPressed: i == order.length - 1
+                                    ? null
+                                    : () => move(i, 1),
+                              ),
+                            ],
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => setDialogState(
+                  () => order = List<SeasonStatColumn>.of(
+                    kDefaultSeasonStatColumns,
+                  ),
+                ),
+                child: Text(_t('恢复默认', 'Reset')),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: Text(_t('取消', 'Cancel')),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.pop(ctx, true),
+                child: Text(_t('保存', 'Save')),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+    if (saved != true || !mounted) return;
+    await SeasonStatsStore.saveColumnOrder(
+      order.map(seasonStatColumnName).toList(),
+    );
+    if (!mounted) return;
+    setState(() => _columns = order);
+  }
+
+  /// 导出设置：自定义导出目录
+  Future<void> _editExportSettings() async {
+    final dir = await showDialog<String>(
+      context: context,
+      builder: (ctx) => _ExportSettingsDialog(
+        locale: widget.locale,
+        initialDir: _effectiveExportDir,
+        defaultDir: _defaultExportDir(),
+      ),
+    );
+    if (dir == null || !mounted) return;
+    await SeasonStatsStore.saveExportDir(dir);
+    if (!mounted) return;
+    setState(() => _exportDir = dir);
+    _snack(_t('导出目录已保存', 'Export folder saved'));
   }
 
   /// 导出到文件：一份 JSON（可再导入）+ 一份 TSV（Excel 可直接打开）
@@ -924,7 +1241,7 @@ class _SeasonStatsScreenState extends State<SeasonStatsScreen> {
     }
 
     try {
-      final dir = _exportDir();
+      final dir = Directory(_effectiveExportDir);
       if (!await dir.exists()) await dir.create(recursive: true);
       final stamp = formatSeasonStatFileStamp(now);
       final base = onlyArchive != null
@@ -1525,10 +1842,13 @@ class _SeasonStatsScreenState extends State<SeasonStatsScreen> {
 
   Widget _buildTable(List<SeasonStatRow> rows) {
     final dark = Theme.of(context).brightness == Brightness.dark;
-    final showSeason = _showSeasonColumn;
+    final columns = _visibleColumns;
     return LayoutBuilder(
       builder: (context, constraints) {
-        final width = math.max(_tableWidth(showSeason: showSeason), constraints.maxWidth);
+        final width = math.max(
+          _tableWidth(columns),
+          constraints.maxWidth,
+        );
         return Scrollbar(
           controller: _hCtrl,
           thumbVisibility: true,
@@ -1539,7 +1859,7 @@ class _SeasonStatsScreenState extends State<SeasonStatsScreen> {
               width: width,
               child: Column(
                 children: [
-                  _buildHeader(dark, showSeason: showSeason),
+                  _buildHeader(dark, columns: columns),
                   Expanded(
                     child: rows.isEmpty
                         ? _buildEmpty()
@@ -1550,7 +1870,7 @@ class _SeasonStatsScreenState extends State<SeasonStatsScreen> {
                               rows[index],
                               index,
                               dark,
-                              showSeason: showSeason,
+                              columns: columns,
                             ),
                           ),
                   ),
@@ -1563,7 +1883,10 @@ class _SeasonStatsScreenState extends State<SeasonStatsScreen> {
     );
   }
 
-  Widget _buildHeader(bool dark, {required bool showSeason}) {
+  Widget _buildHeader(
+    bool dark, {
+    required List<SeasonStatColumn> columns,
+  }) {
     Widget cell(
       String label, {
       double width = 0,
@@ -1614,63 +1937,12 @@ class _SeasonStatsScreenState extends State<SeasonStatsScreen> {
       padding: const EdgeInsets.symmetric(horizontal: _kTablePad),
       child: Row(
         children: [
-          if (showSeason)
+          for (final c in columns)
             cell(
-              _t('赛季', 'Season'),
-              width: _kColSeason,
-              sortKey: SeasonStatSortKey.season,
+              seasonStatColumnLabel(c, _isZh),
+              width: seasonStatColumnWidth(c),
+              sortKey: seasonStatColumnSortKey(c),
             ),
-          cell(_t('场次', 'No.'), width: _kColIndex, sortKey: SeasonStatSortKey.order),
-          cell(
-            _t('对战', 'Opponent'),
-            width: _kColEnemy,
-            sortKey: SeasonStatSortKey.enemyId,
-          ),
-          cell(
-            _t('开始', 'Start'),
-            width: _kColTime,
-            sortKey: SeasonStatSortKey.startTime,
-          ),
-          cell(
-            _t('结束', 'End'),
-            width: _kColTime,
-            sortKey: SeasonStatSortKey.endTime,
-          ),
-          cell(
-            _t('持续', 'Duration'),
-            width: _kColDuration,
-            sortKey: SeasonStatSortKey.duration,
-          ),
-          cell(
-            _t('间隔', 'Gap'),
-            width: _kColGap,
-            sortKey: SeasonStatSortKey.gap,
-          ),
-          cell(
-            _t('战斗分', 'Battle'),
-            width: _kColScore,
-            sortKey: SeasonStatSortKey.finalScore,
-          ),
-          cell(
-            _t('赛前胜场', 'Wins before'),
-            width: _kColWins,
-            sortKey: SeasonStatSortKey.winsBefore,
-          ),
-          cell(
-            _t('赛后胜场', 'Wins after'),
-            width: _kColWins,
-            sortKey: SeasonStatSortKey.winsAfter,
-          ),
-          cell(
-            _t('系数', 'x'),
-            width: _kColMultiplier,
-            sortKey: SeasonStatSortKey.multiplier,
-          ),
-          cell(
-            _t('本场得分', 'Gained'),
-            width: _kColGained,
-            sortKey: SeasonStatSortKey.gainedScore,
-          ),
           cell(_t('操作', 'Actions'), width: _kColOps),
         ],
       ),
@@ -1681,7 +1953,7 @@ class _SeasonStatsScreenState extends State<SeasonStatsScreen> {
     SeasonStatRow r,
     int index,
     bool dark, {
-    required bool showSeason,
+    required List<SeasonStatColumn> columns,
   }) {
     Widget cell(String text, double width, {TextStyle? style}) => SizedBox(
       width: width,
@@ -1697,6 +1969,101 @@ class _SeasonStatsScreenState extends State<SeasonStatsScreen> {
       fontSize: 12,
       color: dark ? Colors.white38 : Colors.grey[500],
     );
+
+    /// 按列类型渲染单元格
+    Widget cellOf(SeasonStatColumn c) {
+      switch (c) {
+        case SeasonStatColumn.season:
+          return cell(
+            r.seasonName.isEmpty ? '-' : r.seasonName,
+            _kColSeason,
+            style: TextStyle(
+              fontSize: 12,
+              color: dark ? Colors.white70 : Colors.teal[800],
+            ),
+          );
+        case SeasonStatColumn.order:
+          return SizedBox(
+            width: _kColIndex,
+            child: Row(
+              children: [
+                Text('${r.order}', style: dim),
+                const SizedBox(width: 3),
+                Icon(
+                  r.fromTimer ? Icons.timer : Icons.edit_note,
+                  size: 12,
+                  color: r.fromTimer ? Colors.teal : Colors.blueGrey,
+                ),
+              ],
+            ),
+          );
+        case SeasonStatColumn.enemy:
+          return cell(
+            r.enemyId.isEmpty ? '-' : r.enemyId,
+            _kColEnemy,
+            style: r.enemyId.isEmpty ? dim : null,
+          );
+        case SeasonStatColumn.start:
+          return cell(formatSeasonStatTime(r.startTime), _kColTime);
+        case SeasonStatColumn.end:
+          return cell(formatSeasonStatTime(r.endTime), _kColTime);
+        case SeasonStatColumn.duration:
+          return cell(
+            formatSeasonStatDuration(r.durationMinutes, zh: _isZh),
+            _kColDuration,
+          );
+        case SeasonStatColumn.gap:
+          return cell(
+            r.gapMinutes == null
+                ? '-'
+                : formatSeasonStatDuration(r.gapMinutes!, zh: _isZh),
+            _kColGap,
+            style: r.gapMinutes == null ? dim : null,
+          );
+        case SeasonStatColumn.battleScore:
+          return cell(
+            formatSeasonStatScore(r.finalScore),
+            _kColScore,
+            style: const TextStyle(fontSize: 13),
+          );
+        case SeasonStatColumn.winsBefore:
+          return cell(
+            r.winsBefore?.toString() ?? '-',
+            _kColWins,
+            style: r.winsBefore == null ? dim : null,
+          );
+        case SeasonStatColumn.winsAfter:
+          return cell(
+            r.winsAfter?.toString() ?? '-',
+            _kColWins,
+            style: r.winsAfter == null
+                ? dim
+                : const TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+          );
+        case SeasonStatColumn.multiplier:
+          return cell(
+            r.multiplier == null ? '-' : '×${r.multiplier}',
+            _kColMultiplier,
+            style: r.multiplier == null
+                ? dim
+                : TextStyle(
+                    fontSize: 13,
+                    color: Colors.deepOrange[700],
+                    fontWeight: FontWeight.bold,
+                  ),
+          );
+        case SeasonStatColumn.gained:
+          return cell(
+            r.gainedScore == null
+                ? '-'
+                : formatSeasonStatScore(r.gainedScore!),
+            _kColGained,
+            style: r.gainedScore == null
+                ? dim
+                : const TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+          );
+      }
+    }
 
     return Material(
       color: index.isEven
@@ -1716,90 +2083,7 @@ class _SeasonStatsScreenState extends State<SeasonStatsScreen> {
           ),
           child: Row(
             children: [
-              if (showSeason)
-                cell(
-                  r.seasonName.isEmpty ? '-' : r.seasonName,
-                  _kColSeason,
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: dark ? Colors.white70 : Colors.teal[800],
-                  ),
-                ),
-              SizedBox(
-                width: _kColIndex,
-                child: Row(
-                  children: [
-                    Text('${r.order}', style: dim),
-                    const SizedBox(width: 3),
-                    Icon(
-                      r.fromTimer ? Icons.timer : Icons.edit_note,
-                      size: 12,
-                      color: r.fromTimer ? Colors.teal : Colors.blueGrey,
-                    ),
-                  ],
-                ),
-              ),
-              cell(
-                r.enemyId.isEmpty ? '-' : r.enemyId,
-                _kColEnemy,
-                style: r.enemyId.isEmpty ? dim : null,
-              ),
-              cell(formatSeasonStatTime(r.startTime), _kColTime),
-              cell(formatSeasonStatTime(r.endTime), _kColTime),
-              cell(
-                formatSeasonStatDuration(r.durationMinutes, zh: _isZh),
-                _kColDuration,
-              ),
-              cell(
-                r.gapMinutes == null
-                    ? '-'
-                    : formatSeasonStatDuration(r.gapMinutes!, zh: _isZh),
-                _kColGap,
-                style: r.gapMinutes == null ? dim : null,
-              ),
-              cell(
-                formatSeasonStatScore(r.finalScore),
-                _kColScore,
-                style: const TextStyle(fontSize: 13),
-              ),
-              cell(
-                r.winsBefore?.toString() ?? '-',
-                _kColWins,
-                style: r.winsBefore == null ? dim : null,
-              ),
-              cell(
-                r.winsAfter?.toString() ?? '-',
-                _kColWins,
-                style: r.winsAfter == null
-                    ? dim
-                    : const TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.bold,
-                      ),
-              ),
-              cell(
-                r.multiplier == null ? '-' : '×${r.multiplier}',
-                _kColMultiplier,
-                style: r.multiplier == null
-                    ? dim
-                    : TextStyle(
-                        fontSize: 13,
-                        color: Colors.deepOrange[700],
-                        fontWeight: FontWeight.bold,
-                      ),
-              ),
-              cell(
-                r.gainedScore == null
-                    ? '-'
-                    : formatSeasonStatScore(r.gainedScore!),
-                _kColGained,
-                style: r.gainedScore == null
-                    ? dim
-                    : const TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.bold,
-                      ),
-              ),
+              for (final c in columns) cellOf(c),
               SizedBox(
                 width: _kColOps,
                 child: Row(
@@ -1863,6 +2147,129 @@ class _SeasonStatsScreenState extends State<SeasonStatsScreen> {
           ),
         ],
       ),
+    );
+  }
+}
+
+// ==================== 导出设置 ====================
+
+/// 导出目录设置对话框（自己持有控制器，避免关闭动画期间被 dispose）
+class _ExportSettingsDialog extends StatefulWidget {
+  final String locale;
+  final String initialDir;
+  final String defaultDir;
+
+  const _ExportSettingsDialog({
+    required this.locale,
+    required this.initialDir,
+    required this.defaultDir,
+  });
+
+  @override
+  State<_ExportSettingsDialog> createState() => _ExportSettingsDialogState();
+}
+
+class _ExportSettingsDialogState extends State<_ExportSettingsDialog> {
+  late final TextEditingController _ctrl = TextEditingController(
+    text: widget.initialDir,
+  );
+
+  bool get _isZh => widget.locale == 'zh';
+  String _t(String zh, String en) => _isZh ? zh : en;
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: Text(_t('导出设置', 'Export settings')),
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              _t(
+                '导出的 JSON / TSV 会写到这里。手机默认是公共「下载」目录；'
+                    '如果系统不允许写入，可以改成别的目录。',
+                'Exported JSON / TSV files go here. On Android the default is the public '
+                    'Download folder; if the system blocks writing there, pick another folder.',
+              ),
+              style: const TextStyle(fontSize: 12),
+            ),
+            const SizedBox(height: 10),
+            TextField(
+              controller: _ctrl,
+              maxLines: 2,
+              minLines: 1,
+              decoration: InputDecoration(
+                labelText: _t('导出目录', 'Export folder'),
+                border: const OutlineInputBorder(),
+                isDense: true,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8,
+              children: [
+                OutlinedButton.icon(
+                  onPressed: () async {
+                    // 先取好 messenger，避免 await 之后再碰 context
+                    final messenger = ScaffoldMessenger.of(context);
+                    try {
+                      final dir = await getDirectoryPath(
+                        confirmButtonText: _t('选择', 'Select'),
+                      );
+                      if (dir == null || dir.isEmpty || !mounted) return;
+                      setState(() => _ctrl.text = dir);
+                    } catch (e) {
+                      if (!mounted) return;
+                      messenger.showSnackBar(
+                        SnackBar(
+                          content: Text(
+                            _t(
+                              '这个平台不支持选目录，请直接填路径：$e',
+                              'Folder picker unsupported here, type the path: $e',
+                            ),
+                            style: const TextStyle(fontSize: 12),
+                          ),
+                        ),
+                      );
+                    }
+                  },
+                  icon: const Icon(Icons.folder_open, size: 16),
+                  label: Text(
+                    _t('选择文件夹', 'Pick folder'),
+                    style: const TextStyle(fontSize: 12),
+                  ),
+                ),
+                OutlinedButton.icon(
+                  onPressed: () => setState(() => _ctrl.text = widget.defaultDir),
+                  icon: const Icon(Icons.restart_alt, size: 16),
+                  label: Text(
+                    _t('恢复默认', 'Default'),
+                    style: const TextStyle(fontSize: 12),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: Text(_t('取消', 'Cancel')),
+        ),
+        FilledButton(
+          onPressed: () => Navigator.pop(context, _ctrl.text.trim()),
+          child: Text(_t('保存', 'Save')),
+        ),
+      ],
     );
   }
 }
