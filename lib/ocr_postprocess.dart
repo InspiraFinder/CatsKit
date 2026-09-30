@@ -107,6 +107,15 @@ List<Map<String, dynamic>> splitCombinedItems(
   return result;
 }
 
+/// 判断文本是否为「纯数字」：去掉数字 / 空白 / 千分位 / 正负号 / 括号后没有其他字符。
+///
+/// 用来把「开局不久的小分数」（如 `15`）与混入文字的噪声数字
+/// （如 `E没有要求9`、`60。田交有美水`、`X2`）区分开。
+bool _isPureNumberText(String text) {
+  final stripped = text.replaceAll(RegExp(r'[\d\s\.,\-+()]'), '');
+  return stripped.isEmpty && RegExp(r'\d').hasMatch(text);
+}
+
 /// 判断文本是否为「纯 0」数字（去除数字/空白/符号后无其他字符，且含 0）
 /// 用于把独立的 `0`（如敌方零分）识别为零分保底，同时排除
 /// `0天。|我的派`、`有爪你就来9` 这类混入中文/字母的噪声文本。
@@ -276,6 +285,17 @@ Map<String, dynamic> classifyByPosition(
           leftZero.add(digits);
         } else {
           rightZero.add(digits);
+        }
+      } else if (v >= 1 && _isPureNumberText(t)) {
+        // 小分数：开局不久时分数可能只有两位数（如敌方 15）。
+        // 要求文本是**纯数字**，避免把「E没有要求9」「60。田交有美水」
+        // 这类混入文字的噪声数字当成分数。
+        // 注意：这里只作为候选，取分时仍取该侧最大值，
+        // 所以不会顶掉正常的大分数。
+        if (isLeft(it)) {
+          leftNum.add((v, digits));
+        } else {
+          rightNum.add((v, digits));
         }
       }
     }
