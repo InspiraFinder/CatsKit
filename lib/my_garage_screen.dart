@@ -1196,34 +1196,56 @@ class _MyGarageScreenState extends State<MyGarageScreen> {
           ],
         ),
         const SizedBox(height: 8),
-        _buildWholeVehicleCard(
-          v,
-          allParts,
-          bodyBonusPct,
-          weaponBonusPct,
-          wheelBonusPct,
-          gadgetBonusPct,
-          sponsorBonusPct,
+        // 整车数值 + 每个部件对整车的贡献（用于算占比），只算一次
+        Builder(
+          builder: (context) {
+            final stats = _computeVehicleStats(
+              v,
+              allParts,
+              bodyBonusPct,
+              weaponBonusPct,
+              wheelBonusPct,
+              gadgetBonusPct,
+              sponsorBonusPct,
+            );
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildWholeVehicleCard(
+                  v,
+                  stats,
+                  bodyBonusPct,
+                  weaponBonusPct,
+                  wheelBonusPct,
+                  gadgetBonusPct,
+                  sponsorBonusPct,
+                ),
+                const SizedBox(height: 6),
+                for (final p in allParts)
+                  _buildPartStatCard(
+                    v,
+                    p,
+                    bodyBonusPct,
+                    weaponBonusPct,
+                    wheelBonusPct,
+                    gadgetBonusPct,
+                    sponsorBonusPct,
+                    bodyPart,
+                    extraWeapon,
+                    stats,
+                  ),
+              ],
+            );
+          },
         ),
-        const SizedBox(height: 6),
-        for (final p in allParts)
-          _buildPartStatCard(
-            v,
-            p,
-            bodyBonusPct,
-            weaponBonusPct,
-            wheelBonusPct,
-            gadgetBonusPct,
-            sponsorBonusPct,
-            bodyPart,
-            extraWeapon,
-          ),
       ],
     );
   }
 
   /// 整车数值汇总（额外加成放在最后算：裸 → 分类 → 赞助 → 额外 → 最终）
-  Widget _buildWholeVehicleCard(
+  ///
+  /// 同时记录**每个部件对整车最终 HP / ATK 的贡献**，供部件卡片算「整车占比」。
+  _VehicleStats _computeVehicleStats(
     GarageVehicle v,
     List<PartData> allParts,
     int bodyB,
@@ -1232,9 +1254,7 @@ class _MyGarageScreenState extends State<MyGarageScreen> {
     int gadgetB,
     int sponsorB,
   ) {
-    double bareHp = 0, afterCatHp = 0, afterSponsorHp = 0, finalHp = 0;
-    double bareAtk = 0, afterCatAtk = 0, afterSponsorAtk = 0, finalAtk = 0;
-    bool hasHp = false, hasAtk = false, hasExtra = false;
+    final s = _VehicleStats();
     for (final p in allParts) {
       final lv = (v.levels[p.id] ?? 1).clamp(1, p.maxLevel).toInt();
       int catB;
@@ -1253,23 +1273,49 @@ class _MyGarageScreenState extends State<MyGarageScreen> {
           break;
       }
       final extra = (v.bonuses[p.id] ?? 0).clamp(0, 150);
-      if (extra > 0) hasExtra = true;
+      if (extra > 0) s.hasExtra = true;
       final cm = 1 + catB / 100.0;
       final sm = 1 + sponsorB / 100.0;
       final em = 1 + extra / 100.0;
       final hpV = p.hp(lv);
       final atkV = p.atk(lv);
-      if (hpV > 0) hasHp = true;
-      if (atkV > 0) hasAtk = true;
-      bareHp += hpV;
-      bareAtk += atkV;
-      afterCatHp += hpV * cm;
-      afterCatAtk += atkV * cm;
-      afterSponsorHp += hpV * cm * sm;
-      afterSponsorAtk += atkV * cm * sm;
-      finalHp += hpV * cm * em * sm;
-      finalAtk += atkV * cm * em * sm;
+      if (hpV > 0) s.hasHp = true;
+      if (atkV > 0) s.hasAtk = true;
+      s.bareHp += hpV;
+      s.bareAtk += atkV;
+      s.afterCatHp += hpV * cm;
+      s.afterCatAtk += atkV * cm;
+      s.afterSponsorHp += hpV * cm * sm;
+      s.afterSponsorAtk += atkV * cm * sm;
+      final hpFinal = hpV * cm * em * sm;
+      final atkFinal = atkV * cm * em * sm;
+      s.finalHp += hpFinal;
+      s.finalAtk += atkFinal;
+      s.hpById[p.id] = hpFinal;
+      s.atkById[p.id] = atkFinal;
     }
+    return s;
+  }
+
+  /// 快捷调整部件等级（±1），并立即持久化
+  void _changeLevel(GarageVehicle v, PartData p, int delta) {
+    final cur = (v.levels[p.id] ?? 1).clamp(1, p.maxLevel).toInt();
+    final next = (cur + delta).clamp(1, p.maxLevel).toInt();
+    if (next == cur) return;
+    setState(() => v.levels[p.id] = next);
+    _persist();
+  }
+
+  /// 整车数值卡片（数值来自 [_computeVehicleStats]，与部件占比同源）
+  Widget _buildWholeVehicleCard(
+    GarageVehicle v,
+    _VehicleStats s,
+    int bodyB,
+    int weaponB,
+    int wheelB,
+    int gadgetB,
+    int sponsorB,
+  ) {
     final hasCat = bodyB + weaponB + wheelB + gadgetB > 0;
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final subColor = isDark ? Colors.white70 : Colors.grey[800];
@@ -1290,7 +1336,7 @@ class _MyGarageScreenState extends State<MyGarageScreen> {
           '${_t('赞助+', 'Sponsor+')}$sponsorB%: ${_fmt(afterSponsor)}',
         );
       }
-      if (hasExtra) {
+      if (s.hasExtra) {
         chain.add('${_t('额外+', 'Extra+')} ${_fmt(finalV)}');
       }
       chain.add('${_t('最终', 'Final')} ${_fmt(finalV)}');
@@ -1337,18 +1383,39 @@ class _MyGarageScreenState extends State<MyGarageScreen> {
               ],
             ),
             const SizedBox(height: 4),
-            if (hasHp)
-              line(_t('HP', 'HP'), bareHp, afterCatHp, afterSponsorHp, finalHp),
-            if (hasAtk)
+            if (s.hasHp)
+              line(
+                _t('HP', 'HP'),
+                s.bareHp,
+                s.afterCatHp,
+                s.afterSponsorHp,
+                s.finalHp,
+              ),
+            if (s.hasAtk)
               line(
                 _t('ATK', 'ATK'),
-                bareAtk,
-                afterCatAtk,
-                afterSponsorAtk,
-                finalAtk,
+                s.bareAtk,
+                s.afterCatAtk,
+                s.afterSponsorAtk,
+                s.finalAtk,
               ),
           ],
         ),
+      ),
+    );
+  }
+
+  /// 部件卡片上的等级快捷按钮（±1）
+  Widget _levelButton(IconData icon, VoidCallback? onPressed, String tooltip) {
+    return IconButton(
+      icon: Icon(icon, size: 16),
+      onPressed: onPressed,
+      tooltip: tooltip,
+      visualDensity: VisualDensity.compact,
+      padding: EdgeInsets.zero,
+      constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+      style: IconButton.styleFrom(
+        foregroundColor: onPressed == null ? Colors.grey : Colors.blue,
       ),
     );
   }
@@ -1381,6 +1448,7 @@ class _MyGarageScreenState extends State<MyGarageScreen> {
     int sponsorB,
     PartData? bodyPart,
     PartData? extraWeapon,
+    _VehicleStats stats,
   ) {
     final lv = (v.levels[p.id] ?? 1).clamp(1, p.maxLevel);
     final extra = (v.bonuses[p.id] ?? 0).clamp(0, 150);
@@ -1402,6 +1470,18 @@ class _MyGarageScreenState extends State<MyGarageScreen> {
     final slotDesc = _slotDescription(v, p, bodyPart, extraWeapon);
     final shape = kPartShapeData[p.id];
 
+    // 该部件对整车最终 HP / ATK 的占比
+    final hpShare = stats.finalHp > 0
+        ? (stats.hpById[p.id] ?? 0) / stats.finalHp
+        : 0.0;
+    final atkShare = stats.finalAtk > 0
+        ? (stats.atkById[p.id] ?? 0) / stats.finalAtk
+        : 0.0;
+    final shareParts = <String>[
+      if (p.hp1 > 0) 'HP ${(hpShare * 100).toStringAsFixed(1)}%',
+      if (p.atk1 > 0) 'ATK ${(atkShare * 100).toStringAsFixed(1)}%',
+    ];
+
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
       child: Padding(
@@ -1419,15 +1499,50 @@ class _MyGarageScreenState extends State<MyGarageScreen> {
                 const SizedBox(width: 6),
                 Expanded(
                   child: Text(
-                    '${_pn(p, widget.locale)} (${p.rarityLabel} · ${_t('Lv', 'Lv')}$lv${slotDesc.isNotEmpty ? ' · $slotDesc' : ''})',
+                    '${_pn(p, widget.locale)} (${p.rarityLabel}${slotDesc.isNotEmpty ? ' · $slotDesc' : ''})',
                     style: const TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
                 ),
+                // 等级快捷 -1 / +1
+                _levelButton(
+                  Icons.remove,
+                  lv > 1 ? () => _changeLevel(v, p, -1) : null,
+                  _t('降 1 级', '-1 level'),
+                ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 2),
+                  child: Text(
+                    'Lv$lv',
+                    style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+                _levelButton(
+                  Icons.add,
+                  lv < p.maxLevel ? () => _changeLevel(v, p, 1) : null,
+                  _t('升 1 级', '+1 level'),
+                ),
               ],
             ),
+            if (shareParts.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(top: 2),
+                child: Text(
+                  '${_t('整车占比', 'Share')}: ${shareParts.join(' · ')}',
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                    color: Theme.of(context).brightness == Brightness.dark
+                        ? Colors.lightBlueAccent
+                        : Colors.blue[700],
+                  ),
+                ),
+              ),
             const SizedBox(height: 4),
             if (p.hp1 > 0)
               _statLine(_t('HP', 'HP'), p.hp(lv), catB, extra, sponsorB),
@@ -1582,6 +1697,29 @@ class _MyGarageScreenState extends State<MyGarageScreen> {
         return Colors.purple;
     }
   }
+}
+
+// ==================== 整车数值汇总 ====================
+
+/// 整车数值汇总结果：各阶段的 HP / ATK 合计 + 每个部件对最终值的贡献
+///
+/// 部件卡片用它算「整车占比」：`hpById[id] / finalHp`。
+class _VehicleStats {
+  double bareHp = 0;
+  double afterCatHp = 0;
+  double afterSponsorHp = 0;
+  double finalHp = 0;
+  double bareAtk = 0;
+  double afterCatAtk = 0;
+  double afterSponsorAtk = 0;
+  double finalAtk = 0;
+  bool hasHp = false;
+  bool hasAtk = false;
+  bool hasExtra = false;
+
+  /// 部件 id → 该部件贡献的最终 HP / ATK
+  final Map<String, double> hpById = <String, double>{};
+  final Map<String, double> atkById = <String, double>{};
 }
 
 // ==================== 形状展示（车身 + 已安装部件） ====================
