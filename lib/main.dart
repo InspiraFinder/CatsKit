@@ -3703,7 +3703,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
     throw SocketException('无法解析域名: $host');
   }
 
-  /// 尝试多个 URL，自动 DNS 回退 + 镜像轮询
+  /// 尝试多个 URL，自动镜像轮询。
+  ///
+  /// ⚠️ 不要先把域名解析成 IP、再把 URI 的 host 改写成 IP 去连接：
+  /// Dart 的 `HttpClient` 无法单独指定 TLS 的 SNI，按 IP 连接时 SNI 就是
+  /// 那个 IP。服务器（GitHub / Cloudflare 等）发现 SNI 不匹配会直接中断
+  /// 握手，表现为 `HandshakeException: Connection terminated during
+  /// handshake`。`badCertificateCallback` 只能忽略证书错误，救不了这种中断。
+  ///
+  /// 直接用域名请求时由系统 DNS 解析（含 VPN/代理的 fake-ip），
+  /// 并由 `SecureSocket` 自动带上正确的 SNI，与浏览器行为一致。
   Future<HttpClientResponse> tryFetchUrls(
     HttpClient client,
     List<String> urls, {
@@ -3712,31 +3721,53 @@ class _SettingsScreenState extends State<SettingsScreen> {
     String? lastError;
     for (final url in urls) {
       try {
-        final uri = Uri.parse(url);
-        final ip = await resolveHost(uri.host);
-        final ipUri = uri.replace(host: ip);
-
         final request = await client
-            .getUrl(ipUri)
+            .getUrl(Uri.parse(url))
             .timeout(const Duration(seconds: 15));
-        request.headers.set('Host', uri.host);
         if (headers != null) {
           for (final e in headers.entries) {
             request.headers.set(e.key, e.value);
           }
         }
-        return await request.close();
+        return await request.close().timeout(const Duration(seconds: 20));
       } catch (e) {
         lastError = e.toString();
         continue;
       }
     }
+    // 只有在「系统 DNS 完全不可用」时才用 DoH 解析 + IP 直连兜底。
+    // 这种连接没有正确 SNI，多数服务器仍会拒绝，但聊胜于无。
+    if (lastError != null && lastError.contains('Failed host lookup')) {
+      for (final url in urls) {
+        try {
+          final uri = Uri.parse(url);
+          final ip = await resolveHost(uri.host);
+          final request = await client
+              .getUrl(uri.replace(host: ip))
+              .timeout(const Duration(seconds: 15));
+          request.headers.set('Host', uri.host);
+          if (headers != null) {
+            for (final e in headers.entries) {
+              request.headers.set(e.key, e.value);
+            }
+          }
+          return await request.close().timeout(const Duration(seconds: 20));
+        } catch (e) {
+          lastError = e.toString();
+          continue;
+        }
+      }
+    }
     throw Exception('下载失败: $lastError');
   }
 
-  /// 生成直连 + 所有可用镜像的 URL 列表
+  /// 生成可用下载地址列表：当前配置 → 直连 → 预设镜像
   List<String> urlCandidates(String originalUrl) {
-    final candidates = <String>[getMirrorUrl(originalUrl)]; // 当前配置
+    final candidates = <String>[getMirrorUrl(originalUrl)]; // 当前配置（可能即直连）
+    // 直连紧跟其后：设备能直连 GitHub 时不必先等镜像超时
+    if (!candidates.contains(originalUrl)) {
+      candidates.add(originalUrl);
+    }
     for (final m in presetMirrors) {
       if (m.isEmpty) continue; // 空 = 直连，已包含
       final base = m.endsWith('/') ? m : '$m/';
@@ -3744,10 +3775,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
       if (!candidates.contains(mirrored)) {
         candidates.add(mirrored);
       }
-    }
-    // 确保直连也在列表里
-    if (!candidates.contains(originalUrl)) {
-      candidates.add(originalUrl);
     }
     return candidates;
   }
@@ -4292,6 +4319,24 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
       log('');
       log('--- 3) HTTPS 连通性 (api.github.com) ---');
+      // 3a) 直接用域名（App 实际使用的下载方式：系统 DNS + 正确 SNI）
+      try {
+        final client = HttpClient()
+          ..connectionTimeout = const Duration(seconds: 10)
+          ..badCertificateCallback = (_, _, _) => true;
+        final req = await client
+            .getUrl(Uri.parse('https://api.github.com/rate_limit'))
+            .timeout(const Duration(seconds: 15));
+        req.headers.set('User-Agent', 'CatsKit');
+        req.headers.set('Accept', 'application/vnd.github+json');
+        final res = await req.close().timeout(const Duration(seconds: 15));
+        log('3a) 直连域名 -> HTTP ${res.statusCode}');
+        client.close(force: true);
+      } catch (e) {
+        log('3a) 直连域名 -> ❌ $e');
+      }
+
+      // 3b) 旧做法：按 IP 直连（SNI 会变成 IP，一般会握手中断，仅作对照）
       for (final dohIp in dohList) {
         try {
           final client = HttpClient()
@@ -4316,7 +4361,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             }
           }
           if (ip == null) {
-            log('Via $dohIp -> ❌ 解析失败');
+            log('3b) Via $dohIp -> ❌ 解析失败');
             continue;
           }
           final testUri = Uri.parse('https://$ip');
@@ -4327,10 +4372,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
           testReq.headers.set('User-Agent', 'CatsKit');
           testReq.headers.set('Accept', 'application/vnd.github+json');
           final testRes = await testReq.close();
-          log('Via $dohIp (IP=$ip) -> HTTP ${testRes.statusCode}');
+          log('3b) Via $dohIp (IP=$ip) -> HTTP ${testRes.statusCode}');
           client.close(force: true);
         } catch (e) {
-          log('Via $dohIp -> ❌ $e');
+          log('3b) Via $dohIp -> ❌ $e');
         }
       }
     } catch (e) {
