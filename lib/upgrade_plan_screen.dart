@@ -45,9 +45,9 @@ enum _PlanColumn {
   cumCash('cumCash', '累计紫票', 'CumCash'),
   cumToken('cumToken', '累计代币', 'CumToken'),
   hpPerToken('hpPerToken', 'HP/代币', 'HP/Token'),
-  hpPerCash('hpPerCash', 'HP/紫票', 'HP/Cash'),
+  hpPerKiloCash('hpPerKiloCash', 'HP/千紫票', 'HP/kCash'),
   atkPerToken('atkPerToken', 'ATK/代币', 'ATK/Token'),
-  atkPerCash('atkPerCash', 'ATK/紫票', 'ATK/Cash');
+  atkPerKiloCash('atkPerKiloCash', 'ATK/千紫票', 'ATK/kCash');
 
   final String id;
   final String zh;
@@ -55,6 +55,33 @@ enum _PlanColumn {
   const _PlanColumn(this.id, this.zh, this.en);
 
   String label(bool isZh) => isZh ? zh : en;
+}
+
+/// 按升级策略给出默认列顺序（列 id 形式，便于测试）
+List<String> defaultPlanColumnIds(UpgradeStrategy s) =>
+    <String>[for (final c in _defaultPlanColumns(s)) c.id];
+
+/// 按升级策略给出默认列顺序
+///
+/// 前五项固定为：步 / 部件 / Lv / 收益（HP+ 或 ATK+）/ 性价比（对应策略的比值列），
+/// 其余列按枚举顺序接在后面。
+List<_PlanColumn> _defaultPlanColumns(UpgradeStrategy s) {
+  final gain = s.useHp ? _PlanColumn.hpGain : _PlanColumn.atkGain;
+  final ratio = s.useHp
+      ? (s.useToken ? _PlanColumn.hpPerToken : _PlanColumn.hpPerKiloCash)
+      : (s.useToken ? _PlanColumn.atkPerToken : _PlanColumn.atkPerKiloCash);
+  final head = <_PlanColumn>[
+    _PlanColumn.step,
+    _PlanColumn.part,
+    _PlanColumn.level,
+    gain,
+    ratio,
+  ];
+  return <_PlanColumn>[
+    ...head,
+    for (final c in _PlanColumn.values)
+      if (!head.contains(c)) c,
+  ];
 }
 
 /// 单步升级结果
@@ -74,9 +101,11 @@ class UpgradeStepResult {
   final int cumulativeCash;
   final int cumulativeToken;
   final double hpPerToken;
-  final double hpPerCash;
+  /// HP / **千**紫票（紫票单价太小，按千紫票算才看得清）
+  final double hpPerKiloCash;
   final double atkPerToken;
-  final double atkPerCash;
+  /// ATK / **千**紫票
+  final double atkPerKiloCash;
 
   const UpgradeStepResult({
     required this.step,
@@ -94,9 +123,9 @@ class UpgradeStepResult {
     required this.cumulativeCash,
     required this.cumulativeToken,
     required this.hpPerToken,
-    required this.hpPerCash,
+    required this.hpPerKiloCash,
     required this.atkPerToken,
-    required this.atkPerCash,
+    required this.atkPerKiloCash,
   });
 }
 
@@ -252,9 +281,10 @@ List<UpgradeStepResult> computeUpgradePlan({
         cumulativeCash: cumCash,
         cumulativeToken: cumToken,
         hpPerToken: _ratio(best.hpGain, best.tokenCost),
-        hpPerCash: _ratio(best.hpGain, best.cashCost),
+        // 紫票按「千紫票」计，否则单价太小（如 0.04）看不出差别
+        hpPerKiloCash: _ratio(best.hpGain * 1000, best.cashCost),
         atkPerToken: _ratio(best.atkGain, best.tokenCost),
-        atkPerCash: _ratio(best.atkGain, best.cashCost),
+        atkPerKiloCash: _ratio(best.atkGain * 1000, best.cashCost),
       ),
     );
   }
@@ -287,7 +317,13 @@ class _UpgradePlanScreenState extends State<UpgradePlanScreen> {
   int _maxSteps = 20; // 计算的最大步数（表格行数，可增加）
   List<UpgradeStepResult>? _steps;
   late Map<String, PartData> _partById;
-  List<_PlanColumn> _columns = List.of(_PlanColumn.values);
+
+  /// 用户自定义的列顺序；null = 跟随升级策略的默认顺序
+  List<_PlanColumn>? _customColumns;
+
+  /// 当前生效的列顺序
+  List<_PlanColumn> get _columns =>
+      _customColumns ?? _defaultPlanColumns(_strategy);
 
   bool get _isZh => widget.locale == 'zh';
   String _t(String zh, String en) => _isZh ? zh : en;
@@ -308,7 +344,7 @@ class _UpgradePlanScreenState extends State<UpgradePlanScreen> {
   static const String _bonusPrefsKey = 'upgrade_plan_use_bonuses';
   static const String _stepsPrefsKey = 'upgrade_plan_max_steps';
 
-  /// 读取持久化的列顺序
+  /// 读取持久化的列顺序（没存过 = 跟随策略）
   Future<void> _loadColumns() async {
     final prefs = await SharedPreferences.getInstance();
     final raw = prefs.getString(_colPrefsKey);
@@ -324,17 +360,25 @@ class _UpgradePlanScreenState extends State<UpgradePlanScreen> {
         if (!ordered.contains(c)) ordered.add(c);
       }
       if (!mounted) return;
-      setState(() => _columns = ordered);
+      setState(() => _customColumns = ordered);
     } catch (_) {}
   }
 
-  /// 保存列顺序
+  /// 保存列顺序（保存后就不再跟随策略）
   Future<void> _saveColumns() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(
       _colPrefsKey,
       jsonEncode([for (final c in _columns) c.id]),
     );
+  }
+
+  /// 恢复默认：清掉自定义顺序，重新跟随升级策略
+  Future<void> _resetColumns() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_colPrefsKey);
+    if (!mounted) return;
+    setState(() => _customColumns = null);
   }
 
   /// 读取持久化的"是否附带额外加成"
@@ -901,12 +945,12 @@ class _UpgradePlanScreenState extends State<UpgradePlanScreen> {
         return Text('${s.cumulativeToken}');
       case _PlanColumn.hpPerToken:
         return Text(_fmtRatio(s.hpPerToken));
-      case _PlanColumn.hpPerCash:
-        return Text(_fmtRatio(s.hpPerCash));
+      case _PlanColumn.hpPerKiloCash:
+        return Text(_fmtRatio(s.hpPerKiloCash));
       case _PlanColumn.atkPerToken:
         return Text(_fmtRatio(s.atkPerToken));
-      case _PlanColumn.atkPerCash:
-        return Text(_fmtRatio(s.atkPerCash));
+      case _PlanColumn.atkPerKiloCash:
+        return Text(_fmtRatio(s.atkPerKiloCash));
     }
   }
 
@@ -922,7 +966,7 @@ class _UpgradePlanScreenState extends State<UpgradePlanScreen> {
                 .toList();
 
             void apply(List<_PlanColumn> list) {
-              setDialogState(() => _columns = list);
+              setDialogState(() => _customColumns = list);
               setState(() {});
               _saveColumns();
             }
@@ -992,9 +1036,14 @@ class _UpgradePlanScreenState extends State<UpgradePlanScreen> {
                       ],
                       const SizedBox(height: 8),
                       TextButton.icon(
-                        onPressed: () => apply(List.of(_PlanColumn.values)),
+                        onPressed: () {
+                          setDialogState(() => _customColumns = null);
+                          _resetColumns();
+                        },
                         icon: const Icon(Icons.restore, size: 18),
-                        label: Text(_t('恢复默认', 'Reset default')),
+                        label: Text(
+                          _t('恢复默认（跟随策略）', 'Reset (follow strategy)'),
+                        ),
                       ),
                     ],
                   ),
