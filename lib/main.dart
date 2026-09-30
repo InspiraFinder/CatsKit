@@ -26,7 +26,7 @@ import 'max_stats_screen.dart';
 import 'mechanism_guide_screen.dart';
 import 'life_sim/life_sim_screen.dart';
 
-const String appVersion = '2.2.1';
+const String appVersion = '2.2.2';
 
 /// 获取部件在当前语言下的显示名称
 String pn(PartData part, String? locale) {
@@ -3614,7 +3614,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     'https://mirror.ghproxy.com/',
   ];
 
-  // 网页工具（非API代理，仅做参考）
+  // 网页工具（非 API 方式，仅做参考）
   // https://github.ur1.fun/
   // https://github.akams.cn/
 
@@ -3711,7 +3711,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   /// 握手，表现为 `HandshakeException: Connection terminated during
   /// handshake`。`badCertificateCallback` 只能忽略证书错误，救不了这种中断。
   ///
-  /// 直接用域名请求时由系统 DNS 解析（含 VPN/代理的 fake-ip），
+  /// 直接用域名请求时由系统 DNS 解析（地址由系统与当前网络环境决定），
   /// 并由 `SecureSocket` 自动带上正确的 SNI，与浏览器行为一致。
   Future<HttpClientResponse> tryFetchUrls(
     HttpClient client,
