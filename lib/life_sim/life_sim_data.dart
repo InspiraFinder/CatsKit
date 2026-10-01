@@ -2131,6 +2131,69 @@ const List<GangLeagueEntry> kGangLeagueRoster = <GangLeagueEntry>[
     rankMin: 3,
     rankMax: 6,
   ),
+  // —— 用户提供的真实帮派（区间为组内名次）——
+  GangLeagueEntry(
+    name: '365',
+    division: GangDivision.gold,
+    rankMin: 1,
+    rankMax: 2,
+  ),
+  GangLeagueEntry(
+    name: '荒原狼',
+    division: GangDivision.gold,
+    rankMin: 3,
+    rankMax: 6,
+  ),
+  // 「365 / 361 / 喵星玩具店 / 今晚的森林 / 黎明重工 / 无敌灰熊」都在金组前 20
+  GangLeagueEntry(
+    name: '361',
+    division: GangDivision.gold,
+    rankMin: 10,
+    rankMax: 20,
+  ),
+  GangLeagueEntry(
+    name: '喵星玩具店',
+    division: GangDivision.gold,
+    rankMin: 10,
+    rankMax: 20,
+  ),
+  GangLeagueEntry(
+    name: '今晚的森林',
+    division: GangDivision.gold,
+    rankMin: 10,
+    rankMax: 10,
+  ),
+  GangLeagueEntry(
+    name: '黎明重工',
+    division: GangDivision.gold,
+    rankMin: 10,
+    rankMax: 10,
+  ),
+  GangLeagueEntry(
+    name: '无敌灰熊',
+    division: GangDivision.gold,
+    rankMin: 10,
+    rankMax: 20,
+  ),
+  GangLeagueEntry(
+    name: 'CHUBBY WOLF',
+    division: GangDivision.gold,
+    rankMin: 20,
+    rankMax: 45,
+  ),
+  GangLeagueEntry(
+    name: 'CHUBBY TIGER',
+    division: GangDivision.gold,
+    rankMin: 20,
+    rankMax: 45,
+  ),
+  // 木组「50 名及之后」（模拟里木组约 120-155 家，区间取 50-120 让它落在后半段）
+  GangLeagueEntry(
+    name: '树荫下',
+    division: GangDivision.wood,
+    rankMin: 50,
+    rankMax: 120,
+  ),
 ];
 
 /// 某个固定帮派在第 [seasonIndex] 个赛季的归属（处理故意升降级轮换）
