@@ -494,8 +494,8 @@ class _LifeSimScreenState extends State<LifeSimScreen> {
                       if (limitedUsed)
                         Text(
                           _t(
-                            '带倍率的决策每天只能用 1 次，今天已用完（明天恢复）',
-                            'Multiplier choices are limited to once per day — used today (resets tomorrow)',
+                            '本活动的决策每天只能用 1 次，今天已用完（明天恢复）',
+                            'Activity choices are limited to once per day - used today (resets tomorrow)',
                           ),
                           style: const TextStyle(
                             fontSize: 12,

@@ -286,7 +286,8 @@ class LifeSimSave {
 
   /// 最近一次使用「带倍率的决策」的天数
   ///
-  /// 齿轮奔袭的决策合计每天只能用 1 次：`limitedChoiceDay == day` 表示今天已用过。
+  /// 该活动的决策合计每天只能用 1 次（废铁行动 / 齿轮奔袭 / 全明星）：
+  /// `limitedChoiceDay == day` 表示今天已用过。
   int limitedChoiceDay;
 
   /// GP：汽油（每天 +[kGpDailyGasoline] 累积；不可为负）

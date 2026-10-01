@@ -803,6 +803,7 @@ class LifeSimEngine {
   /// 当前周期可用的决策列表
   ///
   /// - 废铁行动 / 齿轮奔袭 / 全明星：同一套四档「浅尝辄止…」
+  ///   （废铁行动与齿轮奔袭的四档都是**每天合计只能选 1 次**）
   /// - GP：三档「高/中/低风险」
   /// - 24h锦标赛+黑市 / 太空 / 酒馆 / 王牌：本期不设决策，只能看广告换紫票
   /// - 其他活动：通用 3 个 + 专属 1 个
@@ -833,13 +834,13 @@ class LifeSimEngine {
       );
     }
     final period = periodForDay(save.day);
-    // 带倍率的决策（齿轮奔袭四档）合计每天只能用一次
+    // 本活动的决策合计每天只能用一次（废铁行动 / 齿轮奔袭 / 全明星）
     if (isDailyLimitedChoice(period.activityId) &&
         save.limitedChoiceDay == save.day) {
       return const ChoiceOutcome(
         ok: false,
-        errorZh: '今天已经用过带倍率的决策了（每天 1 次）',
-        errorEn: 'You already used a multiplier choice today (once per day)',
+        errorZh: '今天已经选过本活动的决策了（每天 1 次）',
+        errorEn: "You already used today's activity choice (once per day)",
       );
     }
     save.energy -= choice.energyCost;
@@ -1222,7 +1223,7 @@ class LifeSimEngine {
   bool gearPowerReady(LifeSimSave save) =>
       maxVehiclePower(save) >= kGearMinPower;
 
-  /// 该活动的决策是否「带倍率、每天只能用一次」（齿轮奔袭 / 全明星）
+  /// 该活动的决策是否「每天只能用一次」（废铁行动 / 齿轮奔袭 / 全明星）
   static bool isDailyLimitedChoice(String activityId) =>
       activityId == 'allstar' ||
       (milestoneConfig(activityId)?.oneChoicePerDay ?? false);

@@ -26,7 +26,7 @@ import 'max_stats_screen.dart';
 import 'mechanism_guide_screen.dart';
 import 'life_sim/life_sim_screen.dart';
 
-const String appVersion = '2.2.2';
+const String appVersion = '2.2.3';
 
 /// 获取部件在当前语言下的显示名称
 String pn(PartData part, String? locale) {
@@ -3605,6 +3605,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
   final List<List<int>> downloadChunks = [];
   String downloadedFilePath = '';
 
+  /// 最近一次「检测更新 / 下载更新包」失败时的日志（可一键复制给开发者）
+  String updateErrorLog = '';
+
+  /// 本次操作的实时日志（每次操作开始时清空）
+  final List<String> _opLog = <String>[];
+
+  static const String _updateErrorLogKey = 'update_error_log';
+
   static const List<String> presetMirrors = [
     '',
     'https://ghproxy.com/',
@@ -3639,6 +3647,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
         ? '${Directory.systemTemp.path}${Platform.pathSeparator}CatsKit'
         : '${Platform.environment['USERPROFILE'] ?? Platform.environment['HOME'] ?? Directory.current.path}${Platform.pathSeparator}Downloads${Platform.pathSeparator}CatsKit';
     downloadPathController = TextEditingController(text: defaultPath);
+
+    // 载入上次的报错日志（重启后仍可复制）
+    SharedPreferences.getInstance().then((prefs) {
+      final saved = prefs.getString(_updateErrorLogKey) ?? '';
+      if (saved.isNotEmpty && mounted) {
+        setState(() => updateErrorLog = saved);
+      }
+    });
   }
 
   @override
@@ -3657,20 +3673,92 @@ class _SettingsScreenState extends State<SettingsScreen> {
     return '$base$originalUrl';
   }
 
+  /// 记录一条本次操作的日志（带时间戳）
+  void _logOp(String msg) {
+    final t = DateTime.now();
+    final hh = t.hour.toString().padLeft(2, '0');
+    final mm = t.minute.toString().padLeft(2, '0');
+    final ss = t.second.toString().padLeft(2, '0');
+    _opLog.add('[$hh:$mm:$ss] $msg');
+  }
+
+  /// 把本次操作的日志 + 错误信息存起来（供「复制更新日志」导出）
+  Future<void> _saveErrorLog(String action, Object error) async {
+    final buf = StringBuffer()
+      ..writeln('===== CatsKit 更新日志 =====')
+      ..writeln('时间: ${DateTime.now()}')
+      ..writeln('版本: v$appVersion')
+      ..writeln('平台: ${Platform.operatingSystem}')
+      ..writeln('操作: $action')
+      ..writeln('错误: $error')
+      ..writeln('--- 详细过程 ---');
+    if (_opLog.isEmpty) {
+      buf.writeln('(无)');
+    } else {
+      for (final line in _opLog) {
+        buf.writeln(line);
+      }
+    }
+    final text = buf.toString();
+    updateErrorLog = text;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_updateErrorLogKey, text);
+    } catch (_) {}
+    if (mounted) setState(() {});
+  }
+
+  /// 复制更新日志（仅在有报错记录时可复制）
+  Future<void> copyUpdateLog() async {
+    if (updateErrorLog.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            locale == 'zh'
+                ? '暂无更新日志：只有「检测最新更新」或「下载更新包」出错时才会记录'
+                : 'No log yet: recorded only when checking/downloading fails',
+          ),
+        ),
+      );
+      return;
+    }
+    await Clipboard.setData(ClipboardData(text: updateErrorLog));
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          locale == 'zh'
+              ? '更新日志已复制，可发给开发者排查'
+              : 'Log copied — send it to the developer',
+        ),
+      ),
+    );
+  }
+
   /// 解析域名 -> IP，含 DNS-over-HTTPS 回退（绕过 Android 系统 DNS 缺陷）
-  Future<String> resolveHost(String host) async {
+  Future<String> resolveHost(String host, {void Function(String)? onLog}) async {
     // 1) 系统 DNS
     try {
       final list = await InternetAddress.lookup(host);
-      if (list.isNotEmpty) return list.first.address;
-    } catch (_) {}
+      if (list.isNotEmpty) {
+        onLog?.call('系统 DNS 解析 $host -> ${list.first.address}');
+        return list.first.address;
+      }
+    } catch (e) {
+      onLog?.call('系统 DNS 解析 $host 失败: $e');
+    }
     try {
       final list = await InternetAddress.lookup(
         host,
         type: InternetAddressType.IPv4,
       );
-      if (list.isNotEmpty) return list.first.address;
-    } catch (_) {}
+      if (list.isNotEmpty) {
+        onLog?.call('系统 DNS(IPv4) 解析 $host -> ${list.first.address}');
+        return list.first.address;
+      }
+    } catch (e) {
+      onLog?.call('系统 DNS(IPv4) 解析 $host 失败: $e');
+    }
     // 2) DNS-over-HTTPS 回退（硬编码 IP，绕过系统 DNS 缺陷）
     // 国内可用：Alibaba(223.5.5.5), 114DNS(114.114.114.114), Tencent(119.29.29.29)
     // 海外可用：Google(8.8.8.8), Cloudflare(1.1.1.1)
@@ -3695,10 +3783,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
         if (json['Answer'] != null) {
           for (final a in json['Answer'] as List<dynamic>) {
             final m = a as Map<String, dynamic>;
-            if (m['type'] == 1) return m['data'] as String;
+            if (m['type'] == 1) {
+              final ip = m['data'] as String;
+              onLog?.call('DoH $dohIp 解析 $host -> $ip');
+              return ip;
+            }
           }
         }
-      } catch (_) {}
+        onLog?.call('DoH $dohIp 无 A 记录');
+      } catch (e) {
+        onLog?.call('DoH $dohIp 失败: $e');
+      }
     }
     throw SocketException('无法解析域名: $host');
   }
@@ -3717,10 +3812,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
     HttpClient client,
     List<String> urls, {
     Map<String, String>? headers,
+    void Function(String)? onLog,
   }) async {
     String? lastError;
     for (final url in urls) {
       try {
+        onLog?.call('尝试: $url');
         final request = await client
             .getUrl(Uri.parse(url))
             .timeout(const Duration(seconds: 15));
@@ -3729,8 +3826,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
             request.headers.set(e.key, e.value);
           }
         }
-        return await request.close().timeout(const Duration(seconds: 20));
+        final response = await request.close().timeout(
+          const Duration(seconds: 20),
+        );
+        onLog?.call('  响应: HTTP ${response.statusCode}');
+        return response;
       } catch (e) {
+        onLog?.call('  失败: $e');
         lastError = e.toString();
         continue;
       }
@@ -3738,10 +3840,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
     // 只有在「系统 DNS 完全不可用」时才用 DoH 解析 + IP 直连兜底。
     // 这种连接没有正确 SNI，多数服务器仍会拒绝，但聊胜于无。
     if (lastError != null && lastError.contains('Failed host lookup')) {
+      onLog?.call('系统 DNS 不可用，改用 DoH 解析 + IP 直连兜底');
       for (final url in urls) {
         try {
           final uri = Uri.parse(url);
-          final ip = await resolveHost(uri.host);
+          final ip = await resolveHost(uri.host, onLog: onLog);
+          onLog?.call('尝试(IP 直连): $ip');
           final request = await client
               .getUrl(uri.replace(host: ip))
               .timeout(const Duration(seconds: 15));
@@ -3751,8 +3855,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
               request.headers.set(e.key, e.value);
             }
           }
-          return await request.close().timeout(const Duration(seconds: 20));
+          final response = await request.close().timeout(
+            const Duration(seconds: 20),
+          );
+          onLog?.call('  响应: HTTP ${response.statusCode}');
+          return response;
         } catch (e) {
+          onLog?.call('  失败: $e');
           lastError = e.toString();
           continue;
         }
@@ -3811,6 +3920,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
     const apiUrl =
         'https://api.github.com/repos/InspiraFinder/CatsKit/releases/latest';
 
+    _opLog.clear();
+    _logOp('开始检测更新（当前版本 v$appVersion）');
+
     setState(() {
       isDownloading = true;
       isCheckingUpdate = true;
@@ -3842,6 +3954,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         client,
         urlCandidates(apiUrl),
         headers: headers,
+        onLog: _logOp,
       );
 
       String body;
@@ -3854,6 +3967,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           client,
           urlCandidates(listUrl),
           headers: headers,
+          onLog: _logOp,
         );
 
         if (listResponse.statusCode == HttpStatus.ok) {
@@ -3903,10 +4017,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
         isDownloading = false;
         isCheckingUpdate = false;
       });
+      await _saveErrorLog('检测最新更新', e);
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('检查更新失败: $e')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('检查更新失败: $e'),
+          action: SnackBarAction(
+            label: locale == 'zh' ? '复制日志' : 'Copy log',
+            onPressed: copyUpdateLog,
+          ),
+        ),
+      );
     }
   }
 
@@ -4026,6 +4147,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
     downloadChunks.clear();
     totalDownloadBytes = 0;
 
+    _opLog.clear();
+    _logOp('开始下载更新包: $url');
+
     setState(() {
       isDownloading = true;
       downloadProgress = 0;
@@ -4049,6 +4173,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         client,
         urlCandidates(url),
         headers: headers,
+        onLog: _logOp,
       );
 
       if (response.statusCode != HttpStatus.ok) {
@@ -4159,10 +4284,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
         ),
       );
     } catch (e) {
+      await _saveErrorLog('下载更新包', e);
       if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('下载失败: $e')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('下载失败: $e'),
+          action: SnackBarAction(
+            label: locale == 'zh' ? '复制日志' : 'Copy log',
+            onPressed: copyUpdateLog,
+          ),
+        ),
+      );
     } finally {
       if (mounted) {
         setState(() {
@@ -4727,10 +4859,35 @@ class _SettingsScreenState extends State<SettingsScreen> {
             const SizedBox(height: 12),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16.0),
-              child: ElevatedButton.icon(
-                onPressed: isDownloading ? null : checkForUpdate,
-                icon: const Icon(Icons.search),
-                label: Text(locale == 'zh' ? '检测最新更新' : 'Check for updates'),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      onPressed: isDownloading ? null : checkForUpdate,
+                      icon: const Icon(Icons.search),
+                      label: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: Text(
+                          locale == 'zh' ? '检测最新更新' : 'Check for updates',
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  // 出错时一键复制报错日志，便于反馈给开发者
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: copyUpdateLog,
+                      icon: const Icon(Icons.copy_all, size: 18),
+                      label: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: Text(
+                          locale == 'zh' ? '复制更新日志' : 'Copy log',
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
             const SizedBox(height: 8),
