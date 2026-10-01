@@ -438,7 +438,7 @@ class MilestoneConfig {
   /// 部件奖励是否为「随机 R6 部件」（齿轮奔袭 = true，废铁行动 = 指定 15 种）
   final bool randomR6Parts;
 
-  /// 是否限制「带倍率的决策」每天只能用一次（齿轮奔袭 = true）
+  /// 是否限制「带倍率的决策」每天只能用一次（废铁行动 / 齿轮奔袭 = true）
   ///
   /// 为 true 时，本活动的所有决策**合计每天只能选 1 次**（次日重置）。
   final bool oneChoicePerDay;
@@ -460,6 +460,8 @@ const Map<String, MilestoneConfig> kMilestoneActivities =
         total: kScrapTotalProgress,
         step: 5,
         adProgressTiers: <int>[3, 5, 10],
+        // 四档（+50/+100/+150/+200）与其他活动一样，合计每天只能选 1 次
+        oneChoicePerDay: true,
       ),
       'gear': MilestoneConfig(
         id: 'gear',
@@ -1126,6 +1128,9 @@ int gangStrengthOf({required int gangPower, required int gangActivity}) {
 ///
 /// 和齿轮奔袭 / 全明星用**同一套四档名与精力阶梯**（1/2/4/8 → 0.25/0.5/0.75/1）：
 /// 50/100/150/200 正好是满档 200 的 0.25/0.5/0.75/1 倍。
+///
+/// ⚠️ 与其它活动一样，这四档**合计每天只能选 1 次**
+/// （`MilestoneConfig.oneChoicePerDay = true`）。
 const List<ActivityChoice> kScrapChoices = <ActivityChoice>[
   ActivityChoice(
     id: 'scrap1',
@@ -2144,7 +2149,8 @@ const List<GangLeagueEntry> kGangLeagueRoster = <GangLeagueEntry>[
     rankMin: 3,
     rankMax: 6,
   ),
-  // 「365 / 361 / 喵星玩具店 / 今晚的森林 / 黎明重工 / 无敌灰熊」都在金组前 20
+  // 「365 / 361 / 喵星玩具店 / 无敌灰熊」都在金组前 20
+  // （「金10」＝前 10，因此今晚的森林 / 黎明重工取 1-10）
   GangLeagueEntry(
     name: '361',
     division: GangDivision.gold,
@@ -2160,13 +2166,13 @@ const List<GangLeagueEntry> kGangLeagueRoster = <GangLeagueEntry>[
   GangLeagueEntry(
     name: '今晚的森林',
     division: GangDivision.gold,
-    rankMin: 10,
+    rankMin: 1,
     rankMax: 10,
   ),
   GangLeagueEntry(
     name: '黎明重工',
     division: GangDivision.gold,
-    rankMin: 10,
+    rankMin: 1,
     rankMax: 10,
   ),
   GangLeagueEntry(
@@ -2404,11 +2410,22 @@ GangDivisionBoard buildGangDivisionBoard({
       0,
       rows.length - 1,
     );
-    // 两个固定帮派不能抢同一个名次
-    var guard = 0;
-    while (usedSlots.contains(idx) && guard < rows.length) {
-      idx = (idx + 1) % rows.length;
-      guard++;
+    // 两个固定帮派不能抢同一个名次：优先在**自己的区间内**顺延
+    if (usedSlots.contains(idx)) {
+      final lo = (p.rankMin - 1).clamp(0, rows.length - 1);
+      final hi = (p.rankMax - 1).clamp(0, rows.length - 1);
+      for (var i = lo; i <= hi; i++) {
+        if (!usedSlots.contains(i)) {
+          idx = i;
+          break;
+        }
+      }
+      // 区间内都满了才继续往后找
+      var guard = 0;
+      while (usedSlots.contains(idx) && guard < rows.length) {
+        idx = (idx + 1) % rows.length;
+        guard++;
+      }
     }
     usedSlots.add(idx);
     rows[idx] = GangLeagueRow(
