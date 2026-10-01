@@ -26,9 +26,22 @@ Creative Commons Attribution-NonCommercial 4.0 International
   并指明是否作出了修改。建议的署名方式为：
   「CatsKit 图标 © InspiraFinder，采用 CC BY-NC 4.0 协议授权」，
   并附上项目地址 https://github.com/InspiraFinder/CatsKit
-- 非商业性使用（NC）— 您不得将本素材用于商业目的。
+- 非商业性使用（NC）— **禁止**将本素材用于任何商业目的，本项目不提供商业授权。
 - 不得增加额外限制 — 您不得适用法律术语或技术措施，
   从而限制他人依本协议所能做的事。
+
+其他图片的版权
+--------------
+本仓库中的**游戏内素材图片**（如 `assets/images/`、`assets/images_cn/`、
+`assets/cats_icons/`、`assets/guide/` 等目录下的图片）**不属于上述图标素材**，
+也**不属于本项目的授权范围**，其版权归原权利方所有：
+
+- 游戏开发：ZeptoLab
+- 游戏发行与运营（2025 年起）：Nazara Technologies Limited
+- 中国大陆地区代理（2024 年起）：北京星游无限科技有限公司
+
+这些图片仅作学习、交流与非商业性展示之用，本项目不对其主张任何权利。
+如有侵权，请联系删除。
 
 特别说明
 --------
@@ -37,6 +50,6 @@ Creative Commons Attribution-NonCommercial 4.0 International
   详见仓库根目录的 LICENSE 文件。
 - 本许可与 GPL-3.0 并行存在：图标素材属于独立的「聚合」内容，
   不受 GPL-3.0 的传染性约束。
-- 如需将图标素材用于商业用途，请先联系作者取得单独授权。
+- **本图标素材禁止任何形式的商业使用**，不提供商业授权。
 
 Copyright (C) 2026 InspiraFinder

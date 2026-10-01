@@ -96,12 +96,13 @@
 
 ## 📜 许可协议
 
-本项目采用**代码与图标素材分开授权**的方式：
+本项目采用**代码与素材分开授权**的方式：
 
 | 内容 | 许可协议 | 说明 |
 |------|---------|------|
 | 程序源代码（`lib/`、`android/`、`ios/`、`linux/`、`windows/` 等） | **GPL-3.0** | 见仓库根目录的 [`LICENSE`](LICENSE) |
 | 图标素材（`assets/icon/`） | **CC BY-NC 4.0** | 见 [`assets/icon/LICENSE`](assets/icon/LICENSE) |
+| 游戏内素材图片（`assets/images/`、`assets/images_cn/`、`assets/cats_icons/`、`assets/guide/`） | 版权归原权利方所有 | 见下方说明 |
 
 ### 图标素材（`assets/icon/`）
 
@@ -111,8 +112,21 @@
 
 - ✅ 可自由共享、修改、二次创作
 - ⚠️ 必须**署名**，建议写法：「CatsKit 图标 © InspiraFinder，采用 CC BY-NC 4.0 协议授权」，并附项目地址
-- ❌ **不可用于商业用途**
-- ℹ️ 图标素材作为独立内容，不受 GPL-3.0 的传染性约束；如需商用请先联系作者单独授权
+- ❌ **禁止商用** —— 不得将本素材用于任何商业目的，本项目**不提供商业授权**
+- ℹ️ 图标素材作为独立内容，不受 GPL-3.0 的传染性约束
 
 > 完整条款见 [`assets/icon/LICENSE`](assets/icon/LICENSE)，或访问
 > [CC BY-NC 4.0 法律文本](https://creativecommons.org/licenses/by-nc/4.0/legalcode.zh-hans)。
+
+### 游戏内素材图片（版权归原权利方）
+
+项目中的游戏内素材图片（如 `assets/images/`、`assets/images_cn/`、`assets/cats_icons/`、`assets/guide/` 下的图片）
+来自游戏 **《C.A.T.S.: Crash Arena Turbo Stars》**，**不属于本项目授权范围**，版权归原权利方所有：
+
+| 主体 | 角色 |
+|------|------|
+| **ZeptoLab** | 游戏开发 |
+| **Nazara Technologies Limited** | 游戏发行与运营（2025 年起） |
+| **北京星游无限科技有限公司** | 中国大陆地区代理（2024 年起） |
+
+这些图片仅用于学习、交流与非商业性展示，本项目不对其主张任何权利；如有侵权请联系删除。
