@@ -101,21 +101,21 @@ class GuideBlock {
 
   /// 小节标题
   const GuideBlock.heading(String zh, String en)
-      : this._(headingZh: zh, headingEn: en);
+    : this._(headingZh: zh, headingEn: en);
 
   /// 一段正文
-  const GuideBlock.text(String zh, String en)
-      : this._(textZh: zh, textEn: en);
+  const GuideBlock.text(String zh, String en) : this._(textZh: zh, textEn: en);
 
   /// 一组要点
-  const GuideBlock.bullets(List<GuideBullet> bullets) : this._(bullets: bullets);
+  const GuideBlock.bullets(List<GuideBullet> bullets)
+    : this._(bullets: bullets);
 
   /// 一个提示框
   const GuideBlock.tip(String zh, String en) : this._(tipZh: zh, tipEn: en);
 
   /// 一行配图
   const GuideBlock.figures(List<GuideFigure> figures)
-      : this._(figures: figures);
+    : this._(figures: figures);
 
   /// 一张表格
   const GuideBlock.table(GuideTable table) : this._(table: table);
@@ -258,6 +258,216 @@ const List<List<String>> _settleWood = <List<String>>[
   <String>['121-200', '0', '0', '2000', '0'],
 ];
 
+/// 废铁行动的节点与奖励（列：螺栓数 / 奖励）——中英各一份
+///
+/// ⚠️ 原文里 1175 那条写的是「95000代币」，按上下文（其它 9 万级奖励都是紫票）
+/// 按**紫票**处理，如与游戏内不符请改这里。
+const List<List<String>> _scrapNodesZh = <List<String>>[
+  <String>['5', '锦标赛箱子 ×2'],
+  <String>['10', '钻石 ×10'],
+  <String>['15', '终极箱子（R5）×2'],
+  <String>['20', 'R6 部件 k1 ×1'],
+  <String>['25', '活动代币 ×50'],
+  <String>['30', '终极箱子（R5）×2'],
+  <String>['35', '锦标赛箱子 ×2'],
+  <String>['40', 'R6 部件 k2 ×1'],
+  <String>['50', '活动代币 ×50'],
+  <String>['60', '终极箱子（R5）×3'],
+  <String>['70', '紫票 ×25000'],
+  <String>['80', 'R6 部件 k1 ×2'],
+  <String>['90', '锦标赛箱子 ×3'],
+  <String>['100', '终极箱子（R5）×3'],
+  <String>['110', '钻石 ×10'],
+  <String>['120', 'R6 部件 k1 ×2'],
+  <String>['130', '紫票 ×50000'],
+  <String>['140', '终极箱子（R6）×2'],
+  <String>['150', '锦标赛箱子 ×3'],
+  <String>['160', 'R6 部件 k2 ×2'],
+  <String>['170', '活动代币 ×75'],
+  <String>['180', '终极箱子（R6）×2'],
+  <String>['190', '代币 ×5'],
+  <String>['200', 'R6 部件 k1 ×2'],
+  <String>['220', '锦标赛箱子 ×2'],
+  <String>['240', 'R6 部件 k3 ×2'],
+  <String>['260', '钻石 ×20'],
+  <String>['280', 'R6 部件 k4 ×2'],
+  <String>['300', '紫票 ×55000'],
+  <String>['320', 'R6 部件 k5 ×2'],
+  <String>['340', '工具箱 ×2'],
+  <String>['360', 'R6 部件 k3 ×3'],
+  <String>['380', '活动代币 ×100'],
+  <String>['400', 'R6 部件 k4 ×3'],
+  <String>['420', '紫票 ×60000'],
+  <String>['440', 'R6 部件 k5 ×3'],
+  <String>['460', '锦标赛箱子 ×2'],
+  <String>['480', 'R6 部件 k6 ×2'],
+  <String>['500', '钻石 ×20'],
+  <String>['520', 'R6 部件 k7 ×2'],
+  <String>['540', '活动代币 ×125'],
+  <String>['560', 'R6 部件 k8 ×2'],
+  <String>['580', '工具箱 ×3'],
+  <String>['600', 'R6 部件 k9 ×2'],
+  <String>['620', '活动代币 ×150'],
+  <String>['640', 'R6 部件 k6 ×3'],
+  <String>['660', '代币 ×5'],
+  <String>['680', '终极箱子（R6）×3'],
+  <String>['700', '钻石 ×40'],
+  <String>['720', 'R6 部件 k7 ×3'],
+  <String>['740', '紫票 ×60000'],
+  <String>['760', 'R6 部件 k8 ×3'],
+  <String>['780', '活动代币 ×200'],
+  <String>['800', 'R6 部件 k9 ×3'],
+  <String>['820', '紫票 ×65000'],
+  <String>['840', 'R6 部件 k6 ×5'],
+  <String>['860', '代币 ×10'],
+  <String>['880', 'R6 部件 k7 ×5'],
+  <String>['900', '活动代币 ×200'],
+  <String>['920', 'R6 部件 k8 ×5'],
+  <String>['940', '代币 ×10'],
+  <String>['960', 'R6 部件 k9 ×5'],
+  <String>['980', '紫票 ×90000'],
+  <String>['1000', 'R6 部件 k10 ×2'],
+  <String>['1025', '代币 ×10'],
+  <String>['1050', 'R6 部件 k11 ×2'],
+  <String>['1075', '活动代币 ×250'],
+  <String>['1100', 'R6 部件 k12 ×2'],
+  <String>['1125', '代币 ×20'],
+  <String>['1150', 'R6 部件 k13 ×2'],
+  <String>['1175', '紫票 ×95000'],
+  <String>['1200', 'R6 部件 k14 ×2'],
+  <String>['1225', '活动代币 ×250'],
+  <String>['1250', 'R6 部件 k10 ×3'],
+  <String>['1275', '紫票 ×100000'],
+  <String>['1300', 'R6 部件 k11 ×3'],
+  <String>['1325', '紫票 ×110000'],
+  <String>['1350', 'R6 部件 k12 ×3'],
+  <String>['1375', '紫票 ×120000'],
+  <String>['1400', 'R6 部件 k13 ×3'],
+  <String>['1425', '活动代币 ×300'],
+  <String>['1450', 'R6 部件 k14 ×3'],
+  <String>['1475', '紫票 ×130000'],
+  <String>['1500', 'R6 部件 k10 ×5'],
+  <String>['1525', '代币 ×20'],
+  <String>['1550', 'R6 部件 k11 ×5'],
+  <String>['1575', '活动代币 ×500'],
+  <String>['1600', 'R6 部件 k12 ×5'],
+  <String>['1625', '代币 ×20'],
+  <String>['1650', 'R6 部件 k13 ×5'],
+  <String>['1675', '紫票 ×140000'],
+  <String>['1700', 'R6 部件 k14 ×5'],
+  <String>['1725', '代币 ×25'],
+  <String>['1750', 'R6 部件 k10 ×10'],
+  <String>['1775', '活动代币 ×500'],
+  <String>['1800', 'R6 部件 k11 ×10'],
+  <String>['1825', '代币 ×25'],
+  <String>['1850', 'R6 部件 k12 ×10'],
+  <String>['1900', 'R6 部件 k13 ×10'],
+  <String>['2000', 'R6 部件 k14 ×10'],
+];
+
+const List<List<String>> _scrapNodesEn = <List<String>>[
+  <String>['5', 'Championship box ×2'],
+  <String>['10', 'Diamonds ×10'],
+  <String>['15', 'Ultimate box (R5) ×2'],
+  <String>['20', 'R6 part k1 ×1'],
+  <String>['25', 'Event tokens ×50'],
+  <String>['30', 'Ultimate box (R5) ×2'],
+  <String>['35', 'Championship box ×2'],
+  <String>['40', 'R6 part k2 ×1'],
+  <String>['50', 'Event tokens ×50'],
+  <String>['60', 'Ultimate box (R5) ×3'],
+  <String>['70', 'Purple tickets ×25000'],
+  <String>['80', 'R6 part k1 ×2'],
+  <String>['90', 'Championship box ×3'],
+  <String>['100', 'Ultimate box (R5) ×3'],
+  <String>['110', 'Diamonds ×10'],
+  <String>['120', 'R6 part k1 ×2'],
+  <String>['130', 'Purple tickets ×50000'],
+  <String>['140', 'Ultimate box (R6) ×2'],
+  <String>['150', 'Championship box ×3'],
+  <String>['160', 'R6 part k2 ×2'],
+  <String>['170', 'Event tokens ×75'],
+  <String>['180', 'Ultimate box (R6) ×2'],
+  <String>['190', 'Tokens ×5'],
+  <String>['200', 'R6 part k1 ×2'],
+  <String>['220', 'Championship box ×2'],
+  <String>['240', 'R6 part k3 ×2'],
+  <String>['260', 'Diamonds ×20'],
+  <String>['280', 'R6 part k4 ×2'],
+  <String>['300', 'Purple tickets ×55000'],
+  <String>['320', 'R6 part k5 ×2'],
+  <String>['340', 'Toolbox ×2'],
+  <String>['360', 'R6 part k3 ×3'],
+  <String>['380', 'Event tokens ×100'],
+  <String>['400', 'R6 part k4 ×3'],
+  <String>['420', 'Purple tickets ×60000'],
+  <String>['440', 'R6 part k5 ×3'],
+  <String>['460', 'Championship box ×2'],
+  <String>['480', 'R6 part k6 ×2'],
+  <String>['500', 'Diamonds ×20'],
+  <String>['520', 'R6 part k7 ×2'],
+  <String>['540', 'Event tokens ×125'],
+  <String>['560', 'R6 part k8 ×2'],
+  <String>['580', 'Toolbox ×3'],
+  <String>['600', 'R6 part k9 ×2'],
+  <String>['620', 'Event tokens ×150'],
+  <String>['640', 'R6 part k6 ×3'],
+  <String>['660', 'Tokens ×5'],
+  <String>['680', 'Ultimate box (R6) ×3'],
+  <String>['700', 'Diamonds ×40'],
+  <String>['720', 'R6 part k7 ×3'],
+  <String>['740', 'Purple tickets ×60000'],
+  <String>['760', 'R6 part k8 ×3'],
+  <String>['780', 'Event tokens ×200'],
+  <String>['800', 'R6 part k9 ×3'],
+  <String>['820', 'Purple tickets ×65000'],
+  <String>['840', 'R6 part k6 ×5'],
+  <String>['860', 'Tokens ×10'],
+  <String>['880', 'R6 part k7 ×5'],
+  <String>['900', 'Event tokens ×200'],
+  <String>['920', 'R6 part k8 ×5'],
+  <String>['940', 'Tokens ×10'],
+  <String>['960', 'R6 part k9 ×5'],
+  <String>['980', 'Purple tickets ×90000'],
+  <String>['1000', 'R6 part k10 ×2'],
+  <String>['1025', 'Tokens ×10'],
+  <String>['1050', 'R6 part k11 ×2'],
+  <String>['1075', 'Event tokens ×250'],
+  <String>['1100', 'R6 part k12 ×2'],
+  <String>['1125', 'Tokens ×20'],
+  <String>['1150', 'R6 part k13 ×2'],
+  <String>['1175', 'Purple tickets ×95000'],
+  <String>['1200', 'R6 part k14 ×2'],
+  <String>['1225', 'Event tokens ×250'],
+  <String>['1250', 'R6 part k10 ×3'],
+  <String>['1275', 'Purple tickets ×100000'],
+  <String>['1300', 'R6 part k11 ×3'],
+  <String>['1325', 'Purple tickets ×110000'],
+  <String>['1350', 'R6 part k12 ×3'],
+  <String>['1375', 'Purple tickets ×120000'],
+  <String>['1400', 'R6 part k13 ×3'],
+  <String>['1425', 'Event tokens ×300'],
+  <String>['1450', 'R6 part k14 ×3'],
+  <String>['1475', 'Purple tickets ×130000'],
+  <String>['1500', 'R6 part k10 ×5'],
+  <String>['1525', 'Tokens ×20'],
+  <String>['1550', 'R6 part k11 ×5'],
+  <String>['1575', 'Event tokens ×500'],
+  <String>['1600', 'R6 part k12 ×5'],
+  <String>['1625', 'Tokens ×20'],
+  <String>['1650', 'R6 part k13 ×5'],
+  <String>['1675', 'Purple tickets ×140000'],
+  <String>['1700', 'R6 part k14 ×5'],
+  <String>['1725', 'Tokens ×25'],
+  <String>['1750', 'R6 part k10 ×10'],
+  <String>['1775', 'Event tokens ×500'],
+  <String>['1800', 'R6 part k11 ×10'],
+  <String>['1825', 'Tokens ×25'],
+  <String>['1850', 'R6 part k12 ×10'],
+  <String>['1900', 'R6 part k13 ×10'],
+  <String>['2000', 'R6 part k14 ×10'],
+];
+
 /// 全部章节 —— **内容都加在这里**
 ///
 /// 模板（复制一份改内容即可；`GuideBlock.heading` 会生成章内目录）：
@@ -325,7 +535,7 @@ const List<GuideChapter> kGuideChapters = <GuideChapter>[
     blocks: <GuideBlock>[
       GuideBlock.text(
         '城市之王是帮派之间的日常对抗：赛季没有固定天数，每天可以挑战同组别的帮派。'
-        '胜场会推进你本赛季所处的「地区」，地区越高、胜场奖励越好；每征服一个地区，还会额外发放一份阶段奖励。',
+            '胜场会推进你本赛季所处的「地区」，地区越高、胜场奖励越好；每征服一个地区，还会额外发放一份阶段奖励。',
         'A day-by-day gang battle mode: a season has no fixed length and you may challenge gangs of your own division every day. '
             'Wins advance your "region" this season — higher regions pay better win rewards, and conquering a region grants a stage reward.',
       ),
@@ -362,20 +572,22 @@ const List<GuideChapter> kGuideChapters = <GuideChapter>[
       GuideBlock.figures(<GuideFigure>[
         GuideFigure.diagram(
           'battleBuildings',
-          captionZh:
-              '建筑与车位示意（蓝＝我方车、红＝对方帮派的车、灰＝人机车；带「链接」/「×5」的是特殊加成建筑）',
+          captionZh: '建筑与车位示意（蓝＝我方车、红＝对方帮派的车、灰＝人机车；带「链接」/「×5」的是特殊加成建筑）',
           captionEn:
               'Buildings and slots (blue = ours, red = the opposing gang, grey = bots; "link" and "×5" mark special bonuses)',
         ),
       ]),
       // ---------- 2. 车位争夺 ----------
-      GuideBlock.heading('车位争夺：一辆车怎么打', 'Taking a slot: how a single fight works'),
+      GuideBlock.heading(
+        '车位争夺：一辆车怎么打',
+        'Taking a slot: how a single fight works',
+      ),
       GuideBlock.text(
         '战斗开始时，所有建筑的所有车位都被人机占着；人机**不属于任何一方**，只是让车位一开始就处于'
-        '「已被占领、可以被选中攻击」的状态。之后车位上的车可能是人机，也可能是对方帮派成员的车，'
-        '我方成员各自派空闲的车去抢车位，流程是：挑一个「还没被我方占领」的车位发起攻击 → '
-        '派一辆空闲的车跟车位上的车单挑 → 一方 HP 归零则战斗结束。车位不会出现空着的情况：'
-        '要么是我方的车在防守，要么还是对方（人机或对方帮派）占着。',
+            '「已被占领、可以被选中攻击」的状态。之后车位上的车可能是人机，也可能是对方帮派成员的车，'
+            '我方成员各自派空闲的车去抢车位，流程是：挑一个「还没被我方占领」的车位发起攻击 → '
+            '派一辆空闲的车跟车位上的车单挑 → 一方 HP 归零则战斗结束。车位不会出现空着的情况：'
+            '要么是我方的车在防守，要么还是对方（人机或对方帮派）占着。',
         'When a battle starts every slot is held by a bot; bots **belong to neither side** — they only put the slot into an '
             '"occupied, attackable" state from the start. From then on a slot may hold a bot or a car belonging to the opposing gang. '
             'Our members send idle cars to take slots: pick a slot that is not held by our side → send one idle car to duel the car on that slot → '
@@ -388,7 +600,7 @@ const List<GuideChapter> kGuideChapters = <GuideChapter>[
         ),
         GuideBullet(
           '我方打输（我方出战的车被打爆）→ 车位上的那辆车（人机或对方帮派的车）'
-          '**以战斗结束时的血量留在车位上**，并持续回血直到满血',
+              '**以战斗结束时的血量留在车位上**，并持续回血直到满血',
           'If we lose (our car is destroyed) → the car on the slot (a bot or a car of the opposing gang) '
               '**stays there with the HP it has when the duel ends** and keeps regenerating until full HP',
         ),
@@ -398,9 +610,9 @@ const List<GuideChapter> kGuideChapters = <GuideChapter>[
         ),
         GuideBullet(
           '攻击锁定：某个车位正在被攻击时，**在战斗结果结算之前谁都不能再攻击这个车位**'
-          '（我方其他成员、对方成员都一样）—— 只能改选其它可攻击的车位，或者等这次攻击结算完',
+              '（我方其他成员、对方成员都一样）—— 只能改选其它可攻击的车位，或者等这次攻击结算完',
           'Attack lock: while a slot is being attacked, **nobody else may attack that slot until the result is resolved** '
-          '(neither our other members nor the opposing gang) — they must pick another attackable slot or wait for the result',
+              '(neither our other members nor the opposing gang) — they must pick another attackable slot or wait for the result',
         ),
         GuideBullet(
           '战斗结束时记录胜方的**当前 HP** 并保存状态 —— 车不会因为打赢就回满血',
@@ -415,36 +627,44 @@ const List<GuideChapter> kGuideChapters = <GuideChapter>[
           'Damaged cars on both sides also regenerate, at the rate of "full HP in 2 hours"',
         ),
       ]),
-      GuideBlock.table(GuideTable(
-        headZh: <String>['车辆状态', '说明'],
-        headEn: <String>['Car state', 'Notes'],
-        rowsZh: <List<String>>[
-          <String>['空闲', '可以挑选「未被我方占领」的车位发起攻击'],
-          <String>['防守', '车辆占领车位时的状态'],
-          <String>['爆炸', 'HP 归零后爆炸；等生命值回满（2 小时）后变回空闲'],
-        ],
-        rowsEn: <List<String>>[
-          <String>['Idle', 'Can attack a slot that is not held by your side'],
-          <String>['Defending', 'The state while the car holds a slot'],
-          <String>['Exploded', 'HP hit zero: it explodes and turns back to idle once HP is full (2 hours)'],
-        ],
-      )),
+      GuideBlock.table(
+        GuideTable(
+          headZh: <String>['车辆状态', '说明'],
+          headEn: <String>['Car state', 'Notes'],
+          rowsZh: <List<String>>[
+            <String>['空闲', '可以挑选「未被我方占领」的车位发起攻击'],
+            <String>['防守', '车辆占领车位时的状态'],
+            <String>['爆炸', 'HP 归零后爆炸；等生命值回满（2 小时）后变回空闲'],
+          ],
+          rowsEn: <List<String>>[
+            <String>['Idle', 'Can attack a slot that is not held by your side'],
+            <String>['Defending', 'The state while the car holds a slot'],
+            <String>[
+              'Exploded',
+              'HP hit zero: it explodes and turns back to idle once HP is full (2 hours)',
+            ],
+          ],
+        ),
+      ),
       GuideBlock.text(
         '状态流转：空闲 →（占领车位）→ 防守；防守 →（HP 归零）→ 爆炸 →（生命值回满）→ 空闲。',
         'State flow: idle → (takes a slot) → defending; defending → (HP reaches zero) → exploded → (HP refills) → idle.',
       ),
       // ---------- 3. 特殊机制 ----------
-      GuideBlock.heading('特殊机制：链接与高回报加成', 'Special mechanics: links & high reward'),
+      GuideBlock.heading(
+        '特殊机制：链接与高回报加成',
+        'Special mechanics: links & high reward',
+      ),
       GuideBlock.text(
         '链接：每场战斗通常会有两个建筑获得链接。如果同时占据了多个链接建筑（n 个），'
-        '这些链接建筑获得的分数会 ×n（只作用于链接建筑）。',
+            '这些链接建筑获得的分数会 ×n（只作用于链接建筑）。',
         'Link: usually two buildings in a battle are linked. If you occupy several linked buildings (n of them), '
             'those linked buildings score ×n (only the linked ones).',
       ),
       GuideBlock.text(
         '高回报加成：在赛季准备结束的时间点之后开启的战斗里，每隔一段时间会随机挑一个建筑，'
-        '该建筑的分数获得 5 倍加成（例如原来 +21，加成后变成 +105）；加成持续 2 小时，'
-        '且与链接相互独立 —— 链接建筑也可以同时吃到高回报加成。',
+            '该建筑的分数获得 5 倍加成（例如原来 +21，加成后变成 +105）；加成持续 2 小时，'
+            '且与链接相互独立 —— 链接建筑也可以同时吃到高回报加成。',
         'High reward: in battles started after the season wrap-up point, one random building periodically gets a 5x score bonus '
             '(e.g. +21 becomes +105). It lasts 2 hours and is independent of links — a linked building can also carry the high-reward bonus.',
       ),
@@ -456,7 +676,7 @@ const List<GuideChapter> kGuideChapters = <GuideChapter>[
       GuideBlock.heading('战斗分数与结算系数', 'Battle score & settlement multiplier'),
       GuideBlock.text(
         '一场战斗最终算多少分，是「战斗分 × 结算系数」：战斗分是战斗里打出来的分数，'
-        '结算系数只看**本场之前**已经拿到的赛季胜场数 —— 胜场越多系数越高。',
+            '结算系数只看**本场之前**已经拿到的赛季胜场数 —— 胜场越多系数越高。',
         'What a battle finally earns is "battle score × settlement multiplier". The battle score is what you '
             'scored in the fight; the multiplier depends only on the season wins you already had **before** this battle — '
             'the more wins, the higher it is.',
@@ -493,7 +713,7 @@ const List<GuideChapter> kGuideChapters = <GuideChapter>[
       ),
       GuideBlock.tip(
         '系数只按本场之前的胜场算，所以同一档里连胜不会马上提高系数，跨到下一档才会提高。'
-        '在「赛季统计」里只要填好赛前胜场和本场胜负，系数与本场得分会自动算出来。',
+            '在「赛季统计」里只要填好赛前胜场和本场胜负，系数与本场得分会自动算出来。',
         'The multiplier is read from your wins before the battle, so wins inside one band do not raise it — '
             'you have to cross into the next band. In Season Stats, filling in your wins before the battle and '
             'the result is enough — the multiplier and the score gained are computed for you.',
@@ -502,9 +722,9 @@ const List<GuideChapter> kGuideChapters = <GuideChapter>[
       GuideBlock.heading('赛季什么时候结束', 'When a season ends'),
       GuideBlock.text(
         '赛季不按固定天数，而是看「有多少个帮派打满 30 胜」——统计的是所有组别、任何帮派：'
-        '只要有帮派达到 30 胜场，30 胜帮派计数就 +1；计数达到 10 时，赛季准备结束：'
-        '再过 7 天关闭战斗入口（之后不能加入新战斗）→ 再过 1 天所有帮派战斗完成 → '
-        '发放赛季结算奖励 → 1 天缓冲（领奖励、换帮派）→ 开启新赛季。',
+            '只要有帮派达到 30 胜场，30 胜帮派计数就 +1；计数达到 10 时，赛季准备结束：'
+            '再过 7 天关闭战斗入口（之后不能加入新战斗）→ 再过 1 天所有帮派战斗完成 → '
+            '发放赛季结算奖励 → 1 天缓冲（领奖励、换帮派）→ 开启新赛季。',
         'A season is not measured in days but in gangs reaching 30 wins — any gang, in any division: '
             'every gang that hits 30 wins bumps the counter by 1, and when it reaches 10 the season starts to end: '
             '7 more days until battle entry closes (no new battles), then 1 more day for every gang to finish its battles, '
@@ -514,7 +734,8 @@ const List<GuideChapter> kGuideChapters = <GuideChapter>[
         GuideFigure.diagram(
           'seasonFlow',
           captionZh: '赛季收尾流程（T = 有 10 个帮派达到 30 胜的那天）',
-          captionEn: 'Season wrap-up flow (T = the day the 10th gang reaches 30 wins)',
+          captionEn:
+              'Season wrap-up flow (T = the day the 10th gang reaches 30 wins)',
         ),
       ]),
       GuideBlock.tip(
@@ -527,39 +748,41 @@ const List<GuideChapter> kGuideChapters = <GuideChapter>[
         '每赢一场给 1 个工具箱，工具箱的等阶由你当前的地区决定，对照如下：',
         'Every win gives 1 toolbox; its tier depends on your current region:',
       ),
-      GuideBlock.table(GuideTable(
-        headZh: <String>['地区', '进入所需胜场', '胜场奖励'],
-        headEn: <String>['Region', 'Wins to enter', 'Win reward'],
-        rowsZh: <List<String>>[
-          <String>['1', '0 胜', 'R1 工具箱'],
-          <String>['2', '1 胜', 'R1 工具箱'],
-          <String>['3', '2 胜', 'R1 工具箱'],
-          <String>['4', '4 胜', 'R1 工具箱'],
-          <String>['5', '6 胜', 'R2 工具箱'],
-          <String>['6', '9 胜', 'R2 工具箱'],
-          <String>['7', '12 胜', 'R2 工具箱'],
-          <String>['8', '16 胜', 'R3 工具箱'],
-          <String>['9', '20 胜', 'R3 工具箱'],
-          <String>['10', '25 胜', 'R4 工具箱'],
-          <String>['10（新一档）', '30 胜起', 'R4 工具箱'],
-        ],
-        rowsEn: <List<String>>[
-          <String>['1', '0 wins', 'R1 toolbox'],
-          <String>['2', '1 win', 'R1 toolbox'],
-          <String>['3', '2 wins', 'R1 toolbox'],
-          <String>['4', '4 wins', 'R1 toolbox'],
-          <String>['5', '6 wins', 'R2 toolbox'],
-          <String>['6', '9 wins', 'R2 toolbox'],
-          <String>['7', '12 wins', 'R2 toolbox'],
-          <String>['8', '16 wins', 'R3 toolbox'],
-          <String>['9', '20 wins', 'R3 toolbox'],
-          <String>['10', '25 wins', 'R4 toolbox'],
-          <String>['10 (new tier)', '30+ wins', 'R4 toolbox'],
-        ],
-      )),
+      GuideBlock.table(
+        GuideTable(
+          headZh: <String>['地区', '进入所需胜场', '胜场奖励'],
+          headEn: <String>['Region', 'Wins to enter', 'Win reward'],
+          rowsZh: <List<String>>[
+            <String>['1', '0 胜', 'R1 工具箱'],
+            <String>['2', '1 胜', 'R1 工具箱'],
+            <String>['3', '2 胜', 'R1 工具箱'],
+            <String>['4', '4 胜', 'R1 工具箱'],
+            <String>['5', '6 胜', 'R2 工具箱'],
+            <String>['6', '9 胜', 'R2 工具箱'],
+            <String>['7', '12 胜', 'R2 工具箱'],
+            <String>['8', '16 胜', 'R3 工具箱'],
+            <String>['9', '20 胜', 'R3 工具箱'],
+            <String>['10', '25 胜', 'R4 工具箱'],
+            <String>['10（新一档）', '30 胜起', 'R4 工具箱'],
+          ],
+          rowsEn: <List<String>>[
+            <String>['1', '0 wins', 'R1 toolbox'],
+            <String>['2', '1 win', 'R1 toolbox'],
+            <String>['3', '2 wins', 'R1 toolbox'],
+            <String>['4', '4 wins', 'R1 toolbox'],
+            <String>['5', '6 wins', 'R2 toolbox'],
+            <String>['6', '9 wins', 'R2 toolbox'],
+            <String>['7', '12 wins', 'R2 toolbox'],
+            <String>['8', '16 wins', 'R3 toolbox'],
+            <String>['9', '20 wins', 'R3 toolbox'],
+            <String>['10', '25 wins', 'R4 toolbox'],
+            <String>['10 (new tier)', '30+ wins', 'R4 toolbox'],
+          ],
+        ),
+      ),
       GuideBlock.tip(
         '工具箱等阶：地区 1-4（征服地区 4 之前）→ R1；地区 5-7 → R2；地区 8-9 → R3；'
-        '地区 10 以及 30 胜之后的新一档 → R4。地区 10 的 30 胜档虽然还是「地区 10」，但算新的一档。',
+            '地区 10 以及 30 胜之后的新一档 → R4。地区 10 的 30 胜档虽然还是「地区 10」，但算新的一档。',
         'Toolbox tiers: regions 1-4 (before conquering region 4) → R1; regions 5-7 → R2; '
             'regions 8-9 → R3; region 10 and the new tier after 30 wins → R4. '
             'The 30-win tier is still "region 10" but counts as a new tier.',
@@ -568,56 +791,60 @@ const List<GuideChapter> kGuideChapters = <GuideChapter>[
         '工具箱分「+ATK」与「+HP」两种，等阶越高加成越高：',
         'Toolboxes come in "+ATK" and "+HP" versions; the higher the tier, the bigger the bonus:',
       ),
-      GuideBlock.table(GuideTable(
-        headZh: <String>['工具箱等阶', '加成'],
-        headEn: <String>['Toolbox tier', 'Bonus'],
-        rowsZh: <List<String>>[
-          <String>['R1', '+10%'],
-          <String>['R2', '+20%'],
-          <String>['R3', '+30%'],
-          <String>['R4', '+40%'],
-        ],
-        rowsEn: <List<String>>[
-          <String>['R1', '+10%'],
-          <String>['R2', '+20%'],
-          <String>['R3', '+30%'],
-          <String>['R4', '+40%'],
-        ],
-      )),
+      GuideBlock.table(
+        GuideTable(
+          headZh: <String>['工具箱等阶', '加成'],
+          headEn: <String>['Toolbox tier', 'Bonus'],
+          rowsZh: <List<String>>[
+            <String>['R1', '+10%'],
+            <String>['R2', '+20%'],
+            <String>['R3', '+30%'],
+            <String>['R4', '+40%'],
+          ],
+          rowsEn: <List<String>>[
+            <String>['R1', '+10%'],
+            <String>['R2', '+20%'],
+            <String>['R3', '+30%'],
+            <String>['R4', '+40%'],
+          ],
+        ),
+      ),
       // ---------- 5. 地区奖励 ----------
       GuideBlock.heading('地区奖励（征服地区）', 'Region reward (conquering a region)'),
       GuideBlock.text(
         '每到达一个新地区，就等于征服了上一个地区，发放下面的阶段奖励（代币 + 王牌 + 随机部件）：',
         'Each time you reach a new region you have conquered the previous one and receive the stage reward below (tokens + jokers + random parts):',
       ),
-      GuideBlock.table(GuideTable(
-        headZh: <String>['征服地区', '代币', '奖励部件'],
-        headEn: <String>['Region', 'Tokens', 'Part rewards'],
-        rowsZh: <List<String>>[
-          <String>['1', '1', '15 × R1 王牌 + 5 × R3-5 车轮'],
-          <String>['2', '1', '10 × R2 王牌 + 5 × R3-5 车身'],
-          <String>['3', '2', '10 × R2 王牌 + 3 × R4-5 武器'],
-          <String>['4', '2', '4 × R3 王牌 + 3 × R4-5 配件'],
-          <String>['5', '3', '7 × R3 王牌 + 3 × R4-6 车轮'],
-          <String>['6', '3', '2 × R4 王牌 + 3 × R4-6 车身'],
-          <String>['7', '4', '4 × R4 王牌 + 3 × R5-6 武器'],
-          <String>['8', '4', '1 × R5 王牌 + 3 × R5-6 任意部件'],
-          <String>['9', '5', '2 × R5 王牌 + 3 × R6 任意部件'],
-          <String>['10', '5', '2 × R5 王牌 + 4 × R6'],
-        ],
-        rowsEn: <List<String>>[
-          <String>['1', '1', '15 x R1 Joker + 5 x R3-5 wheel'],
-          <String>['2', '1', '10 x R2 Joker + 5 x R3-5 body'],
-          <String>['3', '2', '10 x R2 Joker + 3 x R4-5 weapon'],
-          <String>['4', '2', '4 x R3 Joker + 3 x R4-5 gadget'],
-          <String>['5', '3', '7 x R3 Joker + 3 x R4-6 wheel'],
-          <String>['6', '3', '2 x R4 Joker + 3 x R4-6 body'],
-          <String>['7', '4', '4 x R4 Joker + 3 x R5-6 weapon'],
-          <String>['8', '4', '1 x R5 Joker + 3 x R5-6 any part'],
-          <String>['9', '5', '2 x R5 Joker + 3 x R6 any part'],
-          <String>['10', '5', '2 x R5 Joker + 4 x R6'],
-        ],
-      )),
+      GuideBlock.table(
+        GuideTable(
+          headZh: <String>['征服地区', '代币', '奖励部件'],
+          headEn: <String>['Region', 'Tokens', 'Part rewards'],
+          rowsZh: <List<String>>[
+            <String>['1', '1', '15 × R1 王牌 + 5 × R3-5 车轮'],
+            <String>['2', '1', '10 × R2 王牌 + 5 × R3-5 车身'],
+            <String>['3', '2', '10 × R2 王牌 + 3 × R4-5 武器'],
+            <String>['4', '2', '4 × R3 王牌 + 3 × R4-5 配件'],
+            <String>['5', '3', '7 × R3 王牌 + 3 × R4-6 车轮'],
+            <String>['6', '3', '2 × R4 王牌 + 3 × R4-6 车身'],
+            <String>['7', '4', '4 × R4 王牌 + 3 × R5-6 武器'],
+            <String>['8', '4', '1 × R5 王牌 + 3 × R5-6 任意部件'],
+            <String>['9', '5', '2 × R5 王牌 + 3 × R6 任意部件'],
+            <String>['10', '5', '2 × R5 王牌 + 4 × R6'],
+          ],
+          rowsEn: <List<String>>[
+            <String>['1', '1', '15 x R1 Joker + 5 x R3-5 wheel'],
+            <String>['2', '1', '10 x R2 Joker + 5 x R3-5 body'],
+            <String>['3', '2', '10 x R2 Joker + 3 x R4-5 weapon'],
+            <String>['4', '2', '4 x R3 Joker + 3 x R4-5 gadget'],
+            <String>['5', '3', '7 x R3 Joker + 3 x R4-6 wheel'],
+            <String>['6', '3', '2 x R4 Joker + 3 x R4-6 body'],
+            <String>['7', '4', '4 x R4 Joker + 3 x R5-6 weapon'],
+            <String>['8', '4', '1 x R5 Joker + 3 x R5-6 any part'],
+            <String>['9', '5', '2 x R5 Joker + 3 x R6 any part'],
+            <String>['10', '5', '2 x R5 Joker + 4 x R6'],
+          ],
+        ),
+      ),
       GuideBlock.figures(<GuideFigure>[
         GuideFigure.diagram(
           'jokerTiers',
@@ -634,16 +861,16 @@ const List<GuideChapter> kGuideChapters = <GuideChapter>[
       GuideBlock.heading('赛季结算奖励', 'Season settlement'),
       GuideBlock.text(
         '所有帮派战斗完成后发放（发完有 1 天缓冲用来领奖励、换帮派），'
-        '按「组别 + 名次」结算，一共给四种东西——自选箱、固定箱、代币、紫票。',
+            '按「组别 + 名次」结算，一共给四种东西——自选箱、固定箱、代币、紫票。',
         'Granted once every gang has finished its battles (followed by a 1-day buffer to claim rewards and switch gangs). '
             'Rewards are paid by division + rank: choice chests, fixed chests, tokens and purple tickets.',
       ),
       GuideBlock.bullets(<GuideBullet>[
         GuideBullet(
           '自选箱：箱子里的每一项都会弹出两个选项二选一，选完可能再弹出两个选项继续选'
-          '（例如含两个部件的自选箱，会连着让你二选一两次）',
+              '（例如含两个部件的自选箱，会连着让你二选一两次）',
           'Choice chest: every item pops up two options and you take one; after choosing, two more may appear '
-          '(a chest holding two parts asks you to pick 1-of-2 twice)',
+              '(a chest holding two parts asks you to pick 1-of-2 twice)',
         ),
         GuideBullet(
           '固定箱：内容固定，没有选项',
@@ -661,30 +888,62 @@ const List<GuideChapter> kGuideChapters = <GuideChapter>[
         '各「组别 + 名次」的结算奖励（自选箱 / 固定箱 / 紫票 / 代币）：',
         'Settlement by division and rank (choice chests / fixed chests / purple tickets / tokens):',
       ),
-      GuideBlock.table(GuideTable(
-        headZh: <String>['金组 · 名次', '自选箱', '固定箱', '紫票', '代币'],
-        headEn: <String>['Gold · Rank', 'Choice', 'Fixed', 'Tickets', 'Tokens'],
-        rowsZh: _settleGold,
-        rowsEn: _settleGold,
-      )),
-      GuideBlock.table(GuideTable(
-        headZh: <String>['银组 · 名次', '自选箱', '固定箱', '紫票', '代币'],
-        headEn: <String>['Silver · Rank', 'Choice', 'Fixed', 'Tickets', 'Tokens'],
-        rowsZh: _settleSilver,
-        rowsEn: _settleSilver,
-      )),
-      GuideBlock.table(GuideTable(
-        headZh: <String>['铜组 · 名次', '自选箱', '固定箱', '紫票', '代币'],
-        headEn: <String>['Bronze · Rank', 'Choice', 'Fixed', 'Tickets', 'Tokens'],
-        rowsZh: _settleBronze,
-        rowsEn: _settleBronze,
-      )),
-      GuideBlock.table(GuideTable(
-        headZh: <String>['木组 · 名次', '自选箱', '固定箱', '紫票', '代币'],
-        headEn: <String>['Wood · Rank', 'Choice', 'Fixed', 'Tickets', 'Tokens'],
-        rowsZh: _settleWood,
-        rowsEn: _settleWood,
-      )),
+      GuideBlock.table(
+        GuideTable(
+          headZh: <String>['金组 · 名次', '自选箱', '固定箱', '紫票', '代币'],
+          headEn: <String>[
+            'Gold · Rank',
+            'Choice',
+            'Fixed',
+            'Tickets',
+            'Tokens',
+          ],
+          rowsZh: _settleGold,
+          rowsEn: _settleGold,
+        ),
+      ),
+      GuideBlock.table(
+        GuideTable(
+          headZh: <String>['银组 · 名次', '自选箱', '固定箱', '紫票', '代币'],
+          headEn: <String>[
+            'Silver · Rank',
+            'Choice',
+            'Fixed',
+            'Tickets',
+            'Tokens',
+          ],
+          rowsZh: _settleSilver,
+          rowsEn: _settleSilver,
+        ),
+      ),
+      GuideBlock.table(
+        GuideTable(
+          headZh: <String>['铜组 · 名次', '自选箱', '固定箱', '紫票', '代币'],
+          headEn: <String>[
+            'Bronze · Rank',
+            'Choice',
+            'Fixed',
+            'Tickets',
+            'Tokens',
+          ],
+          rowsZh: _settleBronze,
+          rowsEn: _settleBronze,
+        ),
+      ),
+      GuideBlock.table(
+        GuideTable(
+          headZh: <String>['木组 · 名次', '自选箱', '固定箱', '紫票', '代币'],
+          headEn: <String>[
+            'Wood · Rank',
+            'Choice',
+            'Fixed',
+            'Tickets',
+            'Tokens',
+          ],
+          rowsZh: _settleWood,
+          rowsEn: _settleWood,
+        ),
+      ),
       GuideBlock.tip(
         '木组的帮派比其它组多（200 家以上），所以后三档的名次区间不一样（21-50 / 51-120 / 121-200）。',
         'The wood league holds more gangs (200+), so its last three rank bands differ (21-50 / 51-120 / 121-200).',
@@ -693,26 +952,32 @@ const List<GuideChapter> kGuideChapters = <GuideChapter>[
       GuideBlock.heading('晋级与退级', 'Promotion & demotion'),
       GuideBlock.text(
         '赛季结束时，除了发结算奖励，还会按组内名次决定下个赛季待在哪个组别：'
-        '前 20 名晋级到上一组，第 81 名及之后退级到下一组，中间名次（21-80）留在原组。',
+            '前 20 名晋级到上一组，第 81 名及之后退级到下一组，中间名次（21-80）留在原组。',
         'When a season ends, besides the settlement rewards your rank in the division decides where you play next season: '
             'the top 20 are promoted, rank 81 and below are demoted, and the middle ranks (21-80) stay put.',
       ),
-      GuideBlock.table(GuideTable(
-        headZh: <String>['组别', '前 20 名', '第 81 名及之后'],
-        headEn: <String>['Division', 'Top 20', 'Rank 81+'],
-        rowsZh: <List<String>>[
-          <String>['金组', '不再晋级（最高组别）', '退到银组'],
-          <String>['银组', '晋级到金组', '退到铜组'],
-          <String>['铜组', '晋级到银组', '退到木组'],
-          <String>['木组', '晋级到铜组', '不再退级（最低组别）'],
-        ],
-        rowsEn: <List<String>>[
-          <String>['Gold', 'No promotion (top league)', 'Demoted to Silver'],
-          <String>['Silver', 'Promoted to Gold', 'Demoted to Bronze'],
-          <String>['Bronze', 'Promoted to Silver', 'Demoted to Wood'],
-          <String>['Wood', 'Promoted to Bronze', 'No demotion (lowest league)'],
-        ],
-      )),
+      GuideBlock.table(
+        GuideTable(
+          headZh: <String>['组别', '前 20 名', '第 81 名及之后'],
+          headEn: <String>['Division', 'Top 20', 'Rank 81+'],
+          rowsZh: <List<String>>[
+            <String>['金组', '不再晋级（最高组别）', '退到银组'],
+            <String>['银组', '晋级到金组', '退到铜组'],
+            <String>['铜组', '晋级到银组', '退到木组'],
+            <String>['木组', '晋级到铜组', '不再退级（最低组别）'],
+          ],
+          rowsEn: <List<String>>[
+            <String>['Gold', 'No promotion (top league)', 'Demoted to Silver'],
+            <String>['Silver', 'Promoted to Gold', 'Demoted to Bronze'],
+            <String>['Bronze', 'Promoted to Silver', 'Demoted to Wood'],
+            <String>[
+              'Wood',
+              'Promoted to Bronze',
+              'No demotion (lowest league)',
+            ],
+          ],
+        ),
+      ),
       GuideBlock.bullets(<GuideBullet>[
         GuideBullet(
           '自建帮派从木组起步；加入帮派可以加入任意组别',
@@ -721,7 +986,7 @@ const List<GuideChapter> kGuideChapters = <GuideChapter>[
         GuideBullet(
           '成员不足 5 人的帮派无法参战；整季未参战的帮派不上榜（自然也不参与升降级）',
           'Gangs with fewer than 5 members cannot fight; a gang that never fights during the season never appears on the board '
-          '(and therefore is not promoted or demoted)',
+              '(and therefore is not promoted or demoted)',
         ),
         GuideBullet(
           '金 / 银 / 铜三组各约 100 家，木组更多（200 家以上），所以木组的后段名次区间和其它组不一样',
@@ -732,25 +997,27 @@ const List<GuideChapter> kGuideChapters = <GuideChapter>[
       GuideBlock.heading('赛季城市与帮派头像', 'Season city & gang avatars'),
       GuideBlock.text(
         '每个赛季会绑定一座「城市」，城市一共有 5 座；下一个赛季会换成另一座城市，'
-        '但城市之间的轮换顺序不确定（不是固定的循环顺序）。城市的主题会体现在赛季专属装扮等内容里。',
+            '但城市之间的轮换顺序不确定（不是固定的循环顺序）。城市的主题会体现在赛季专属装扮等内容里。',
         'Each season is tied to a city, and there are 5 cities in total. The next season switches to another city, '
             'but the rotation order between cities is not fixed (it is not a deterministic cycle). '
             'The city theme shows up in things like the season-exclusive outfit.',
       ),
-      GuideBlock.table(GuideTable(
-        headZh: <String>['组别', '前 20 名的帮派头像'],
-        headEn: <String>['Division', 'Avatar for the top 20'],
-        rowsZh: <List<String>>[
-          <String>['金组', '彩色（当季城市主题）'],
-          <String>['银组', '金色（当季城市主题）'],
-          <String>['铜组', '蓝色（当季城市主题）'],
-        ],
-        rowsEn: <List<String>>[
-          <String>['Gold', 'Colourful (current city theme)'],
-          <String>['Silver', 'Golden (current city theme)'],
-          <String>['Bronze', 'Blue (current city theme)'],
-        ],
-      )),
+      GuideBlock.table(
+        GuideTable(
+          headZh: <String>['组别', '前 20 名的帮派头像'],
+          headEn: <String>['Division', 'Avatar for the top 20'],
+          rowsZh: <List<String>>[
+            <String>['金组', '彩色（当季城市主题）'],
+            <String>['银组', '金色（当季城市主题）'],
+            <String>['铜组', '蓝色（当季城市主题）'],
+          ],
+          rowsEn: <List<String>>[
+            <String>['Gold', 'Colourful (current city theme)'],
+            <String>['Silver', 'Golden (current city theme)'],
+            <String>['Bronze', 'Blue (current city theme)'],
+          ],
+        ),
+      ),
       GuideBlock.tip(
         '头像奖励只有金 / 银 / 铜三组的前 20 名有；头像与赛季专属装扮用的都是当季城市的主题。',
         'The avatar reward is only for the top 20 of Gold / Silver / Bronze; both avatars and the season-exclusive outfit use the current city theme.',
@@ -790,8 +1057,8 @@ const List<GuideChapter> kGuideChapters = <GuideChapter>[
     blocks: <GuideBlock>[
       GuideBlock.text(
         '终极联赛里出场的战车，就是「组车工具」（个人功能 → 组车工具）里拼出来的那辆车。'
-        '这一章把它的数值拆开讲清楚：先看一辆车由什么组成，再看每个部件的数值怎么来，'
-        '最后看整车 HP / ATK 是怎么乘出来的、以及出车要过哪些校验。',
+            '这一章把它的数值拆开讲清楚：先看一辆车由什么组成，再看每个部件的数值怎么来，'
+            '最后看整车 HP / ATK 是怎么乘出来的、以及出车要过哪些校验。',
         'The car you field in the league is exactly the car built with the "Build Tool" (Personal → Build Tool). '
             'This chapter breaks its numbers down: what a car is made of, how each part\'s stats grow with level, '
             'how the whole car\'s HP / ATK are multiplied together, and which checks a car must pass.',
@@ -800,7 +1067,7 @@ const List<GuideChapter> kGuideChapters = <GuideChapter>[
       GuideBlock.heading('战车由什么组成', 'What a car is made of'),
       GuideBlock.text(
         '1 个车身 + 最多 1 个特殊武器（额外武器）+ 若干武器 / 车轮 / 配件；'
-        '后三者的数量上限由车身的插槽数决定，不能超装。',
+            '后三者的数量上限由车身的插槽数决定，不能超装。',
         '1 body + up to 1 special (extra) weapon + weapons / wheels / gadgets. '
             'The maximum counts of the last three come from the body\'s slots and cannot be exceeded.',
       ),
@@ -830,39 +1097,44 @@ const List<GuideChapter> kGuideChapters = <GuideChapter>[
       GuideBlock.heading('部件数值随等级成长', 'How part stats grow with level'),
       GuideBlock.text(
         '每个部件的 HP / ATK 都由「1 级基础值」和等级算出来：1 级就是基础值，等级越高涨得越快。'
-        '不同稀有度的等级上限不一样。',
+            '不同稀有度的等级上限不一样。',
         'Every part\'s HP / ATK is derived from its level-1 base value and its level: level 1 is the base value, and higher levels grow faster. '
             'Different rarities have different level caps.',
       ),
       GuideBlock.bullets(<GuideBullet>[
         GuideBullet(
           '普通部件（绝大多数）：2~16 级每一级把当前值 ×1.2 向下取整；17 级起改为固定步长'
-          '（约等于 16 级值的 8.75%）继续加，最高 20 级',
+              '（约等于 16 级值的 8.75%）继续加，最高 20 级',
           'Normal parts (the vast majority): from level 2 to 16 each level multiplies the current value by 1.2 (rounded down); '
-          'from level 17 on it adds a fixed step (about 8.75% of the level-16 value), up to level 20',
+              'from level 17 on it adds a fixed step (about 8.75% of the level-16 value), up to level 20',
         ),
         GuideBullet(
           'R6 旧版部件（少数早期 R6）：每级增量本身还会递增 —— '
-          'delta = 向下取整(基础值 × 0.19163)、delta2 = 向下取整(基础值 ÷ 15)（固定），'
-          '每级「值 += delta；delta += delta2」，最高 18 级',
+              'delta = 向下取整(基础值 × 0.19163)、delta2 = 向下取整(基础值 ÷ 15)（固定），'
+              '每级「值 += delta；delta += delta2」，最高 18 级',
           'Legacy R6 parts (a few early R6s): the increment itself grows — '
-          'delta = floor(base × 0.19163), delta2 = floor(base ÷ 15) (fixed), each level does "value += delta; delta += delta2", up to level 18',
+              'delta = floor(base × 0.19163), delta2 = floor(base ÷ 15) (fixed), each level does "value += delta; delta += delta2", up to level 18',
         ),
       ]),
-      GuideBlock.table(GuideTable(
-        headZh: <String>['稀有度', '最高等级'],
-        headEn: <String>['Rarity', 'Max level'],
-        rowsZh: <List<String>>[
-          <String>['R1 - R5', '20 级'],
-          <String>['R6', '18 级'],
-        ],
-        rowsEn: <List<String>>[
-          <String>['R1 - R5', 'Level 20'],
-          <String>['R6', 'Level 18'],
-        ],
-      )),
+      GuideBlock.table(
+        GuideTable(
+          headZh: <String>['稀有度', '最高等级'],
+          headEn: <String>['Rarity', 'Max level'],
+          rowsZh: <List<String>>[
+            <String>['R1 - R5', '20 级'],
+            <String>['R6', '18 级'],
+          ],
+          rowsEn: <List<String>>[
+            <String>['R1 - R5', 'Level 20'],
+            <String>['R6', 'Level 18'],
+          ],
+        ),
+      ),
       // ---------- 3. 整车 HP/ATK ----------
-      GuideBlock.heading('一辆车的 HP / ATK 怎么算', 'How the car\'s HP / ATK are computed'),
+      GuideBlock.heading(
+        '一辆车的 HP / ATK 怎么算',
+        'How the car\'s HP / ATK are computed',
+      ),
       GuideBlock.text(
         '整车的 HP / ATK 是「逐个部件算完再相加」，而每个部件的贡献由下面几个乘区相乘得到：',
         'The car\'s HP / ATK is the sum over all parts, and each part\'s contribution is the product of the multipliers below:',
@@ -875,46 +1147,54 @@ const List<GuideChapter> kGuideChapters = <GuideChapter>[
               'Stat pipeline: base × category × extra × toolbox × sponsor = car stats',
         ),
       ]),
-      GuideBlock.table(GuideTable(
-        headZh: <String>['乘区', '来源与算法'],
-        headEn: <String>['Multiplier', 'Where it comes from'],
-        rowsZh: <List<String>>[
-          <String>['裸值', '该部件在当前等级下的 HP / ATK（见上一节）'],
-          <String>[
-            '分类加成',
-            '全车部件里「加成类型」等于该部件分类的百分比之和'
-                '（车身 / 武器 / 车轮 / 配件 各一份；看的是部件提供的加成类型，不是部件自身分类）',
+      GuideBlock.table(
+        GuideTable(
+          headZh: <String>['乘区', '来源与算法'],
+          headEn: <String>['Multiplier', 'Where it comes from'],
+          rowsZh: <List<String>>[
+            <String>['裸值', '该部件在当前等级下的 HP / ATK（见上一节）'],
+            <String>[
+              '分类加成',
+              '全车部件里「加成类型」等于该部件分类的百分比之和'
+                  '（车身 / 武器 / 车轮 / 配件 各一份；看的是部件提供的加成类型，不是部件自身分类）',
+            ],
+            <String>['额外加成', '每个部件自己的独立乘区，0-150%、10% 一档（组车工具里逐部件选）'],
+            <String>[
+              '工具箱加成',
+              '城市之王掉的生命 / 攻击工具箱，只加对应数值：R1 +10% / R2 +20% / R3 +30% / R4 +40%',
+            ],
+            <String>[
+              '赞助加成',
+              '整车最后再乘一次：同一赞助商有 3 个及以上部件时 +10%，每再多 1 个 +5%'
+                  '（多个赞助商各自算，再加起来）',
+            ],
           ],
-          <String>['额外加成', '每个部件自己的独立乘区，0-150%、10% 一档（组车工具里逐部件选）'],
-          <String>[
-            '工具箱加成',
-            '城市之王掉的生命 / 攻击工具箱，只加对应数值：R1 +10% / R2 +20% / R3 +30% / R4 +40%',
+          rowsEn: <List<String>>[
+            <String>[
+              'Base',
+              'The part\'s HP / ATK at its current level (see the previous section)',
+            ],
+            <String>[
+              'Category',
+              'Sum of the percentages whose "bonus type" equals that part\'s category '
+                  '(one sum each for body / weapon / wheel / gadget; it is the bonus a part gives, not the part\'s own category)',
+            ],
+            <String>[
+              'Extra',
+              'Per-part independent multiplier, 0-150% in steps of 10% (chosen per part in the Build Tool)',
+            ],
+            <String>[
+              'Toolbox',
+              'Life / attack toolboxes from City King, each only boosts its own stat: R1 +10% / R2 +20% / R3 +30% / R4 +40%',
+            ],
+            <String>[
+              'Sponsor',
+              'Applied once to the whole car at the end: 3 or more parts of the same sponsor gives +10%, plus +5% for every extra one '
+                  '(each sponsor counts separately, then they add up)',
+            ],
           ],
-          <String>[
-            '赞助加成',
-            '整车最后再乘一次：同一赞助商有 3 个及以上部件时 +10%，每再多 1 个 +5%'
-                '（多个赞助商各自算，再加起来）',
-          ],
-        ],
-        rowsEn: <List<String>>[
-          <String>['Base', 'The part\'s HP / ATK at its current level (see the previous section)'],
-          <String>[
-            'Category',
-            'Sum of the percentages whose "bonus type" equals that part\'s category '
-                '(one sum each for body / weapon / wheel / gadget; it is the bonus a part gives, not the part\'s own category)',
-          ],
-          <String>['Extra', 'Per-part independent multiplier, 0-150% in steps of 10% (chosen per part in the Build Tool)'],
-          <String>[
-            'Toolbox',
-            'Life / attack toolboxes from City King, each only boosts its own stat: R1 +10% / R2 +20% / R3 +30% / R4 +40%',
-          ],
-          <String>[
-            'Sponsor',
-            'Applied once to the whole car at the end: 3 or more parts of the same sponsor gives +10%, plus +5% for every extra one '
-                '(each sponsor counts separately, then they add up)',
-          ],
-        ],
-      )),
+        ),
+      ),
       GuideBlock.bullets(<GuideBullet>[
         GuideBullet(
           '车轮特殊：车轮的 HP 与 ATK 都用「车轮加成」这一个百分比',
@@ -947,12 +1227,15 @@ const List<GuideChapter> kGuideChapters = <GuideChapter>[
       ]),
       GuideBlock.tip(
         '组车工具里改任何一处（等级、额外加成、部位）都会立刻重算整车 HP / ATK 与电力，'
-        '报错就是上面那几种。',
+            '报错就是上面那几种。',
         'Any change in the Build Tool (level, extra bonus, parts) immediately recomputes the car\'s HP / ATK and power; '
             'the errors are exactly the ones listed above.',
       ),
       // ---------- 5. 在组车工具里怎么看 ----------
-      GuideBlock.heading('在组车工具里怎么看这些数', 'Reading these numbers in the Build Tool'),
+      GuideBlock.heading(
+        '在组车工具里怎么看这些数',
+        'Reading these numbers in the Build Tool',
+      ),
       GuideBlock.bullets(<GuideBullet>[
         GuideBullet(
           '组车区里每个部件展开后是「裸值 → 分类加成 → 额外加成 → 赞助加成 → 最终」，和上面的公式一一对应',
@@ -971,6 +1254,116 @@ const List<GuideChapter> kGuideChapters = <GuideChapter>[
           'The three cars cannot share a part (Life Restart needs three cars)',
         ),
       ]),
+    ],
+  ),
+
+  // ==================== 废铁行动 ====================
+  GuideChapter(
+    id: 'scrap',
+    titleZh: '废铁行动',
+    titleEn: 'Scrap Action',
+    summaryZh: '螺栓每 10 分钟刷新 1 个，攒到节点数就能领奖励；附 100 个节点的完整奖励表',
+    summaryEn:
+        'One bolt every 10 minutes - collect them to hit reward nodes; the full 100-node reward table',
+    icon: Icons.handyman,
+    color: Colors.brown,
+    keywords: <String>[
+      '废铁行动',
+      '废铁',
+      '螺栓',
+      '节点',
+      '活动代币',
+      '锦标赛箱子',
+      '终极箱子',
+      '工具箱',
+      '钻石',
+      '紫票',
+      'scrap',
+      'bolt',
+      'node',
+      'milestone',
+      'event token',
+      'box',
+      'toolbox',
+    ],
+    blocks: <GuideBlock>[
+      GuideBlock.text(
+        '废铁行动是「挂机攒资源」的活动：核心资源是**螺栓**，每 10 分钟自动刷新 1 个；'
+            '把螺栓攒到指定数量，就能领取对应节点的奖励，越往后奖励越丰厚。',
+        'Scrap Action is an idle-style event: its core resource is **bolts** - one refreshes every 10 minutes. '
+            'Collecting enough bolts lets you claim the reward of that node, and later nodes pay much better.',
+      ),
+
+      // ---------- 1. 核心玩法 ----------
+      GuideBlock.heading('核心玩法', 'How it works'),
+      GuideBlock.bullets(<GuideBullet>[
+        GuideBullet(
+          '螺栓每 10 分钟刷新 1 个（1 小时 6 个、1 天 144 个）',
+          'One bolt refreshes every 10 minutes (6 per hour, 144 per day)',
+        ),
+        GuideBullet(
+          '螺栓数量达到某个节点值，就可以领取该节点的奖励',
+          'Reaching a node threshold lets you claim that node\'s reward',
+        ),
+        GuideBullet(
+          '节点是**累计**的：1300 个螺栓代表前面所有节点都已达成',
+          'Nodes are **cumulative**: 1300 bolts means every earlier node is already reached',
+        ),
+        GuideBullet(
+          '一共 100 个节点，最高节点是 2000 个螺栓',
+          'There are 100 nodes in total; the last one sits at 2000 bolts',
+        ),
+        GuideBullet(
+          '实测最长 2000 个螺栓：按 10 分钟 1 个算，从 0 攒满约需 14 天',
+          'Farming all 2000 bolts takes about 14 days at one bolt per 10 minutes',
+        ),
+      ]),
+
+      // ---------- 2. 两种「代币」----------
+      GuideBlock.heading('「活动代币」和「代币」是两种东西', 'Event tokens are not tokens'),
+      GuideBlock.text(
+        '奖励表里出现的**活动代币**与**代币**是两种**不同**的货币，不要混为一谈：',
+        'The **event tokens** and **tokens** in the reward table are two **different** currencies - do not mix them up:',
+      ),
+      GuideBlock.bullets(<GuideBullet>[
+        GuideBullet(
+          '**活动代币**：本活动专属，奖励表里写作「活动代币 ×N」',
+          '**Event tokens**: exclusive to this event, written as "Event tokens ×N"',
+        ),
+        GuideBullet(
+          '**代币**：游戏里的常规代币，奖励表里写作「代币 ×N」',
+          '**Tokens**: the regular in-game token, written as "Tokens ×N"',
+        ),
+      ]),
+      GuideBlock.tip(
+        '看奖励表时先看单位：写「活动代币」的才是本活动货币，写「代币」的是常规代币。',
+        'Read the unit first: "event tokens" is this event\'s currency, "tokens" is the regular one.',
+      ),
+
+      // ---------- 3. 节点表 ----------
+      GuideBlock.heading('节点与奖励一览', 'Node rewards'),
+      GuideBlock.text(
+        '螺栓数 → 奖励（共 100 个节点）：',
+        'Bolts to reward (100 nodes in total):',
+      ),
+      GuideBlock.table(
+        GuideTable(
+          headZh: <String>['螺栓', '奖励'],
+          headEn: <String>['Bolts', 'Reward'],
+          rowsZh: _scrapNodesZh,
+          rowsEn: _scrapNodesEn,
+        ),
+      ),
+      GuideBlock.tip(
+        '拿满全部节点的奖励总量：终极箱子（R5）×10、'
+            '终极箱子（R6）×7、锦标赛箱子 ×14、'
+            '工具箱 ×5、钻石 ×100、'
+            '紫票 ×1100000、代币 ×150、活动代币 ×2750，'
+            '以及 R6 部件 k1-k14 各若干。',
+        'Total rewards from every node: ultimate boxes (R5) x10, '
+            'ultimate boxes (R6) x7, championship boxes x14, toolboxes x5, diamonds x100, '
+            'purple tickets x1100000, tokens x150, event tokens x2750, plus several R6 parts k1-k14.',
+      ),
     ],
   ),
 ];
