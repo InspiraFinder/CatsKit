@@ -1262,16 +1262,22 @@ const List<GuideChapter> kGuideChapters = <GuideChapter>[
     id: 'scrap',
     titleZh: '废铁行动',
     titleEn: 'Scrap Action',
-    summaryZh: '螺栓每 10 分钟刷新 1 个，攒到节点数就能领奖励；附 100 个节点的完整奖励表',
+    summaryZh: '与锦标赛绑定：刷锦标赛对手抢螺栓，节点奖励表附 100 个节点',
     summaryEn:
-        'One bolt every 10 minutes - collect them to hit reward nodes; the full 100-node reward table',
+        'A championship-linked event: farm bolts off your opponents; includes the full 100-node reward table',
     icon: Icons.handyman,
     color: Colors.brown,
     keywords: <String>[
       '废铁行动',
       '废铁',
       '螺栓',
+      '螺栓收集器',
+      '螺栓箱子',
       '节点',
+      '锦标赛',
+      '对手',
+      '广告',
+      '氪金',
       '活动代币',
       '锦标赛箱子',
       '终极箱子',
@@ -1280,46 +1286,75 @@ const List<GuideChapter> kGuideChapters = <GuideChapter>[
       '紫票',
       'scrap',
       'bolt',
+      'collector',
+      'championship',
       'node',
       'milestone',
       'event token',
       'box',
       'toolbox',
+      'ad',
     ],
     blocks: <GuideBlock>[
       GuideBlock.text(
-        '废铁行动是「挂机攒资源」的活动：核心资源是**螺栓**，每 10 分钟自动刷新 1 个；'
-            '把螺栓攒到指定数量，就能领取对应节点的奖励，越往后奖励越丰厚。',
-        'Scrap Action is an idle-style event: its core resource is **bolts** - one refreshes every 10 minutes. '
-            'Collecting enough bolts lets you claim the reward of that node, and later nodes pay much better.',
+        '废铁行动是**与锦标赛绑定**的活动：每 10 分钟刷新 1 个**螺栓**，它会落到某个锦标赛对手身上；'
+            '你**只有击败持有螺栓的对手**才能把螺栓拿到手。螺栓累计成节点进度，攒到节点数就能领该节点的奖励。',
+        'Scrap Action is tied to the **championship**: a **bolt** spawns every 10 minutes and lands on one of your '
+            'championship opponents. You only get it by **defeating the opponent holding it**; bolts accumulate into node '
+            'progress, and reaching a node lets you claim its reward.',
       ),
 
-      // ---------- 1. 核心玩法 ----------
-      GuideBlock.heading('核心玩法', 'How it works'),
+      // ---------- 1. 螺栓怎么来 ----------
+      GuideBlock.heading('核心玩法：螺栓怎么来', 'Core loop: where bolts come from'),
       GuideBlock.bullets(<GuideBullet>[
         GuideBullet(
-          '螺栓每 10 分钟刷新 1 个（1 小时 6 个、1 天 144 个）',
-          'One bolt refreshes every 10 minutes (6 per hour, 144 per day)',
+          '螺栓每 **10 分钟**刷新 1 个，会随机落到一个**当前身上没有螺栓**的锦标赛对手身上',
+          'One bolt spawns every **10 minutes** and lands on a random championship opponent that **has no bolt right now**',
         ),
         GuideBullet(
-          '螺栓数量达到某个节点值，就可以领取该节点的奖励',
-          'Reaching a node threshold lets you claim that node\'s reward',
+          '**击败持有螺栓的对手**，螺栓才归你 —— 它会算进你的节点进度',
+          '**Defeat the opponent holding the bolt** to take it - it counts towards your node progress',
         ),
         GuideBullet(
-          '节点是**累计**的：1300 个螺栓代表前面所有节点都已达成',
-          'Nodes are **cumulative**: 1300 bolts means every earlier node is already reached',
+          '如果所有锦标赛对手身上都已经有螺栓了，新刷新的螺栓会先进**螺栓收集器**',
+          'If every championship opponent already holds a bolt, the new bolt goes into the **bolt collector** first',
         ),
         GuideBullet(
-          '一共 100 个节点，最高节点是 2000 个螺栓',
-          'There are 100 nodes in total; the last one sits at 2000 bolts',
+          '**获得螺栓只有三种途径**：击败持有螺栓的锦标赛对手、看广告、氪金',
+          'There are only **three ways** to obtain bolts: defeating a bolt-holding championship opponent, watching an ad, or topping up',
         ),
         GuideBullet(
-          '实测最长 2000 个螺栓：按 10 分钟 1 个算，从 0 攒满约需 14 天',
-          'Farming all 2000 bolts takes about 14 days at one bolt per 10 minutes',
+          '刷新速度：每小时 6 个、一天最多 144 个（但能不能变成进度，还看有没有对手「接住」和有没有提取）',
+          'Refresh rate: 6 per hour, at most 144 a day - but whether they turn into progress depends on something catching them and on extracting',
         ),
       ]),
 
-      // ---------- 2. 两种「代币」----------
+      // ---------- 2. 收集器与箱子 ----------
+      GuideBlock.heading('螺栓收集器 与 螺栓箱子', 'Bolt collector & bolt box'),
+      GuideBlock.text(
+        '螺栓收集器里的螺栓**不会自动算进度**，要先「提取」出来才能用：',
+        'Bolts in the collector **do not count automatically** - they must be extracted first:',
+      ),
+      GuideBlock.bullets(<GuideBullet>[
+        GuideBullet(
+          '**看广告或氪金**，把螺栓收集器里的螺栓提取到**螺栓箱子**',
+          '**Watch an ad or top up** to move bolts from the collector into the **bolt box**',
+        ),
+        GuideBullet(
+          '螺栓箱子里的螺栓会**自动补充到没有螺栓的对手**身上，回到「可以被刷取」的状态',
+          'Bolts in the box are **automatically placed onto opponents that have no bolt**, so they can be farmed again',
+        ),
+        GuideBullet(
+          '整条链路是一个循环：刷新 → 落到对手 → 击败夺取 → 都满了就进收集器 → 广告 / 氪金提取到箱子 → 自动补回空对手',
+          'The whole thing loops: spawn → land on an opponent → defeat it to take the bolt → collector once everyone holds one → extract by ad / top-up into the box → auto-placed back onto empty opponents',
+        ),
+      ]),
+      GuideBlock.tip(
+        '对手身上都刷满之后，光等刷新是拿不到螺栓的 —— 只能靠**看广告**或**氪金**提取。',
+        'Once every opponent holds a bolt, waiting earns you nothing - the only ways forward are **ads** and **top-ups**.',
+      ),
+
+      // ---------- 3. 两种「代币」----------
       GuideBlock.heading('「活动代币」和「代币」是两种东西', 'Event tokens are not tokens'),
       GuideBlock.text(
         '奖励表里出现的**活动代币**与**代币**是两种**不同**的货币，不要混为一谈：',
@@ -1340,7 +1375,7 @@ const List<GuideChapter> kGuideChapters = <GuideChapter>[
         'Read the unit first: "event tokens" is this event\'s currency, "tokens" is the regular one.',
       ),
 
-      // ---------- 3. 节点表 ----------
+      // ---------- 4. 节点表 ----------
       GuideBlock.heading('节点与奖励一览', 'Node rewards'),
       GuideBlock.text(
         '螺栓数 → 奖励（共 100 个节点）：',
