@@ -711,6 +711,8 @@ Widget buildGuideFigure(
   switch (figure.diagram) {
     case 'carLayout':
       return _CarLayoutFigure(locale: locale, isDark: isDark);
+    case 'champCarTiers':
+      return _ChampCarTiersFigure(locale: locale, isDark: isDark);
     case 'partSample':
       return _PartSampleFigure(locale: locale, server: server);
     case 'sponsors':
@@ -933,6 +935,159 @@ class _CarLayoutPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant _CarLayoutPainter old) =>
+      old.zh != zh || old.isDark != isDark;
+}
+
+/// 锦标赛战车「25 档」示意图：5 种材料 × 1-5 星，格子里的数字是档号；
+/// 顶行是该星级对应的等级上限（等级上限只看星级，不看材料）
+class _ChampCarTiersFigure extends StatelessWidget {
+  final String locale;
+  final bool isDark;
+  const _ChampCarTiersFigure({required this.locale, required this.isDark});
+
+  @override
+  Widget build(BuildContext context) {
+    return AspectRatio(
+      aspectRatio: 340 / 176,
+      child: CustomPaint(
+        painter: _ChampCarTiersPainter(zh: locale == 'zh', isDark: isDark),
+      ),
+    );
+  }
+}
+
+class _ChampCarTiersPainter extends CustomPainter {
+  final bool zh;
+  final bool isDark;
+  _ChampCarTiersPainter({required this.zh, required this.isDark});
+
+  static const double _w = 340;
+  static const double _h = 176;
+
+  /// 5 种材料（顺序 = 档位顺序）：(中文, English, 颜色)
+  static const List<(String, String, Color)> _materials =
+      <(String, String, Color)>[
+        ('木质', 'Wood', Colors.brown),
+        ('铁制', 'Iron', Colors.blueGrey),
+        ('军用', 'Military', Colors.indigo),
+        ('黄金', 'Gold', Colors.amber),
+        ('碳钢', 'Carbon', Colors.cyan),
+      ];
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    canvas.save();
+    canvas.scale(size.width / _w, size.height / _h);
+
+    final labelColor = isDark ? Colors.white70 : Colors.black87;
+    final capBg = isDark ? Colors.white12 : Colors.black12;
+
+    const labelW = 48.0;
+    const starHeaderH = 16.0;
+    const capRowH = 20.0;
+    const rowH = 28.0;
+    final colW = (_w - labelW) / 5;
+    const gridTop = starHeaderH + capRowH;
+
+    // 星级表头
+    for (var c = 0; c < 5; c++) {
+      _text(
+        canvas,
+        '${c + 1}★',
+        Offset(labelW + colW * c + colW / 2, 2),
+        labelColor,
+        center: true,
+      );
+    }
+
+    // 等级上限行（只跟星级有关，所以每种材料这一列都一样）
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(
+        Rect.fromLTWH(labelW - 4, starHeaderH + 1, _w - labelW + 4, capRowH - 2),
+        const Radius.circular(4),
+      ),
+      Paint()..color = capBg,
+    );
+    _text(
+      canvas,
+      zh ? '等级上限' : 'Max lvl',
+      Offset(labelW - 8, starHeaderH + 6),
+      labelColor,
+      right: true,
+      fontSize: 8,
+    );
+    for (var c = 0; c < 5; c++) {
+      _text(
+        canvas,
+        '${6 + c * 5}',
+        Offset(labelW + colW * c + colW / 2, starHeaderH + 5),
+        labelColor,
+        center: true,
+        fontSize: 10,
+      );
+    }
+
+    // 5 种材料 × 5 星 = 25 档
+    for (var r = 0; r < _materials.length; r++) {
+      final (zhName, enName, color) = _materials[r];
+      final top = gridTop + rowH * r;
+      _text(
+        canvas,
+        zh ? zhName : enName,
+        Offset(labelW - 8, top + 9),
+        color,
+        right: true,
+        fontSize: 9.5,
+      );
+      for (var c = 0; c < 5; c++) {
+        final rect = Rect.fromLTWH(
+          labelW + colW * c + 2,
+          top + 3,
+          colW - 4,
+          rowH - 6,
+        );
+        canvas.drawRRect(
+          RRect.fromRectAndRadius(rect, const Radius.circular(5)),
+          Paint()..color = color.withValues(alpha: isDark ? 0.55 : 0.3),
+        );
+        _text(
+          canvas,
+          '${r * 5 + c + 1}',
+          Offset(rect.center.dx, rect.center.dy - 7),
+          isDark ? Colors.white : Colors.black87,
+          center: true,
+          fontSize: 10.5,
+        );
+      }
+    }
+
+    canvas.restore();
+  }
+
+  void _text(
+    Canvas canvas,
+    String s,
+    Offset at,
+    Color color, {
+    bool center = false,
+    bool right = false,
+    double fontSize = 10,
+  }) {
+    final tp = TextPainter(
+      text: TextSpan(
+        text: s,
+        style: TextStyle(fontSize: fontSize, color: color),
+      ),
+      textDirection: TextDirection.ltr,
+    )..layout();
+    var dx = at.dx;
+    if (center) dx -= tp.width / 2;
+    if (right) dx -= tp.width;
+    tp.paint(canvas, Offset(dx, at.dy));
+  }
+
+  @override
+  bool shouldRepaint(covariant _ChampCarTiersPainter old) =>
       old.zh != zh || old.isDark != isDark;
 }
 

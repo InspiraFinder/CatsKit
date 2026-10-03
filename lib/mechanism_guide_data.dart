@@ -28,7 +28,7 @@ class GuideFigure {
   /// / `activityIcons`（活动图标一览） / `jokerTiers`（王牌 R1-R5）
   /// / `chestTypes`（自选箱 / 固定箱） / `gangTiers`（帮派四个组别）
   /// / `seasonFlow`（赛季收尾流程） / `battleBuildings`（战斗建筑与车位）
-  /// / `statPipeline`（单车数值乘区链路）
+  /// / `statPipeline`（单车数值乘区链路） / `champCarTiers`（锦标赛战车 25 档）
   final String? diagram;
 
   final String captionZh;
@@ -1470,11 +1470,170 @@ const List<GuideChapter> kGuideChapters = <GuideChapter>[
     id: 'championship_car',
     titleZh: '锦标赛战车',
     titleEn: 'Championship Car',
-    summaryZh: '内容整理中，后续补充',
-    summaryEn: 'Coming soon',
+    summaryZh: '锦标赛出场的那辆车：车身 / 武器 / 车轮 / 配件四类部件、25 档（5 种材料 × 5 星）与配电限制',
+    summaryEn:
+        'The car you field in the Championship: body / weapon / wheel / gadget, 25 tiers (5 materials x 5 stars) and the power limit',
     icon: Icons.directions_car,
     color: Colors.teal,
-    keywords: <String>['锦标赛战车', 'championship car'],
+    keywords: <String>[
+      '锦标赛战车',
+      '锦标赛',
+      '战车',
+      '车身',
+      '武器',
+      '车轮',
+      '配件',
+      '电量',
+      '电力',
+      '配电',
+      '档',
+      '档位',
+      '星级',
+      '星',
+      '木质',
+      '铁制',
+      '军用',
+      '黄金',
+      '碳钢',
+      '等级上限',
+      'championship car',
+      'body',
+      'weapon',
+      'wheel',
+      'gadget',
+      'power',
+      'star',
+      'tier',
+      'wood',
+      'iron',
+      'military',
+      'gold',
+      'carbon',
+    ],
+    blocks: <GuideBlock>[
+      GuideBlock.text(
+        '锦标赛战车就是锦标赛里出场的那辆车。它和终极联赛战车一样，由 **车身 / 武器 / 车轮 / 配件** '
+            '四类部件拼成，也一样有一道**电力**门槛：车上的部件要能互相供得上电才出得了车。',
+        'The Championship Car is the car you field in the Championship. Like the Ultimate League car it is '
+            'assembled from four kinds of parts — **body / weapon / wheel / gadget** — and it must also pass a '
+            '**power** check: the parts on the car have to supply enough power for each other.',
+      ),
+      // ---------- 1. 组成与电力 ----------
+      GuideBlock.heading('组成与电力', 'Parts and power'),
+      GuideBlock.bullets(<GuideBullet>[
+        GuideBullet(
+          '四类部件：**车身**（提供基础 HP，并决定武器 / 车轮 / 配件各有几个插槽）、**武器**、**车轮**、**配件**',
+          'Four kinds of parts: the **body** (base HP, and it decides how many weapon / wheel / gadget slots the car has), '
+              '**weapons**, **wheels** and **gadgets**',
+        ),
+        GuideBullet(
+          '每辆车都有电力上限：部件里正的电力相加是「供电」，负的电力绝对值相加是「耗电」',
+          'Every car has a power limit: the positive power of its parts adds up to the supply, the absolute value of the negative power adds up to the consumption',
+        ),
+        GuideBullet(
+          '耗电超过供电就出不了车，只能换更省电的部件，或换低一档的部件',
+          'If consumption exceeds supply the car cannot be fielded — swap in more efficient parts, or parts one tier down',
+        ),
+      ]),
+      // ---------- 2. 25 档 ----------
+      GuideBlock.heading(
+        '25 档：5 种材料 × 5 星',
+        '25 tiers: 5 materials x 5 stars',
+      ),
+      GuideBlock.text(
+        '锦标赛战车的部件按**材料**分成 5 种，每种又各分 **1-5 星**，一共 5 × 5 = 25 档。'
+            '档位顺序是「先材料、后星级」：木质最靠前，碳钢最靠后。',
+        'Championship parts come in 5 **materials**, each with **1-5 stars** — 5 x 5 = 25 tiers. '
+            'The order is "material first, then star": wood is the earliest and carbon the latest.',
+      ),
+      GuideBlock.figures(<GuideFigure>[
+        GuideFigure.diagram(
+          'champCarTiers',
+          captionZh: '25 档一览：5 种材料 × 1-5 星；顶行是该星级对应的等级上限（只看星级）',
+          captionEn:
+              'The 25 tiers: 5 materials x 1-5 stars; the top row is the level cap for that star (star only)',
+        ),
+      ]),
+      GuideBlock.table(
+        GuideTable(
+          headZh: <String>['材料', '档位', '星级'],
+          headEn: <String>['Material', 'Tiers', 'Stars'],
+          rowsZh: <List<String>>[
+            <String>['木质部件', '第 1 - 5 档', '1 - 5 星'],
+            <String>['铁制部件', '第 6 - 10 档', '1 - 5 星'],
+            <String>['军用部件', '第 11 - 15 档', '1 - 5 星'],
+            <String>['黄金部件', '第 16 - 20 档', '1 - 5 星'],
+            <String>['碳钢部件', '第 21 - 25 档', '1 - 5 星'],
+          ],
+          rowsEn: <List<String>>[
+            <String>['Wood', 'Tiers 1 - 5', '1 - 5 stars'],
+            <String>['Iron', 'Tiers 6 - 10', '1 - 5 stars'],
+            <String>['Military', 'Tiers 11 - 15', '1 - 5 stars'],
+            <String>['Gold', 'Tiers 16 - 20', '1 - 5 stars'],
+            <String>['Carbon', 'Tiers 21 - 25', '1 - 5 stars'],
+          ],
+        ),
+      ),
+      // ---------- 3. 等级上限 ----------
+      GuideBlock.heading(
+        '等级上限只看星级',
+        'The level cap depends on the star only',
+      ),
+      GuideBlock.text(
+        '每个部件能升到多少级，只由它的**星级**决定，和材料无关：1 星最高 6 级，之后每多 1 星多 5 级，'
+            '5 星最高 26 级。',
+        'How far a part can be upgraded depends only on its **star**, not on its material: 1 star caps at level 6, '
+            'every extra star adds 5 levels, and 5 stars cap at level 26.',
+      ),
+      GuideBlock.table(
+        GuideTable(
+          headZh: <String>['星级', '最高等级'],
+          headEn: <String>['Star', 'Max level'],
+          rowsZh: <List<String>>[
+            <String>['1 星', '6 级'],
+            <String>['2 星', '11 级'],
+            <String>['3 星', '16 级'],
+            <String>['4 星', '21 级'],
+            <String>['5 星', '26 级'],
+          ],
+          rowsEn: <List<String>>[
+            <String>['1 star', 'Level 6'],
+            <String>['2 stars', 'Level 11'],
+            <String>['3 stars', 'Level 16'],
+            <String>['4 stars', 'Level 21'],
+            <String>['5 stars', 'Level 26'],
+          ],
+        ),
+      ),
+      GuideBlock.tip(
+        '注意：1 星铁制部件虽然是第 6 档（材料已经跨到铁制了），最高等级也只有 6 级 —— '
+            '等级上限按**星级**算，不按**档位**算。',
+        'Note: a 1-star iron part is tier 6 (its material has already moved up to iron) but still caps at level 6 — '
+            'the cap follows the **star**, not the tier.',
+      ),
+      // ---------- 4. 电力 ----------
+      GuideBlock.heading('电力也随星级上升', 'Power grows with the star too'),
+      GuideBlock.bullets(<GuideBullet>[
+        GuideBullet(
+          '同一种部件，星级越高，它**提供**（或**消耗**）的电力越大',
+          'For the same part, a higher star means more power **supplied** (or **consumed**)',
+        ),
+        GuideBullet(
+          '部件种类不影响电力：只要**星级相同**，不同种类的部件提供 / 消耗的电力就是同一个数',
+          'The kind of part does not matter: at the **same star**, different parts supply / consume exactly the same power',
+        ),
+        GuideBullet(
+          '所以配车时算电力，只需要看每件部件是几星、是供电还是耗电',
+          'So when balancing a build you only need to know each part\'s star and whether it supplies or consumes',
+        ),
+      ]),
+      GuideBlock.tip(
+        '两套体系别混：锦标赛战车的部件按「材料 + 星级」分 25 档（最高 6-26 级），'
+            '终极联赛战车的部件按 R1-R6 分稀有度（最高 20 / 18 级）。',
+        'Do not mix the two systems: Championship parts are tiered by "material + star" in 25 tiers (max level 6-26), '
+            'while Ultimate League parts use R1-R6 rarities (max level 20 / 18).',
+      ),
+    ],
   ),
   GuideChapter(
     id: 'championship',
