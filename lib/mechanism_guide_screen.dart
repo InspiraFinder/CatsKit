@@ -254,7 +254,9 @@ class _MechanismGuideScreenState extends State<MechanismGuideScreen> {
                           ? (_isZh
                                 ? '$sectionCount 个小节'
                                 : '$sectionCount sections')
-                          : (_isZh ? '$count 个段落' : '$count blocks'),
+                          : (count > 0
+                                ? (_isZh ? '$count 个段落' : '$count blocks')
+                                : (_isZh ? '内容整理中' : 'Coming soon')),
                       style: TextStyle(
                         fontSize: 11,
                         color: isDark ? Colors.white38 : Colors.black38,
@@ -327,6 +329,20 @@ class _GuideChapterScreenState extends State<GuideChapterScreen> {
             if (sections.length > 1) ...<Widget>[
               _buildToc(sections, isDark),
               const SizedBox(height: 14),
+            ],
+            if (chapter.blocks.isEmpty) ...<Widget>[
+              Center(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 48),
+                  child: Text(
+                    _t('本页内容整理中，后续补充。', 'This chapter is coming soon.'),
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: isDark ? Colors.white54 : Colors.black54,
+                    ),
+                  ),
+                ),
+              ),
             ],
             for (var i = 0; i < chapter.blocks.length; i++) ...<Widget>[
               KeyedSubtree(
