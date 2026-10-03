@@ -713,6 +713,8 @@ Widget buildGuideFigure(
       return _CarLayoutFigure(locale: locale, isDark: isDark);
     case 'champCarTiers':
       return _ChampCarTiersFigure(locale: locale, isDark: isDark);
+    case 'champCarPower':
+      return _ChampCarPowerFigure(locale: locale, isDark: isDark);
     case 'partSample':
       return _PartSampleFigure(locale: locale, server: server);
     case 'sponsors':
@@ -1088,6 +1090,140 @@ class _ChampCarTiersPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant _ChampCarTiersPainter old) =>
+      old.zh != zh || old.isDark != isDark;
+}
+
+/// 锦标赛战车「电力区间」示意图：车身供电（木质 / 其他材料）与武器耗电，按星级排三行
+class _ChampCarPowerFigure extends StatelessWidget {
+  final String locale;
+  final bool isDark;
+  const _ChampCarPowerFigure({required this.locale, required this.isDark});
+
+  @override
+  Widget build(BuildContext context) {
+    return AspectRatio(
+      aspectRatio: 340 / 104,
+      child: CustomPaint(
+        painter: _ChampCarPowerPainter(zh: locale == 'zh', isDark: isDark),
+      ),
+    );
+  }
+}
+
+class _ChampCarPowerPainter extends CustomPainter {
+  final bool zh;
+  final bool isDark;
+  _ChampCarPowerPainter({required this.zh, required this.isDark});
+
+  static const double _w = 340;
+  static const double _h = 104;
+
+  /// 每行 = (中文标签, English 标签, 颜色, 5 个星级的值)
+  static const List<(String, String, Color, List<String>)> _rows =
+      <(String, String, Color, List<String>)>[
+        (
+          '木质车身',
+          'Wood body',
+          Colors.brown,
+          <String>['6', '6 - 8', '9 - 11', '12 - 14', '15 - 17'],
+        ),
+        (
+          '其他车身',
+          'Other',
+          Colors.blueGrey,
+          <String>['8 - 10', '10 - 12', '12 - 14', '14 - 16', '16 - 18'],
+        ),
+        (
+          '武器耗电',
+          'Weapon',
+          Colors.red,
+          <String>['4 - 6', '5 - 7', '6 - 8', '7 - 9', '8 - 10'],
+        ),
+      ];
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    canvas.save();
+    canvas.scale(size.width / _w, size.height / _h);
+
+    final labelColor = isDark ? Colors.white70 : Colors.black87;
+
+    const labelW = 56.0;
+    const headH = 14.0;
+    const rowH = 30.0;
+    final colW = (_w - labelW) / 5;
+
+    // 星级表头
+    for (var c = 0; c < 5; c++) {
+      _text(
+        canvas,
+        '${c + 1}★',
+        Offset(labelW + colW * c + colW / 2, 1),
+        labelColor,
+        center: true,
+      );
+    }
+
+    for (var r = 0; r < _rows.length; r++) {
+      final (zhName, enName, color, values) = _rows[r];
+      final top = headH + rowH * r;
+      _text(
+        canvas,
+        zh ? zhName : enName,
+        Offset(labelW - 6, top + 10),
+        color,
+        right: true,
+        fontSize: 8.5,
+      );
+      for (var c = 0; c < 5; c++) {
+        final rect = Rect.fromLTWH(
+          labelW + colW * c + 2,
+          top + 5,
+          colW - 4,
+          20,
+        );
+        canvas.drawRRect(
+          RRect.fromRectAndRadius(rect, const Radius.circular(10)),
+          Paint()..color = color.withValues(alpha: isDark ? 0.5 : 0.26),
+        );
+        _text(
+          canvas,
+          values[c],
+          Offset(rect.center.dx, rect.center.dy - 6.5),
+          isDark ? Colors.white : Colors.black87,
+          center: true,
+          fontSize: 9.5,
+        );
+      }
+    }
+
+    canvas.restore();
+  }
+
+  void _text(
+    Canvas canvas,
+    String s,
+    Offset at,
+    Color color, {
+    bool center = false,
+    bool right = false,
+    double fontSize = 10,
+  }) {
+    final tp = TextPainter(
+      text: TextSpan(
+        text: s,
+        style: TextStyle(fontSize: fontSize, color: color),
+      ),
+      textDirection: TextDirection.ltr,
+    )..layout();
+    var dx = at.dx;
+    if (center) dx -= tp.width / 2;
+    if (right) dx -= tp.width;
+    tp.paint(canvas, Offset(dx, at.dy));
+  }
+
+  @override
+  bool shouldRepaint(covariant _ChampCarPowerPainter old) =>
       old.zh != zh || old.isDark != isDark;
 }
 

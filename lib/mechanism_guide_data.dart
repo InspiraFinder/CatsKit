@@ -29,6 +29,7 @@ class GuideFigure {
   /// / `chestTypes`（自选箱 / 固定箱） / `gangTiers`（帮派四个组别）
   /// / `seasonFlow`（赛季收尾流程） / `battleBuildings`（战斗建筑与车位）
   /// / `statPipeline`（单车数值乘区链路） / `champCarTiers`（锦标赛战车 25 档）
+  /// / `champCarPower`（锦标赛战车电力区间）
   final String? diagram;
 
   final String captionZh;
@@ -1470,9 +1471,9 @@ const List<GuideChapter> kGuideChapters = <GuideChapter>[
     id: 'championship_car',
     titleZh: '锦标赛战车',
     titleEn: 'Championship Car',
-    summaryZh: '锦标赛出场的那辆车：车身 / 武器 / 车轮 / 配件四类部件、25 档（5 种材料 × 5 星）与配电限制',
+    summaryZh: '锦标赛出场的那辆车：四类部件、25 档（5 种材料 × 5 星）、车身 / 武器的电力区间与常见车身',
     summaryEn:
-        'The car you field in the Championship: body / weapon / wheel / gadget, 25 tiers (5 materials x 5 stars) and the power limit',
+        'The car you field in the Championship: four kinds of parts, 25 tiers (5 materials x 5 stars), body / weapon power ranges and the common bodies',
     icon: Icons.directions_car,
     color: Colors.teal,
     keywords: <String>[
@@ -1486,6 +1487,18 @@ const List<GuideChapter> kGuideChapters = <GuideChapter>[
       '电量',
       '电力',
       '配电',
+      '供电',
+      '耗电',
+      '车身种类',
+      '经典',
+      '泰坦',
+      '浪板',
+      '滑头',
+      '磐石',
+      '金字塔',
+      '巨鲸',
+      '钻石',
+      '特殊车身',
       '档',
       '档位',
       '星级',
@@ -1611,22 +1624,99 @@ const List<GuideChapter> kGuideChapters = <GuideChapter>[
         'Note: a 1-star iron part is tier 6 (its material has already moved up to iron) but still caps at level 6 — '
             'the cap follows the **star**, not the tier.',
       ),
-      // ---------- 4. 电力 ----------
-      GuideBlock.heading('电力也随星级上升', 'Power grows with the star too'),
-      GuideBlock.bullets(<GuideBullet>[
-        GuideBullet(
-          '同一种部件，星级越高，它**提供**（或**消耗**）的电力越大',
-          'For the same part, a higher star means more power **supplied** (or **consumed**)',
-        ),
-        GuideBullet(
-          '部件种类不影响电力：只要**星级相同**，不同种类的部件提供 / 消耗的电力就是同一个数',
-          'The kind of part does not matter: at the **same star**, different parts supply / consume exactly the same power',
-        ),
-        GuideBullet(
-          '所以配车时算电力，只需要看每件部件是几星、是供电还是耗电',
-          'So when balancing a build you only need to know each part\'s star and whether it supplies or consumes',
+      // ---------- 4. 电力数值 ----------
+      GuideBlock.heading(
+        '电力数值：车身供电、武器耗电',
+        'Power values: bodies supply, weapons consume',
+      ),
+      GuideBlock.text(
+        '车身的电力是**正**的（供电），武器与配件的电力是**负**的（耗电）。'
+            '同一档次里，车身供电与武器的耗电都是一个**区间**：'
+            '车身供电越多、HP 越少；武器耗电越多、ATK 越多。',
+        'A body\'s power is **positive** (it supplies), while weapons and gadgets are **negative** (they consume). '
+            'Within a tier both the body\'s supply and the weapon\'s consumption are a **range**: '
+            'the more power a body supplies the less HP it has, and the more power a weapon consumes the more ATK it has.',
+      ),
+      GuideBlock.figures(<GuideFigure>[
+        GuideFigure.diagram(
+          'champCarPower',
+          captionZh: '电力区间一览：车身供电（木质 / 其他材料）与武器耗电，按星级排列',
+          captionEn:
+              'Power ranges: body supply (wood / other materials) and weapon consumption, arranged by star',
         ),
       ]),
+      GuideBlock.text(
+        '**车身供电**：木质车身明显低于其他材料的车身，同星级大约少 2 点。',
+        '**Body supply**: wood bodies supply noticeably less than bodies of other materials — about 2 points less at the same star.',
+      ),
+      GuideBlock.table(
+        GuideTable(
+          headZh: <String>['星级', '木质车身', '其他材料车身'],
+          headEn: <String>['Star', 'Wood body', 'Other materials'],
+          rowsZh: <List<String>>[
+            <String>['1 星', '6', '8 - 10'],
+            <String>['2 星', '6 - 8', '10 - 12'],
+            <String>['3 星', '9 - 11', '12 - 14'],
+            <String>['4 星', '12 - 14', '14 - 16'],
+            <String>['5 星', '15 - 17', '16 - 18'],
+          ],
+          rowsEn: <List<String>>[
+            <String>['1 star', '6', '8 - 10'],
+            <String>['2 stars', '6 - 8', '10 - 12'],
+            <String>['3 stars', '9 - 11', '12 - 14'],
+            <String>['4 stars', '12 - 14', '14 - 16'],
+            <String>['5 stars', '15 - 17', '16 - 18'],
+          ],
+        ),
+      ),
+      GuideBlock.text(
+        '**武器耗电**：区间只跟星级有关，同星级的武器区间都一样。',
+        '**Weapon consumption**: the range depends only on the star — every weapon of the same star shares it.',
+      ),
+      GuideBlock.table(
+        GuideTable(
+          headZh: <String>['星级', '武器耗电'],
+          headEn: <String>['Star', 'Weapon consumption'],
+          rowsZh: <List<String>>[
+            <String>['1 星', '4 - 6'],
+            <String>['2 星', '5 - 7'],
+            <String>['3 星', '6 - 8'],
+            <String>['4 星', '7 - 9'],
+            <String>['5 星', '8 - 10'],
+          ],
+          rowsEn: <List<String>>[
+            <String>['1 star', '4 - 6'],
+            <String>['2 stars', '5 - 7'],
+            <String>['3 stars', '6 - 8'],
+            <String>['4 stars', '7 - 9'],
+            <String>['5 stars', '8 - 10'],
+          ],
+        ),
+      ),
+      GuideBlock.bullets(<GuideBullet>[
+        GuideBullet(
+          '配件：耗电**视具体是哪种配件而定**，没有统一的星级区间',
+          'Gadgets: consumption depends on **which gadget it is** — there is no single per-star range',
+        ),
+        GuideBullet(
+          '部件不同，即使星级相同、电力也一样，HP / ATK 一般也不同',
+          'Different parts usually have different HP / ATK even at the same star and the same power',
+        ),
+        GuideBullet(
+          '配车时区间内怎么选：想多带武器 / 配件就取供电高的车身，想要高 HP 就取供电低的那一件',
+          'How to pick inside a range: take a high-supply body to carry more weapons / gadgets, or a low-supply one for more HP',
+        ),
+      ]),
+      // ---------- 5. 车身种类 ----------
+      GuideBlock.heading('车身有哪些', 'Which bodies are there'),
+      GuideBlock.text(
+        '常见车身有 **经典 / 泰坦 / 浪板 / 滑头 / 磐石 / 金字塔 / 巨鲸 / 钻石**，除此之外还会有一些'
+            '**特殊车身**。同一档次里，这些车身的供电与 HP 各不相同 —— 需要高 HP 就选供电低的，'
+            '需要多带武器 / 配件就选供电高的。',
+        'Common bodies are **Classic / Titan / Surfboard / Slick / Boulder / Pyramid / Whale / Diamond**, '
+            'and some **special bodies** also show up. Within the same tier these bodies differ in supply and HP — '
+            'pick a low-supply one for more HP, or a high-supply one to carry more weapons / gadgets.',
+      ),
       GuideBlock.tip(
         '两套体系别混：锦标赛战车的部件按「材料 + 星级」分 25 档（最高 6-26 级），'
             '终极联赛战车的部件按 R1-R6 分稀有度（最高 20 / 18 级）。',
