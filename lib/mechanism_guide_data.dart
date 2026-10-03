@@ -1277,6 +1277,9 @@ const List<GuideChapter> kGuideChapters = <GuideChapter>[
       '锦标赛',
       '对手',
       '广告',
+      '加速',
+      '冷却',
+      '种类',
       '氪金',
       '活动代币',
       '锦标赛箱子',
@@ -1354,7 +1357,37 @@ const List<GuideChapter> kGuideChapters = <GuideChapter>[
         'Once every opponent holds a bolt, waiting earns you nothing - the only ways forward are **ads** and **top-ups**.',
       ),
 
-      // ---------- 3. 两种「代币」----------
+      // ---------- 3. 看广告 ----------
+      GuideBlock.heading(
+        '看广告的两种用法（都有 7 小时 50 分冷却）',
+        'Two ways to spend an ad (both on a 7h 50m cooldown)',
+      ),
+      GuideBlock.bullets(<GuideBullet>[
+        GuideBullet(
+          '**加速刷新**：看广告后获得 **2 分钟**加速，期间螺栓刷新速度是平时的 **15 倍**（约 40 秒 1 个）',
+          '**Refresh boost**: an ad gives you **2 minutes** at **15x** the normal bolt refresh rate (about one bolt every 40 seconds)',
+        ),
+        GuideBullet(
+          '**从收集器提取**：在螺栓收集器看广告，直接掉出 **3 个螺栓** 到**螺栓箱子**',
+          '**Extract from the collector**: watching an ad in the bolt collector drops **3 bolts** straight into the **bolt box**',
+        ),
+        GuideBullet(
+          '这两种广告看完后都要等 **7 小时 50 分** 才会再刷新出来',
+          'After either ad you must wait **7 hours 50 minutes** for it to appear again',
+        ),
+        GuideBullet(
+          '氪金是另一条路（不用等广告冷却），同样把螺栓提到螺栓箱子',
+          'Topping up is the other route (no ad cooldown) and also moves bolts into the bolt box',
+        ),
+      ]),
+      GuideBlock.tip(
+        '2 分钟 × 15 倍 ≈ 多刷出 3 个螺栓，和收集器广告给的 3 个差不多 —— '
+            '两种广告挑一种用就行，但都要等 7 小时 50 分才能再用。',
+        'Two minutes at 15x spawns about 3 extra bolts - roughly what the collector ad hands you. '
+            'Pick either one, but both need a 7h 50m wait before they come back.',
+      ),
+
+      // ---------- 4. 两种「代币」----------
       GuideBlock.heading('「活动代币」和「代币」是两种东西', 'Event tokens are not tokens'),
       GuideBlock.text(
         '奖励表里出现的**活动代币**与**代币**是两种**不同**的货币，不要混为一谈：',
@@ -1375,12 +1408,24 @@ const List<GuideChapter> kGuideChapters = <GuideChapter>[
         'Read the unit first: "event tokens" is this event\'s currency, "tokens" is the regular one.',
       ),
 
-      // ---------- 4. 节点表 ----------
+      // ---------- 5. 节点表 ----------
       GuideBlock.heading('节点与奖励一览', 'Node rewards'),
       GuideBlock.text(
         '螺栓数 → 奖励（共 100 个节点）：',
         'Bolts to reward (100 nodes in total):',
       ),
+      GuideBlock.bullets(<GuideBullet>[
+        GuideBullet(
+          '奖励里的 **R6 部件 k1 / k2 / …** 中的 **k 表示「种类」**：'
+              '不同的 k 是**不同种类**的 R6 部件，相同的 k 就是**同一种**',
+          'In **R6 part k1 / k2 / …** the **k is the kind**: different k means a different kind of R6 part, '
+              'the same k means the same kind',
+        ),
+        GuideBullet(
+          '例：`R6 部件 k1 ×2` = 第 1 种 R6 部件 2 个；`R6 部件 k10 ×5` = 第 10 种 5 个',
+          'For example: `R6 part k1 x2` = 2 pieces of the 1st kind; `R6 part k10 x5` = 5 pieces of the 10th kind',
+        ),
+      ]),
       GuideBlock.table(
         GuideTable(
           headZh: <String>['螺栓', '奖励'],
@@ -1394,10 +1439,11 @@ const List<GuideChapter> kGuideChapters = <GuideChapter>[
             '终极箱子（R6）×7、锦标赛箱子 ×14、'
             '工具箱 ×5、钻石 ×100、'
             '紫票 ×1100000、代币 ×150、活动代币 ×2750，'
-            '以及 R6 部件 k1-k14 各若干。',
+            '以及 R6 部件 k1-k14 各若干（k = 种类，共 14 种）。',
         'Total rewards from every node: ultimate boxes (R5) x10, '
             'ultimate boxes (R6) x7, championship boxes x14, toolboxes x5, diamonds x100, '
-            'purple tickets x1100000, tokens x150, event tokens x2750, plus several R6 parts k1-k14.',
+            'purple tickets x1100000, tokens x150, event tokens x2750, '
+            'plus several pieces of each of the 14 kinds of R6 parts.',
       ),
     ],
   ),
