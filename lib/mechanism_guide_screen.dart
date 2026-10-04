@@ -715,6 +715,8 @@ Widget buildGuideFigure(
       return _ChampCarTiersFigure(locale: locale, isDark: isDark);
     case 'champCarPower':
       return _ChampCarPowerFigure(locale: locale, isDark: isDark);
+    case 'champBodyCoeff':
+      return _ChampBodyCoeffFigure(locale: locale, isDark: isDark);
     case 'partSample':
       return _PartSampleFigure(locale: locale, server: server);
     case 'sponsors':
@@ -1224,6 +1226,121 @@ class _ChampCarPowerPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant _ChampCarPowerPainter old) =>
+      old.zh != zh || old.isDark != isDark;
+}
+
+/// 锦标赛车身「HP 系数」示意图：8 种车身按 n/6 阶梯排列的横条图
+class _ChampBodyCoeffFigure extends StatelessWidget {
+  final String locale;
+  final bool isDark;
+  const _ChampBodyCoeffFigure({required this.locale, required this.isDark});
+
+  @override
+  Widget build(BuildContext context) {
+    return AspectRatio(
+      aspectRatio: 340 / 152,
+      child: CustomPaint(
+        painter: _ChampBodyCoeffPainter(zh: locale == 'zh', isDark: isDark),
+      ),
+    );
+  }
+}
+
+class _ChampBodyCoeffPainter extends CustomPainter {
+  final bool zh;
+  final bool isDark;
+  _ChampBodyCoeffPainter({required this.zh, required this.isDark});
+
+  static const double _w = 340;
+  static const double _h = 152;
+
+  /// (中文, English, 系数, 颜色)：按系数从小到大排
+  static const List<(String, String, double, Color)> _bodies =
+      <(String, String, double, Color)>[
+        ('经典', 'Classic', 1.0, Colors.blueGrey),
+        ('滑头', 'Sneaky', 8 / 6, Colors.green),
+        ('磐石', 'Boulder', 10 / 6, Colors.brown),
+        ('巨鲸', 'Whale', 10 / 6, Colors.teal),
+        ('金字塔', 'Pyramid', 10 / 6, Colors.orange),
+        ('浪板', 'Surfer', 11 / 6, Colors.cyan),
+        ('泰坦', 'Titan', 2.0, Colors.indigo),
+        ('钻石', 'Diamond', 2.0, Colors.amber),
+      ];
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    canvas.save();
+    canvas.scale(size.width / _w, size.height / _h);
+
+    final labelColor = isDark ? Colors.white70 : Colors.black87;
+    final track = isDark ? Colors.white12 : Colors.black12;
+
+    const labelW = 56.0;
+    const valueW = 40.0;
+    const rowH = 19.0;
+    const barH = 10.0;
+    final barW = _w - labelW - valueW - 6;
+    const maxCoeff = 2.0;
+
+    for (var i = 0; i < _bodies.length; i++) {
+      final (zhName, enName, coeff, color) = _bodies[i];
+      final cy = rowH * i + rowH / 2;
+      _text(
+        canvas,
+        zh ? zhName : enName,
+        Offset(labelW - 6, cy - 6),
+        labelColor,
+        right: true,
+        fontSize: 9.5,
+      );
+      // 轨道 + 实心条
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(
+          Rect.fromLTWH(labelW, cy - barH / 2, barW, barH),
+          const Radius.circular(5),
+        ),
+        Paint()..color = track,
+      );
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(
+          Rect.fromLTWH(labelW, cy - barH / 2, barW * coeff / maxCoeff, barH),
+          const Radius.circular(5),
+        ),
+        Paint()..color = color.withValues(alpha: isDark ? 0.85 : 0.75),
+      );
+      // 六分制标签
+      _text(
+        canvas,
+        '${(coeff * 6).round()}/6',
+        Offset(labelW + barW + 4, cy - 6),
+        labelColor,
+        fontSize: 9,
+      );
+    }
+
+    canvas.restore();
+  }
+
+  void _text(
+    Canvas canvas,
+    String s,
+    Offset at,
+    Color color, {
+    bool right = false,
+    double fontSize = 10,
+  }) {
+    final tp = TextPainter(
+      text: TextSpan(
+        text: s,
+        style: TextStyle(fontSize: fontSize, color: color),
+      ),
+      textDirection: TextDirection.ltr,
+    )..layout();
+    tp.paint(canvas, Offset(right ? at.dx - tp.width : at.dx, at.dy));
+  }
+
+  @override
+  bool shouldRepaint(covariant _ChampBodyCoeffPainter old) =>
       old.zh != zh || old.isDark != isDark;
 }
 
