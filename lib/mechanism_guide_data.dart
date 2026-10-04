@@ -642,6 +642,120 @@ const List<List<String>> _champExpRowsEn = <List<String>>[
   <String>['26', '—', '350'],
 ];
 
+/// 锦标赛战车：25 档武器（耗电 / ATK，各 3 种数值）
+const List<List<String>> _champWeaponRowsZh = <List<String>>[
+  <String>['1', '木质 1 星', '4 / 5 / 6', '20 / 25 / 30'],
+  <String>['2', '木质 2 星', '5 / 6 / 7', '30 / 40 / 50'],
+  <String>['3', '木质 3 星', '6 / 7 / 8', '50 / 60 / 70'],
+  <String>['4', '木质 4 星', '7 / 8 / 9', '70 / 80 / 90'],
+  <String>['5', '木质 5 星', '8 / 9 / 10', '90 / 105 / 120'],
+  <String>['6', '铁制 1 星', '4 / 5 / 6', '120 / 155 / 190'],
+  <String>['7', '铁制 2 星', '5 / 6 / 7', '190 / 230 / 270'],
+  <String>['8', '铁制 3 星', '6 / 7 / 8', '270 / 320 / 370'],
+  <String>['9', '铁制 4 星', '7 / 8 / 9', '370 / 430 / 480'],
+  <String>['10', '铁制 5 星', '8 / 9 / 10', '480 / 545 / 610'],
+  <String>['11', '军用 1 星', '4 / 5 / 6', '610 / 765 / 920'],
+  <String>['12', '军用 2 星', '5 / 6 / 7', '920 / 1105 / 1290'],
+  <String>['13', '军用 3 星', '6 / 7 / 8', '1290 / 1505 / 1720'],
+  <String>['14', '军用 4 星', '7 / 8 / 9', '1720 / 1970 / 2220'],
+  <String>['15', '军用 5 星', '8 / 9 / 10', '2220 / 2500 / 2780'],
+  <String>['16', '黄金 1 星', '4 / 5 / 6', '2780 / 3475 / 4170'],
+  <String>['17', '黄金 2 星', '5 / 6 / 7', '4170 / 5005 / 5840'],
+  <String>['18', '黄金 3 星', '6 / 7 / 8', '5840 / 6815 / 7790'],
+  <String>['19', '黄金 4 星', '7 / 8 / 9', '7790 / 8905 / 10020'],
+  <String>['20', '黄金 5 星', '8 / 9 / 10', '10020 / 11280 / 12530'],
+  <String>['21', '碳钢 1 星', '4 / 5 / 6', '12530 / 15670 / 18810'],
+  <String>['22', '碳钢 2 星', '5 / 6 / 7', '18810 / 22580 / 26350'],
+  <String>['23', '碳钢 3 星', '6 / 7 / 8', '26350 / 30750 / 35150'],
+  <String>['24', '碳钢 4 星', '7 / 8 / 9', '35150 / 40170 / 45200'],
+  <String>['25', '碳钢 5 星', '8 / 9 / 10', '45200 / 50860 / 56520'],
+];
+
+const List<List<String>> _champWeaponRowsEn = <List<String>>[
+  <String>['1', 'Wood 1 star', '4 / 5 / 6', '20 / 25 / 30'],
+  <String>['2', 'Wood 2 stars', '5 / 6 / 7', '30 / 40 / 50'],
+  <String>['3', 'Wood 3 stars', '6 / 7 / 8', '50 / 60 / 70'],
+  <String>['4', 'Wood 4 stars', '7 / 8 / 9', '70 / 80 / 90'],
+  <String>['5', 'Wood 5 stars', '8 / 9 / 10', '90 / 105 / 120'],
+  <String>['6', 'Iron 1 star', '4 / 5 / 6', '120 / 155 / 190'],
+  <String>['7', 'Iron 2 stars', '5 / 6 / 7', '190 / 230 / 270'],
+  <String>['8', 'Iron 3 stars', '6 / 7 / 8', '270 / 320 / 370'],
+  <String>['9', 'Iron 4 stars', '7 / 8 / 9', '370 / 430 / 480'],
+  <String>['10', 'Iron 5 stars', '8 / 9 / 10', '480 / 545 / 610'],
+  <String>['11', 'Military 1 star', '4 / 5 / 6', '610 / 765 / 920'],
+  <String>['12', 'Military 2 stars', '5 / 6 / 7', '920 / 1105 / 1290'],
+  <String>['13', 'Military 3 stars', '6 / 7 / 8', '1290 / 1505 / 1720'],
+  <String>['14', 'Military 4 stars', '7 / 8 / 9', '1720 / 1970 / 2220'],
+  <String>['15', 'Military 5 stars', '8 / 9 / 10', '2220 / 2500 / 2780'],
+  <String>['16', 'Gold 1 star', '4 / 5 / 6', '2780 / 3475 / 4170'],
+  <String>['17', 'Gold 2 stars', '5 / 6 / 7', '4170 / 5005 / 5840'],
+  <String>['18', 'Gold 3 stars', '6 / 7 / 8', '5840 / 6815 / 7790'],
+  <String>['19', 'Gold 4 stars', '7 / 8 / 9', '7790 / 8905 / 10020'],
+  <String>['20', 'Gold 5 stars', '8 / 9 / 10', '10020 / 11280 / 12530'],
+  <String>['21', 'Carbon 1 star', '4 / 5 / 6', '12530 / 15670 / 18810'],
+  <String>['22', 'Carbon 2 stars', '5 / 6 / 7', '18810 / 22580 / 26350'],
+  <String>['23', 'Carbon 3 stars', '6 / 7 / 8', '26350 / 30750 / 35150'],
+  <String>['24', 'Carbon 4 stars', '7 / 8 / 9', '35150 / 40170 / 45200'],
+  <String>['25', 'Carbon 5 stars', '8 / 9 / 10', '45200 / 50860 / 56520'],
+];
+
+/// 锦标赛战车：25 档车轮 HP / 随从 HP（各 3 种数值）与治疗量
+const List<List<String>> _champWheelRowsZh = <List<String>>[
+  <String>['1', '木质 1 星', '10 / 13 / 15', '23 / 23 / 23', '19'],
+  <String>['2', '木质 2 星', '15 / 20 / 25', '38 / 30 / 23', '30'],
+  <String>['3', '木质 3 星', '25 / 30 / 35', '53 / 45 / 38', '45'],
+  <String>['4', '木质 4 星', '35 / 40 / 45', '68 / 60 / 53', '60'],
+  <String>['5', '木质 5 星', '45 / 53 / 60', '90 / 79 / 68', '79'],
+  <String>['6', '铁制 1 星', '60 / 78 / 95', '143 / 117 / 90', '116'],
+  <String>['7', '铁制 2 星', '95 / 115 / 135', '203 / 173 / 143', '173'],
+  <String>['8', '铁制 3 星', '135 / 160 / 185', '278 / 240 / 203', '240'],
+  <String>['9', '铁制 4 星', '185 / 215 / 240', '360 / 323 / 278', '323'],
+  <String>['10', '铁制 5 星', '240 / 273 / 305', '458 / 409 / 360', '409'],
+  <String>['11', '军用 1 星', '305 / 383 / 460', '690 / 574 / 458', '574'],
+  <String>['12', '军用 2 星', '460 / 553 / 645', '968 / 829 / 690', '829'],
+  <String>['13', '军用 3 星', '645 / 753 / 860', '1290 / 1129 / 968', '1129'],
+  <String>['14', '军用 4 星', '860 / 985 / 1110', '1665 / 1478 / 1290', '1478'],
+  <String>['15', '军用 5 星', '1110 / 1250 / 1390', '2085 / 1875 / 1665', '1875'],
+  <String>['16', '黄金 1 星', '1390 / 1738 / 2085', '3128 / 2607 / 2085', '2606'],
+  <String>['17', '黄金 2 星', '2085 / 2503 / 2920', '4380 / 3754 / 3128', '3754'],
+  <String>['18', '黄金 3 星', '2920 / 3408 / 3895', '5843 / 5112 / 4380', '5111'],
+  <String>['19', '黄金 4 星', '3895 / 4453 / 5010', '7515 / 6679 / 5843', '6679'],
+  <String>['20', '黄金 5 星', '5010 / 5640 / 6265', '9398 / 8460 / 7515', '8460'],
+  <String>['21', '碳钢 1 星', '6265 / 7835 / 9405', '14108 / 11753 / 9398', '11753'],
+  <String>['22', '碳钢 2 星', '9405 / 11290 / 13175', '19763 / 16935 / 14108', '16935'],
+  <String>['23', '碳钢 3 星', '13175 / 15375 / 17575', '26363 / 23063 / 19763', '23063'],
+  <String>['24', '碳钢 4 星', '17575 / 20085 / 22600', '33900 / 30128 / 26363', '30128'],
+  <String>['25', '碳钢 5 星', '22600 / 25430 / 28260', '42390 / 38145 / 33900', '38145'],
+];
+
+const List<List<String>> _champWheelRowsEn = <List<String>>[
+  <String>['1', 'Wood 1 star', '10 / 13 / 15', '23 / 23 / 23', '19'],
+  <String>['2', 'Wood 2 stars', '15 / 20 / 25', '38 / 30 / 23', '30'],
+  <String>['3', 'Wood 3 stars', '25 / 30 / 35', '53 / 45 / 38', '45'],
+  <String>['4', 'Wood 4 stars', '35 / 40 / 45', '68 / 60 / 53', '60'],
+  <String>['5', 'Wood 5 stars', '45 / 53 / 60', '90 / 79 / 68', '79'],
+  <String>['6', 'Iron 1 star', '60 / 78 / 95', '143 / 117 / 90', '116'],
+  <String>['7', 'Iron 2 stars', '95 / 115 / 135', '203 / 173 / 143', '173'],
+  <String>['8', 'Iron 3 stars', '135 / 160 / 185', '278 / 240 / 203', '240'],
+  <String>['9', 'Iron 4 stars', '185 / 215 / 240', '360 / 323 / 278', '323'],
+  <String>['10', 'Iron 5 stars', '240 / 273 / 305', '458 / 409 / 360', '409'],
+  <String>['11', 'Military 1 star', '305 / 383 / 460', '690 / 574 / 458', '574'],
+  <String>['12', 'Military 2 stars', '460 / 553 / 645', '968 / 829 / 690', '829'],
+  <String>['13', 'Military 3 stars', '645 / 753 / 860', '1290 / 1129 / 968', '1129'],
+  <String>['14', 'Military 4 stars', '860 / 985 / 1110', '1665 / 1478 / 1290', '1478'],
+  <String>['15', 'Military 5 stars', '1110 / 1250 / 1390', '2085 / 1875 / 1665', '1875'],
+  <String>['16', 'Gold 1 star', '1390 / 1738 / 2085', '3128 / 2607 / 2085', '2606'],
+  <String>['17', 'Gold 2 stars', '2085 / 2503 / 2920', '4380 / 3754 / 3128', '3754'],
+  <String>['18', 'Gold 3 stars', '2920 / 3408 / 3895', '5843 / 5112 / 4380', '5111'],
+  <String>['19', 'Gold 4 stars', '3895 / 4453 / 5010', '7515 / 6679 / 5843', '6679'],
+  <String>['20', 'Gold 5 stars', '5010 / 5640 / 6265', '9398 / 8460 / 7515', '8460'],
+  <String>['21', 'Carbon 1 star', '6265 / 7835 / 9405', '14108 / 11753 / 9398', '11753'],
+  <String>['22', 'Carbon 2 stars', '9405 / 11290 / 13175', '19763 / 16935 / 14108', '16935'],
+  <String>['23', 'Carbon 3 stars', '13175 / 15375 / 17575', '26363 / 23063 / 19763', '23063'],
+  <String>['24', 'Carbon 4 stars', '17575 / 20085 / 22600', '33900 / 30128 / 26363', '30128'],
+  <String>['25', 'Carbon 5 stars', '22600 / 25430 / 28260', '42390 / 38145 / 33900', '38145'],
+];
+
 /// 全部章节 —— **内容都加在这里**
 ///
 /// 模板（复制一份改内容即可；`GuideBlock.heading` 会生成章内目录）：
@@ -1644,9 +1758,9 @@ const List<GuideChapter> kGuideChapters = <GuideChapter>[
     id: 'championship_car',
     titleZh: '锦标赛战车',
     titleEn: 'Championship Car',
-    summaryZh: '锦标赛战车：25 档与等级上限、8 种常见车身、车身供电与武器耗电，以及车身 HP / 融合升级的计算式',
+    summaryZh: '锦标赛战车：25 档与等级上限、8 种常见车身、车身 / 武器 / 车轮 / 配件 / 随从的数值表，以及 HP 与融合的计算式',
     summaryEn:
-        'The Championship car: the 25 tiers and level caps, the 8 common bodies, body supply and weapon drain, and the formulas for body HP and fusion upgrades',
+        'The Championship car: the 25 tiers and level caps, the 8 common bodies, the value tables for body / weapon / wheel / gadget / minion, and the formulas for HP and fusion',
     icon: Icons.directions_car,
     color: Colors.teal,
     keywords: <String>[
@@ -1655,8 +1769,12 @@ const List<GuideChapter> kGuideChapters = <GuideChapter>[
       '战车',
       '车身',
       '武器',
+      'ATK',
       '车轮',
       '配件',
+      '随从',
+      '治疗量',
+      '每级加成',
       '电量',
       '电力',
       '配电',
@@ -1806,9 +1924,9 @@ const List<GuideChapter> kGuideChapters = <GuideChapter>[
         ),
       ),
       GuideBlock.tip(
-        '表中技能数值均为满级（电力技能 +3、HP 技能 +30%）；未学习时按 0 计算。解锁条件见第 8 节。',
+        '表中技能数值均为满级（电力技能 +3、HP 技能 +30%）；未学习时按 0 计算。解锁条件见第 9 节。',
         'Both skill columns are maxed values (power +3, HP +30%); treat them as 0 when not learned. '
-            'See section 8 for the unlock requirements.',
+            'See section 9 for the unlock requirements.',
       ),
       // ---------- 4. 车身供电 ----------
       GuideBlock.heading('车身供电与基础 HP', 'Body supply and base HP'),
@@ -1856,48 +1974,132 @@ const List<GuideChapter> kGuideChapters = <GuideChapter>[
               'Whale, Pyramid and Diamond do not',
         ),
       ]),
-      // ---------- 5. 武器与配件的耗电 ----------
-      GuideBlock.heading('武器与配件的耗电', 'Weapon and gadget drain'),
+      // ---------- 5. 武器 ----------
+      GuideBlock.heading('武器：耗电与 ATK', 'Weapons: drain and ATK'),
       GuideBlock.text(
-        '武器的耗电只由**星级**决定，同一档位同样有 3 种数值：**耗电越高，ATK 越高**。',
-        'A weapon\'s drain depends on its **star** only, and each tier again has 3 values: '
-            '**the more it drains, the more ATK it has**.',
+        '武器的耗电只由**星级**决定（同一星级的所有材质相同）；ATK 则同时取决于材质与星级。'
+            '同一档位有 3 种数值，**耗电越高、ATK 越高**，一一对应。',
+        'A weapon\'s drain depends on its **star** only (all materials share it), while its ATK depends on both the '
+            'material and the star. Each tier has 3 values, and **the higher the drain, the higher the ATK** — the '
+            'two line up one to one.',
       ),
       GuideBlock.table(
         GuideTable(
-          headZh: <String>['星级', '武器耗电（3 种数值）'],
-          headEn: <String>['Star', 'Weapon drain (3 values)'],
-          rowsZh: <List<String>>[
-            <String>['1 星', '4 / 5 / 6'],
-            <String>['2 星', '5 / 6 / 7'],
-            <String>['3 星', '6 / 7 / 8'],
-            <String>['4 星', '7 / 8 / 9'],
-            <String>['5 星', '8 / 9 / 10'],
+          headZh: <String>['档位', '部件材质 / 星级', '耗电（3 种数值）', 'ATK（3 种数值）'],
+          headEn: <String>[
+            'Tier',
+            'Material / star',
+            'Drain (3 values)',
+            'ATK (3 values)',
           ],
-          rowsEn: <List<String>>[
-            <String>['1 star', '4 / 5 / 6'],
-            <String>['2 stars', '5 / 6 / 7'],
-            <String>['3 stars', '6 / 7 / 8'],
-            <String>['4 stars', '7 / 8 / 9'],
-            <String>['5 stars', '8 / 9 / 10'],
-          ],
+          rowsZh: _champWeaponRowsZh,
+          rowsEn: _champWeaponRowsEn,
         ),
       ),
       GuideBlock.bullets(<GuideBullet>[
         GuideBullet(
-          '**配件**没有按星级排列的固定规律：13 种配件各有自己的耗电与 HP',
-          '**Gadgets** follow no per-star rule: the 13 gadget types each have their own drain and HP',
+          '换成更高材质时 **ATK 的涨幅远远大于耗电**：碳钢 5 星武器的 ATK 是木质 1 星的 2000 多倍，'
+              '而耗电只从 4-6 涨到 8-10',
+          'Going up a material, **ATK grows far faster than drain**: a carbon 5-star weapon has 2000+ times the ATK '
+              'of a wood 1-star one, while the drain only moves from 4-6 to 8-10',
         ),
         GuideBullet(
-          '**车轮**提供 HP；治疗类配件提供治疗量',
-          '**Wheels** give HP; healing gadgets give a heal amount',
-        ),
-        GuideBullet(
-          '星级与耗电相同时，不同部件的 HP / ATK 也可能不同；需要精确数值时查部件图鉴',
-          'Parts with the same star and drain can still differ in HP / ATK — check the part list for exact values',
+          '同一星级、同一耗电下，不同武器的 ATK 也可能不同；需要精确数值时查部件图鉴',
+          'At the same star and drain, different weapons can still differ in ATK — check the part list for exact values',
         ),
       ]),
-      // ---------- 6. 车身 HP ----------
+      // ---------- 6. 车轮、随从与配件 ----------
+      GuideBlock.heading('车轮、随从与配件', 'Wheels, minions and gadgets'),
+      GuideBlock.text(
+        '车轮与随从提供 HP，治疗类配件提供治疗量，同样按档位变化；'
+            '配件（13 种）的耗电只看星级，HP 与车轮是同一套数值。',
+        'Wheels and minions give HP, and healing gadgets give a heal amount, all varying by tier. '
+            'The 13 gadgets only vary in drain by star, and their HP uses the same values as wheels.',
+      ),
+      GuideBlock.table(
+        GuideTable(
+          headZh: <String>[
+            '档位',
+            '部件材质 / 星级',
+            '车轮 HP（3 种数值）',
+            '随从 HP（3 种数值）',
+            '治疗量',
+          ],
+          headEn: <String>[
+            'Tier',
+            'Material / star',
+            'Wheel HP (3 values)',
+            'Minion HP (3 values)',
+            'Heal amount',
+          ],
+          rowsZh: _champWheelRowsZh,
+          rowsEn: _champWheelRowsEn,
+        ),
+      ),
+      GuideBlock.table(
+        GuideTable(
+          headZh: <String>['星级', '13 种配件的耗电'],
+          headEn: <String>['Star', 'Drain of the 13 gadgets'],
+          rowsZh: <List<String>>[
+            <String>[
+              '1 - 2 星',
+              '2 / 1 / 1 / 2 / 2 / 2 / 1 / 1 / 1 / 1 / 1 / 0 / 0',
+            ],
+            <String>[
+              '3 - 5 星',
+              '3 / 2 / 2 / 3 / 3 / 3 / 2 / 2 / 2 / 2 / 2 / 0 / 0',
+            ],
+          ],
+          rowsEn: <List<String>>[
+            <String>[
+              '1 - 2 stars',
+              '2 / 1 / 1 / 2 / 2 / 2 / 1 / 1 / 1 / 1 / 1 / 0 / 0',
+            ],
+            <String>[
+              '3 - 5 stars',
+              '3 / 2 / 2 / 3 / 3 / 3 / 2 / 2 / 2 / 2 / 2 / 0 / 0',
+            ],
+          ],
+        ),
+      ),
+      GuideBlock.tip(
+        '配件耗电一栏里的 **0 表示该配件不耗电**；配件的 HP 直接查上表的「车轮 HP」列。',
+        'A **0** in the gadget drain row means that gadget consumes no power; for a gadget\'s HP use the "wheel HP" '
+            'column of the table above.',
+      ),
+      GuideBlock.text(
+        '**每级加成**（升级时每一级固定提升的量，按材质取值）：',
+        '**Per-level bonus** (the fixed gain for each level, by material):',
+      ),
+      GuideBlock.table(
+        GuideTable(
+          headZh: <String>['数值', '木质', '铁制', '军用', '黄金', '碳钢'],
+          headEn: <String>['Value', 'Wood', 'Iron', 'Military', 'Gold', 'Carbon'],
+          rowsZh: <List<String>>[
+            <String>['车身 HP', '6', '30', '150', '750', '3000'],
+            <String>['武器 ATK', '4', '20', '100', '500', '2000'],
+            <String>['车轮 HP', '2', '10', '50', '250', '1000'],
+            <String>['配件 HP', '2', '10', '50', '250', '1000'],
+            <String>['治疗量', '3', '15', '75', '375', '1500'],
+            <String>['随从 HP', '38', '165', '833', '3960', '16898'],
+          ],
+          rowsEn: <List<String>>[
+            <String>['Body HP', '6', '30', '150', '750', '3000'],
+            <String>['Weapon ATK', '4', '20', '100', '500', '2000'],
+            <String>['Wheel HP', '2', '10', '50', '250', '1000'],
+            <String>['Gadget HP', '2', '10', '50', '250', '1000'],
+            <String>['Heal amount', '3', '15', '75', '375', '1500'],
+            <String>['Minion HP', '38', '165', '833', '3960', '16898'],
+          ],
+        ),
+      ),
+      GuideBlock.tip(
+        '车身已验证：实际每级提升 ＝ 表中数值 × 0.6（例：铁制 30 × 0.6 ＝ **每级 +18 HP**）。'
+            '其余部件推测同样 × 0.6，尚未验证。',
+        'Verified for bodies: the real per-level gain is the table value x 0.6 (e.g. iron 30 x 0.6 = **+18 HP per '
+            'level**). The other part types are assumed to follow the same x 0.6 rule, but that is unverified.',
+      ),
+      // ---------- 7. 车身 HP ----------
       GuideBlock.heading('车身 HP 的计算', 'How body HP is computed'),
       GuideBlock.text(
         '完整公式（适用于任意档位、任意车身、任意等级）：',
@@ -1924,7 +2126,10 @@ const List<GuideChapter> kGuideChapters = <GuideChapter>[
               'HP 倍数',
               '见第 3 节：经典 1.00、滑头 1.33、磐石 / 巨鲸 / 金字塔 1.67、浪板 1.83、泰坦 / 钻石 2.00',
             ],
-            <String>['每级 HP 加成', '见下表'],
+            <String>[
+              '每级 HP 加成',
+              '见第 6 节的「每级加成」表（车身 HP 一行）；实际值再 × 0.6',
+            ],
             <String>['等级', '当前等级；1 级时公式第二项为 0'],
           ],
           rowsEn: <List<String>>[
@@ -1938,28 +2143,11 @@ const List<GuideChapter> kGuideChapters = <GuideChapter>[
               'HP multiplier',
               'See section 3: Classic 1.00, Sneaky 1.33, Boulder / Whale / Pyramid 1.67, Surfer 1.83, Titan / Diamond 2.00',
             ],
-            <String>['HP per level', 'See the table below'],
+            <String>[
+              'HP per level',
+              'See the per-level bonus table in section 6 (the Body HP row); multiply by 0.6 for the real value',
+            ],
             <String>['Level', 'Current level; the second term is 0 at level 1'],
-          ],
-        ),
-      ),
-      GuideBlock.table(
-        GuideTable(
-          headZh: <String>['部件材质', '每级 HP 加成'],
-          headEn: <String>['Material', 'HP per level'],
-          rowsZh: <List<String>>[
-            <String>['木质', '3.6'],
-            <String>['铁制', '18'],
-            <String>['军用', '90'],
-            <String>['黄金', '450'],
-            <String>['碳钢', '1800'],
-          ],
-          rowsEn: <List<String>>[
-            <String>['Wood', '3.6'],
-            <String>['Iron', '18'],
-            <String>['Military', '90'],
-            <String>['Gold', '450'],
-            <String>['Carbon', '1800'],
           ],
         ),
       ),
@@ -1973,7 +2161,7 @@ const List<GuideChapter> kGuideChapters = <GuideChapter>[
         '**升级只增加 HP，供电不变**（已实测确认）；等级上限见第 2 节。',
         '**Leveling only adds HP — the supply never changes** (confirmed in game); see section 2 for the level cap.',
       ),
-      // ---------- 7. 升级与融合 ----------
+      // ---------- 8. 升级与融合 ----------
       GuideBlock.heading('升级与融合', 'Upgrading and fusion'),
       GuideBlock.text(
         '升级通过**融合**完成：把其他部件融合进目标部件以换取经验。**不要求材质相同**，'
@@ -2051,7 +2239,7 @@ const List<GuideChapter> kGuideChapters = <GuideChapter>[
           'The fused part may be of any material, star and level; whether the target itself is magic / legendary does not change the XP gained',
         ),
       ]),
-      // ---------- 8. 技能解锁 ----------
+      // ---------- 9. 技能解锁 ----------
       GuideBlock.heading('车身技能解锁条件', 'When body skills unlock'),
       GuideBlock.text(
         '车身技能按**段位**（stage）或**威望**（prestige，转生次数）解锁：',
@@ -2087,17 +2275,93 @@ const List<GuideChapter> kGuideChapters = <GuideChapter>[
           ],
         ),
       ),
-      GuideBlock.bullets(<GuideBullet>[
-        GuideBullet(
-          '其余技能：武器类型伤害 +10 / 20 / 30%（7 种武器类型）；车轮 / 配件类 +15 / 30 / 45%（14 种）',
-          'Other skills: weapon-type damage +10 / 20 / 30% (7 weapon types); wheel / gadget families +15 / 30 / 45% (14 of them)',
+      GuideBlock.text(
+        '各技能组的数值与技能点消耗（下表的 1 / 2 / 3 为技能等级）：',
+        'Values and skill-point costs of each skill group (the 1 / 2 / 3 below are skill levels):',
+      ),
+      GuideBlock.table(
+        GuideTable(
+          headZh: <String>['技能', '数值', '技能点', '适用范围'],
+          headEn: <String>['Skill', 'Values', 'Skill points', 'Applies to'],
+          rowsZh: <List<String>>[
+            <String>[
+              '车身 电力',
+              '+1 / +2 / +3',
+              '1 / 2 / 3',
+              '经典、泰坦、浪板、滑头、磐石 共 5 种车身',
+            ],
+            <String>[
+              '车身 HP',
+              '+10% / +20% / +30%',
+              '1 / 2 / 3',
+              '经典、滑头、磐石、巨鲸、金字塔、浪板、泰坦 共 7 种车身',
+            ],
+            <String>[
+              '武器伤害',
+              '+10% / +20% / +30%',
+              '1 / 2 / 3',
+              '7 种武器类型：BLADES / CHAINSAWS / DOUBLE_ROCKETS / DRILLS / LASERS / ROCKETS / STINGERS',
+            ],
+            <String>[
+              '车轮 / 配件 HP',
+              '+15% / +30% / +45%',
+              '1 / 2 / 3',
+              '11 种车轮 / 配件类：BOOSTERS / KNOBS / TIRES / STICKY_TIRES / STICKY_ROLLERS / ROLLERS / BIGFOOTS / SCOOTERS / SCOOPS / REPULSES / BACKPEDALS',
+            ],
+            <String>[
+              '融合经验（威望 5）',
+              '+10% / +20% / +30%',
+              '—',
+              '融合获得的经验',
+            ],
+            <String>[
+              '融合折扣（威望 5）',
+              '−10% / −20% / −30%',
+              '—',
+              '融合的花费（计算方式尚未确认）',
+            ],
+          ],
+          rowsEn: <List<String>>[
+            <String>[
+              'Body power',
+              '+1 / +2 / +3',
+              '1 / 2 / 3',
+              'Classic, Titan, Surfer, Sneaky, Boulder — 5 bodies',
+            ],
+            <String>[
+              'Body HP',
+              '+10% / +20% / +30%',
+              '1 / 2 / 3',
+              'Classic, Sneaky, Boulder, Whale, Pyramid, Surfer, Titan — 7 bodies',
+            ],
+            <String>[
+              'Weapon damage',
+              '+10% / +20% / +30%',
+              '1 / 2 / 3',
+              '7 weapon types: BLADES / CHAINSAWS / DOUBLE_ROCKETS / DRILLS / LASERS / ROCKETS / STINGERS',
+            ],
+            <String>[
+              'Wheel / gadget HP',
+              '+15% / +30% / +45%',
+              '1 / 2 / 3',
+              '11 wheel / gadget families: BOOSTERS / KNOBS / TIRES / STICKY_TIRES / STICKY_ROLLERS / ROLLERS / BIGFOOTS / SCOOTERS / SCOOPS / REPULSES / BACKPEDALS',
+            ],
+            <String>[
+              'Fusion XP (prestige 5)',
+              '+10% / +20% / +30%',
+              '—',
+              'XP gained from fusion',
+            ],
+            <String>[
+              'Fusion discount (prestige 5)',
+              '−10% / −20% / −30%',
+              '—',
+              'the cost of fusion (its formula is not confirmed)',
+            ],
+          ],
         ),
-        GuideBullet(
-          '**融合经验 +10 / 20 / 30%** 与**融合折扣 −10 / 20 / 30%** 均在**威望 5** 解锁，不在普通技能树中',
-          '**Fusion XP +10 / 20 / 30%** and **fusion discount −10 / 20 / 30%** both unlock at **prestige 5**, not in the normal skill tree',
-        ),
-      ]),
-      // ---------- 9. 插槽 ----------
+      ),
+      // ---------- 10. 插槽 ----------
       GuideBlock.heading('车身决定插槽', 'The body decides the slots'),
       GuideBlock.text(
         '车身数据中包含**挂点**（位置与允许挂载的部件类型），因此「能装几件武器 / 车轮 / 配件、'
