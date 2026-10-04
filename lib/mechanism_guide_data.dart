@@ -525,61 +525,62 @@ const List<List<String>> _champTierRowsEn = <List<String>>[
   <String>['25', 'Carbon', '5 stars', 'Level 26'],
 ];
 
-/// 锦标赛战车：25 档车身供电（每行由 HP 最高的那件 → HP 最低的那件）
+/// 锦标赛战车：25 档车身的三种数值组合（每格 = 供电 / 基础 HP）
+/// 三列依次由 HP 最高（供电最低）到 HP 最低（供电最高）
 const List<List<String>> _champSupplyRowsZh = <List<String>>[
-  <String>['1', '木质 1 星', '6 / 6 / 6'],
-  <String>['2', '木质 2 星', '6 / 7 / 8'],
-  <String>['3', '木质 3 星', '9 / 10 / 11'],
-  <String>['4', '木质 4 星', '12 / 13 / 14'],
-  <String>['5', '木质 5 星', '15 / 16 / 17'],
-  <String>['6', '铁制 1 星', '8 / 9 / 10'],
-  <String>['7', '铁制 2 星', '10 / 11 / 12'],
-  <String>['8', '铁制 3 星', '12 / 13 / 14'],
-  <String>['9', '铁制 4 星', '14 / 15 / 16'],
-  <String>['10', '铁制 5 星', '16 / 17 / 18'],
-  <String>['11', '军用 1 星', '8 / 9 / 10'],
-  <String>['12', '军用 2 星', '10 / 11 / 12'],
-  <String>['13', '军用 3 星', '12 / 13 / 14'],
-  <String>['14', '军用 4 星', '14 / 15 / 16'],
-  <String>['15', '军用 5 星', '16 / 17 / 18'],
-  <String>['16', '黄金 1 星', '8 / 9 / 10'],
-  <String>['17', '黄金 2 星', '10 / 11 / 12'],
-  <String>['18', '黄金 3 星', '12 / 13 / 14'],
-  <String>['19', '黄金 4 星', '14 / 15 / 16'],
-  <String>['20', '黄金 5 星', '16 / 17 / 18'],
-  <String>['21', '碳钢 1 星', '8 / 9 / 10'],
-  <String>['22', '碳钢 2 星', '10 / 11 / 12'],
-  <String>['23', '碳钢 3 星', '12 / 13 / 14'],
-  <String>['24', '碳钢 4 星', '14 / 15 / 16'],
-  <String>['25', '碳钢 5 星', '16 / 17 / 18'],
+  <String>['1', '木质 1 星', '6 / 45', '6 / 45', '6 / 45'],
+  <String>['2', '木质 2 星', '6 / 75', '7 / 60', '8 / 45'],
+  <String>['3', '木质 3 星', '9 / 105', '10 / 90', '11 / 75'],
+  <String>['4', '木质 4 星', '12 / 135', '13 / 120', '14 / 105'],
+  <String>['5', '木质 5 星', '15 / 180', '16 / 158', '17 / 135'],
+  <String>['6', '铁制 1 星', '8 / 285', '9 / 233', '10 / 180'],
+  <String>['7', '铁制 2 星', '10 / 405', '11 / 345', '12 / 285'],
+  <String>['8', '铁制 3 星', '12 / 555', '13 / 480', '14 / 405'],
+  <String>['9', '铁制 4 星', '14 / 720', '15 / 645', '16 / 555'],
+  <String>['10', '铁制 5 星', '16 / 915', '17 / 818', '18 / 720'],
+  <String>['11', '军用 1 星', '8 / 1380', '9 / 1148', '10 / 915'],
+  <String>['12', '军用 2 星', '10 / 1935', '11 / 1658', '12 / 1380'],
+  <String>['13', '军用 3 星', '12 / 2580', '13 / 2258', '14 / 1935'],
+  <String>['14', '军用 4 星', '14 / 3330', '15 / 2955', '16 / 2580'],
+  <String>['15', '军用 5 星', '16 / 4170', '17 / 3750', '18 / 3330'],
+  <String>['16', '黄金 1 星', '8 / 6255', '9 / 5213', '10 / 4170'],
+  <String>['17', '黄金 2 星', '10 / 8760', '11 / 7508', '12 / 6255'],
+  <String>['18', '黄金 3 星', '12 / 11685', '13 / 10223', '14 / 8760'],
+  <String>['19', '黄金 4 星', '14 / 15030', '15 / 13358', '16 / 11685'],
+  <String>['20', '黄金 5 星', '16 / 18795', '17 / 16920', '18 / 15030'],
+  <String>['21', '碳钢 1 星', '8 / 28215', '9 / 23505', '10 / 18795'],
+  <String>['22', '碳钢 2 星', '10 / 39525', '11 / 33870', '12 / 28215'],
+  <String>['23', '碳钢 3 星', '12 / 52725', '13 / 46125', '14 / 39525'],
+  <String>['24', '碳钢 4 星', '14 / 67800', '15 / 60255', '16 / 52725'],
+  <String>['25', '碳钢 5 星', '16 / 84780', '17 / 76290', '18 / 67800'],
 ];
 
 const List<List<String>> _champSupplyRowsEn = <List<String>>[
-  <String>['1', 'Wood 1 star', '6 / 6 / 6'],
-  <String>['2', 'Wood 2 stars', '6 / 7 / 8'],
-  <String>['3', 'Wood 3 stars', '9 / 10 / 11'],
-  <String>['4', 'Wood 4 stars', '12 / 13 / 14'],
-  <String>['5', 'Wood 5 stars', '15 / 16 / 17'],
-  <String>['6', 'Iron 1 star', '8 / 9 / 10'],
-  <String>['7', 'Iron 2 stars', '10 / 11 / 12'],
-  <String>['8', 'Iron 3 stars', '12 / 13 / 14'],
-  <String>['9', 'Iron 4 stars', '14 / 15 / 16'],
-  <String>['10', 'Iron 5 stars', '16 / 17 / 18'],
-  <String>['11', 'Military 1 star', '8 / 9 / 10'],
-  <String>['12', 'Military 2 stars', '10 / 11 / 12'],
-  <String>['13', 'Military 3 stars', '12 / 13 / 14'],
-  <String>['14', 'Military 4 stars', '14 / 15 / 16'],
-  <String>['15', 'Military 5 stars', '16 / 17 / 18'],
-  <String>['16', 'Gold 1 star', '8 / 9 / 10'],
-  <String>['17', 'Gold 2 stars', '10 / 11 / 12'],
-  <String>['18', 'Gold 3 stars', '12 / 13 / 14'],
-  <String>['19', 'Gold 4 stars', '14 / 15 / 16'],
-  <String>['20', 'Gold 5 stars', '16 / 17 / 18'],
-  <String>['21', 'Carbon 1 star', '8 / 9 / 10'],
-  <String>['22', 'Carbon 2 stars', '10 / 11 / 12'],
-  <String>['23', 'Carbon 3 stars', '12 / 13 / 14'],
-  <String>['24', 'Carbon 4 stars', '14 / 15 / 16'],
-  <String>['25', 'Carbon 5 stars', '16 / 17 / 18'],
+  <String>['1', 'Wood 1 star', '6 / 45', '6 / 45', '6 / 45'],
+  <String>['2', 'Wood 2 stars', '6 / 75', '7 / 60', '8 / 45'],
+  <String>['3', 'Wood 3 stars', '9 / 105', '10 / 90', '11 / 75'],
+  <String>['4', 'Wood 4 stars', '12 / 135', '13 / 120', '14 / 105'],
+  <String>['5', 'Wood 5 stars', '15 / 180', '16 / 158', '17 / 135'],
+  <String>['6', 'Iron 1 star', '8 / 285', '9 / 233', '10 / 180'],
+  <String>['7', 'Iron 2 stars', '10 / 405', '11 / 345', '12 / 285'],
+  <String>['8', 'Iron 3 stars', '12 / 555', '13 / 480', '14 / 405'],
+  <String>['9', 'Iron 4 stars', '14 / 720', '15 / 645', '16 / 555'],
+  <String>['10', 'Iron 5 stars', '16 / 915', '17 / 818', '18 / 720'],
+  <String>['11', 'Military 1 star', '8 / 1380', '9 / 1148', '10 / 915'],
+  <String>['12', 'Military 2 stars', '10 / 1935', '11 / 1658', '12 / 1380'],
+  <String>['13', 'Military 3 stars', '12 / 2580', '13 / 2258', '14 / 1935'],
+  <String>['14', 'Military 4 stars', '14 / 3330', '15 / 2955', '16 / 2580'],
+  <String>['15', 'Military 5 stars', '16 / 4170', '17 / 3750', '18 / 3330'],
+  <String>['16', 'Gold 1 star', '8 / 6255', '9 / 5213', '10 / 4170'],
+  <String>['17', 'Gold 2 stars', '10 / 8760', '11 / 7508', '12 / 6255'],
+  <String>['18', 'Gold 3 stars', '12 / 11685', '13 / 10223', '14 / 8760'],
+  <String>['19', 'Gold 4 stars', '14 / 15030', '15 / 13358', '16 / 11685'],
+  <String>['20', 'Gold 5 stars', '16 / 18795', '17 / 16920', '18 / 15030'],
+  <String>['21', 'Carbon 1 star', '8 / 28215', '9 / 23505', '10 / 18795'],
+  <String>['22', 'Carbon 2 stars', '10 / 39525', '11 / 33870', '12 / 28215'],
+  <String>['23', 'Carbon 3 stars', '12 / 52725', '13 / 46125', '14 / 39525'],
+  <String>['24', 'Carbon 4 stars', '14 / 67800', '15 / 60255', '16 / 52725'],
+  <String>['25', 'Carbon 5 stars', '16 / 84780', '17 / 76290', '18 / 67800'],
 ];
 
 /// 锦标赛战车：升级所需经验（基础值，实际数值再乘目标部件的 k）
@@ -1810,21 +1811,31 @@ const List<GuideChapter> kGuideChapters = <GuideChapter>[
             'See section 8 for the unlock requirements.',
       ),
       // ---------- 4. 车身供电 ----------
-      GuideBlock.heading('车身供电', 'Body supply'),
+      GuideBlock.heading('车身供电与基础 HP', 'Body supply and base HP'),
       GuideBlock.text(
         '同一档位的车身有 **3 种数值组合**，由游戏随机分配给具体车身：**HP 越高，供电越低**。'
-            '下表每行从左到右依次是「HP 最高的那件 → HP 最低的那件」的供电。',
+            '下表每格为「**供电 / 基础 HP**」，三列依次是 HP 最高（供电最低）、居中、HP 最低（供电最高）。'
+            '「基础 HP」是计算车身 HP 的原始数值（算法见第 6 节）。',
         'Bodies of the same tier come in **3 stat combinations**, assigned to actual bodies at random: '
-            '**the higher the HP, the lower the supply**. In each row the supply runs from the highest-HP part on '
-            'the left to the lowest-HP part on the right.',
+            '**the higher the HP, the lower the supply**. Each cell below reads "**supply / base HP**", and the three '
+            'columns are, in order, the highest HP (lowest supply), the middle one, and the lowest HP (highest '
+            'supply). "Base HP" is the raw value used to compute body HP (see section 6).',
       ),
       GuideBlock.table(
         GuideTable(
-          headZh: <String>['档位', '部件材质 / 星级', '供电（HP 最高 → HP 最低）'],
+          headZh: <String>[
+            '档位',
+            '部件材质 / 星级',
+            '供电 / 基础 HP（HP 最高）',
+            '居中',
+            '供电 / 基础 HP（HP 最低）',
+          ],
           headEn: <String>[
             'Tier',
             'Material / star',
-            'Supply (highest HP → lowest HP)',
+            'Supply / base HP (highest HP)',
+            'Middle',
+            'Supply / base HP (lowest HP)',
           ],
           rowsZh: _champSupplyRowsZh,
           rowsEn: _champSupplyRowsEn,
@@ -1832,12 +1843,12 @@ const List<GuideChapter> kGuideChapters = <GuideChapter>[
       ),
       GuideBlock.bullets(<GuideBullet>[
         GuideBullet(
-          '供电只与**部件材质、星级、数值组合**有关，与具体是哪种车身无关',
-          'Supply depends only on the **material, star and stat combination** — not on which body it is',
+          '供电与基础 HP 只与**部件材质、星级、数值组合**有关，与具体是哪种车身无关',
+          'Supply and base HP depend only on the **material, star and stat combination** — not on which body it is',
         ),
         GuideBullet(
-          '**木质**车身的供电低于其余四种材质；**铁制 / 军用 / 黄金 / 碳钢** 的供电完全相同',
-          '**Wood** bodies supply less than the other four materials; **Iron / Military / Gold / Carbon** are identical',
+          '**木质**车身的数值低于其余四种材质；**铁制 / 军用 / 黄金 / 碳钢** 的数值完全相同',
+          '**Wood** bodies have lower values than the other four materials; **Iron / Military / Gold / Carbon** are identical',
         ),
         GuideBullet(
           '**电力技能**满级再 +3：经典、泰坦、浪板、滑头、磐石有；巨鲸、金字塔、钻石没有',
@@ -1893,9 +1904,9 @@ const List<GuideChapter> kGuideChapters = <GuideChapter>[
         'The full formula (valid for any tier, any body and any level):',
       ),
       GuideBlock.text(
-        '**车身 HP ＝ 向上取整（原始 HP × 0.6 ×（1 ＋ HP 技能加成）× HP 倍数）'
+        '**车身 HP ＝ 向上取整（基础 HP × 0.6 ×（1 ＋ HP 技能加成）× HP 倍数）'
             '＋ 0.6 × 每级 HP 加成 ×（等级 － 1）**',
-        '**Body HP = round-up( raw HP x 0.6 x (1 + HP skill) x HP multiplier ) '
+        '**Body HP = round-up( base HP x 0.6 x (1 + HP skill) x HP multiplier ) '
             '+ 0.6 x HP per level x (level - 1)**',
       ),
       GuideBlock.table(
@@ -1903,7 +1914,10 @@ const List<GuideChapter> kGuideChapters = <GuideChapter>[
           headZh: <String>['公式中的项', '取值'],
           headEn: <String>['Term', 'Value'],
           rowsZh: <List<String>>[
-            <String>['原始 HP', '该档位、该数值组合的原始数值（例：铁制 4 星、HP 居中 ＝ 645）'],
+            <String>[
+              '基础 HP',
+              '该档位、该数值组合的原始数值，查第 4 节的表（例：铁制 4 星、HP 居中 ＝ 645）',
+            ],
             <String>['0.6', '固定系数'],
             <String>['HP 技能加成', '满级 0.3；未学习 0'],
             <String>[
@@ -1915,8 +1929,8 @@ const List<GuideChapter> kGuideChapters = <GuideChapter>[
           ],
           rowsEn: <List<String>>[
             <String>[
-              'Raw HP',
-              'The raw value of that tier and stat combination (e.g. iron 4-star, middle HP = 645)',
+              'Base HP',
+              'The raw value of that tier and stat combination — see the table in section 4 (e.g. iron 4-star, middle HP = 645)',
             ],
             <String>['0.6', 'A fixed factor'],
             <String>['HP skill', '0.3 at max; 0 if not learned'],
