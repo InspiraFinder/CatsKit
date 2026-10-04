@@ -579,11 +579,12 @@ class _GuideChapterScreenState extends State<GuideChapterScreen> {
     );
   }
 
-  /// 表格：列宽自适应内容，太宽时可以左右滑
+  /// 表格：列宽自适应内容，太宽时可以左右滑；有分组时上面多一行一级表头
   Widget _buildTable(GuideTable t, bool isDark) {
     final zh = locale == 'zh';
     final head = zh ? t.headZh : t.headEn;
     final rows = zh ? t.rowsZh : t.rowsEn;
+    final group = zh ? t.groupZh : t.groupEn;
     final borderColor = isDark ? Colors.white24 : Colors.black12;
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
@@ -591,6 +592,15 @@ class _GuideChapterScreenState extends State<GuideChapterScreen> {
         defaultColumnWidth: const IntrinsicColumnWidth(),
         border: TableBorder.all(color: borderColor, width: 0.7),
         children: <TableRow>[
+          if (group != null)
+            TableRow(
+              decoration: BoxDecoration(
+                color: chapter.color.withValues(alpha: isDark ? 0.34 : 0.16),
+              ),
+              children: <Widget>[
+                for (final g in group) _cell(g, isDark, header: true),
+              ],
+            ),
           TableRow(
             decoration: BoxDecoration(
               color: chapter.color.withValues(alpha: isDark ? 0.24 : 0.10),
