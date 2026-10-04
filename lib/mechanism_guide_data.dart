@@ -1571,8 +1571,8 @@ const List<GuideChapter> kGuideChapters = <GuideChapter>[
           'Every car has a power limit: the positive power of its parts adds up to the supply, the absolute value of the negative power adds up to the consumption',
         ),
         GuideBullet(
-          '耗电超过供电就出不了车，只能换更省电的部件，或换低一档的部件',
-          'If consumption exceeds supply the car cannot be fielded — swap in more efficient parts, or parts one tier down',
+          '耗电超过供电就出不了车：要么换供电更高的车身，要么把耗电的部件换成省电的',
+          'If consumption exceeds supply the car cannot be fielded: either take a body with more supply, or swap the draining parts for thriftier ones',
         ),
       ]),
       // ---------- 2. 25 档 ----------
@@ -1653,69 +1653,75 @@ const List<GuideChapter> kGuideChapters = <GuideChapter>[
       ),
       // ---------- 4. 车身类型与系数 ----------
       GuideBlock.heading(
-        '车身：8 种类型与 HP 系数',
-        'Bodies: 8 types and their HP coefficient',
+        '车身：8 种车身，只差系数和技能',
+        'Bodies: 8 types, differing only in coefficient and skill',
       ),
       GuideBlock.text(
-        '车身是最关键的一件：它**提供供电**（正电力）、给整车**基础 HP**，还**决定插槽**。'
-            '常见车身共 **8 种**，HP 的差别都在一个「车身系数」上 —— 系数按 **n/6** 阶梯排开：'
-            '系数越高越肉，但同一档位里供电越低。',
-        'The body is the key part: it **supplies power**, gives the car its **base HP** and also **decides the slots**. '
-            'There are **8 common bodies**, and their HP differs by a single "body coefficient" that runs in **n/6** steps: '
-            'the higher the coefficient the tankier the body, but the lower its supply within the same tier.',
+        '车身决定三件事：**供电**、**基础 HP**、**插槽**。常见车身有 8 种，'
+            '它们之间只差两点：① **车身系数**（HP 倍数）；② 有没有**车身技能**。'
+            '系数**只作用在 HP 上** —— 同一档、同一序号下，换成另一种车身并不会改变供电。',
+        'The body decides three things: **power supply**, **base HP** and **the slots**. There are 8 common '
+            'bodies, and they differ in just two ways: the **body coefficient** (an HP multiplier) and whether they '
+            'have a **body skill**. The coefficient **only affects HP** — within the same tier and roll, swapping to '
+            'another body does not change the supply.',
       ),
       GuideBlock.figures(<GuideFigure>[
         GuideFigure.diagram(
           'champBodyCoeff',
-          captionZh: '8 种车身的 HP 系数（六分制）：6/6 最脆、12/6 最肉',
-          captionEn:
-              'HP coefficient of the 8 bodies (in sixths): 6/6 is the flimsiest, 12/6 the tankiest',
+          captionZh: '8 种车身的 HP 倍数（六分制 6/6 ~ 12/6）',
+          captionEn: 'HP multiplier of the 8 bodies (6/6 to 12/6)',
         ),
       ]),
       GuideBlock.table(
         GuideTable(
-          headZh: <String>['车身', '系数', '六分制', '电力技能', 'HP 技能'],
-          headEn: <String>['Body', 'Coefficient', 'In sixths', 'Power skill', 'HP skill'],
+          headZh: <String>['车身', '六分制', 'HP 倍数', '电力技能', 'HP 技能'],
+          headEn: <String>['Body', 'In sixths', 'HP multiplier', 'Power skill', 'HP skill'],
           rowsZh: <List<String>>[
-            <String>['经典', '1.0000', '6/6', '+3', '+30%'],
-            <String>['滑头', '1.3333', '8/6', '+3', '+30%'],
-            <String>['磐石', '1.6667', '10/6', '+3', '+30%'],
-            <String>['巨鲸', '1.6667', '10/6', '—', '+30%'],
-            <String>['金字塔', '1.6667', '10/6', '—', '+30%'],
-            <String>['浪板', '1.8333', '11/6', '+3', '+30%'],
-            <String>['泰坦', '2.0000', '12/6', '+3', '+30%'],
-            <String>['钻石', '2.0000', '12/6', '—', '无'],
+            <String>['经典', '6/6', '×1.00', '+3', '+30%'],
+            <String>['滑头', '8/6', '×1.33', '+3', '+30%'],
+            <String>['磐石', '10/6', '×1.67', '+3', '+30%'],
+            <String>['巨鲸', '10/6', '×1.67', '—', '+30%'],
+            <String>['金字塔', '10/6', '×1.67', '—', '+30%'],
+            <String>['浪板', '11/6', '×1.83', '+3', '+30%'],
+            <String>['泰坦', '12/6', '×2.00', '+3', '+30%'],
+            <String>['钻石', '12/6', '×2.00', '—', '无'],
           ],
           rowsEn: <List<String>>[
-            <String>['Classic', '1.0000', '6/6', '+3', '+30%'],
-            <String>['Sneaky', '1.3333', '8/6', '+3', '+30%'],
-            <String>['Boulder', '1.6667', '10/6', '+3', '+30%'],
-            <String>['Whale', '1.6667', '10/6', '—', '+30%'],
-            <String>['Pyramid', '1.6667', '10/6', '—', '+30%'],
-            <String>['Surfer', '1.8333', '11/6', '+3', '+30%'],
-            <String>['Titan', '2.0000', '12/6', '+3', '+30%'],
-            <String>['Diamond', '2.0000', '12/6', '—', 'none'],
+            <String>['Classic', '6/6', 'x1.00', '+3', '+30%'],
+            <String>['Sneaky', '8/6', 'x1.33', '+3', '+30%'],
+            <String>['Boulder', '10/6', 'x1.67', '+3', '+30%'],
+            <String>['Whale', '10/6', 'x1.67', '—', '+30%'],
+            <String>['Pyramid', '10/6', 'x1.67', '—', '+30%'],
+            <String>['Surfer', '11/6', 'x1.83', '+3', '+30%'],
+            <String>['Titan', '12/6', 'x2.00', '+3', '+30%'],
+            <String>['Diamond', '12/6', 'x2.00', '—', 'none'],
           ],
         ),
       ),
       GuideBlock.tip(
-        '还有两种**活动限定**车身（铁砧 / 箭），正常账号拿不到、数据没实测过：'
-            '按 n/6 阶梯推，很可能就是缺掉的那两格 **7/6 与 9/6**。',
+        '「六分制」的分母固定是 6（分母换成小数就是倍数的另一种写法）：'
+            '**6/6 = 1 倍**（经典，基准）、**12/6 = 2 倍**（泰坦 / 钻石）。',
+        'The "in sixths" column is just the multiplier written with a fixed denominator of 6: '
+            '**6/6 = x1** (Classic, the baseline) and **12/6 = x2** (Titan / Diamond).',
+      ),
+      GuideBlock.tip(
+        '另有两种**活动限定**车身（铁砧 / 箭），正常账号拿不到、数据没实测过：'
+            '按 6/6~12/6 的阶梯推，很可能就是缺掉的那两格 **7/6 与 9/6**。',
         'Two **event-only** bodies (Anvil / Arrow) cannot be obtained on a normal account, so they are unverified: '
-            'by the n/6 ladder they are most likely the two missing steps, **7/6 and 9/6**.',
+            'by the 6/6–12/6 ladder they are most likely the two missing steps, **7/6 and 9/6**.',
       ),
       // ---------- 5. 车身供电 ----------
       GuideBlock.heading(
-        '车身供电：3 个序号 + 技能',
-        'Body supply: 3 rolls plus the skill',
+        '车身供电：越肉越省电',
+        'Body supply: the tankier, the less power',
       ),
       GuideBlock.text(
-        '每一档车身都有 **3 个序号**（3 套配置），随机分给具体车身：'
-            '**① = HP 最高、供电最低；③ = HP 最低、供电最高**。'
-            '所以同一档、同一种车身，抽到不同序号就是「肉一点但少 2 点电」或「脆一点但多 2 点电」的区别。',
-        'Every body tier has **3 rolls** (3 configurations) that are handed out to concrete bodies at random: '
-            '**① = most HP, least supply; ③ = least HP, most supply**. So within one tier the same body is either '
-            '"tankier but 2 power down" or "flimsier but 2 power up" depending on the roll.',
+        '每一档车身在配置里都有 **3 套**（叫「序号」），游戏随机把它们分给具体车身，'
+            '每套的 HP 和供电是**反着来**的：**① 号 HP 最高、供电最低；② 号居中；③ 号 HP 最低、供电最高**。'
+            '所以要高 HP，就得接受同档里最低的供电。',
+        'Each body tier has **3 configurations** ("rolls") in the game data, handed out to concrete bodies at '
+            'random. They trade HP against supply: **roll ① has the most HP and the least supply, roll ③ the least HP '
+            'and the most supply**. So more HP always means less supply within the same tier.',
       ),
       GuideBlock.figures(<GuideFigure>[
         GuideFigure.diagram(
@@ -1747,27 +1753,28 @@ const List<GuideChapter> kGuideChapters = <GuideChapter>[
       ),
       GuideBlock.bullets(<GuideBullet>[
         GuideBullet(
-          '**木质供得最少**：木质车身低于其他材料，星级越高差距越小（5 星只差 1 点）',
-          '**Wood supplies the least**: wood bodies are below the others, and the gap shrinks as the star rises (only 1 point at 5 stars)',
+          '供电只由「**材料 × 星级 × 序号**」决定，跟是哪种车身无关（除非它带电力技能）',
+          'Supply depends only on **material x star x roll** — not on which body it is (unless the body has a power skill)',
         ),
         GuideBullet(
-          '铁制 / 军用 / 黄金 / 碳钢 四种材料的供电**完全一样**，只跟星级有关',
-          'Iron / Military / Gold / Carbon supply **exactly the same** — it depends only on the star',
+          '**木质最省电**：木质车身比其他材料少，星级越高差得越小（1 星少 2~4 点，5 星只少 1 点）；'
+              '铁制 / 军用 / 黄金 / 碳钢 四种材料**完全一样**',
+          '**Wood gives the least**: wood bodies are below the others, and the gap shrinks as the star rises '
+              '(2–4 points at 1 star, only 1 at 5 stars); Iron / Military / Gold / Carbon are **exactly the same**',
         ),
         GuideBullet(
-          '有**电力技能**的车身（经典 / 泰坦 / 浪板 / 滑头 / 磐石）满技能时再 **+3**：'
-              '木质 1 星 ① 就从 6 变成 9',
-          'Bodies with a **power skill** (Classic / Titan / Surfer / Sneaky / Boulder) get a further **+3** at max skill: '
-              'a wood 1-star roll ① goes from 6 to 9',
+          '**电力技能 +3**（满级）：经典 / 泰坦 / 浪板 / 滑头 / 磐石 有；巨鲸 / 金字塔 / 钻石 没有。'
+              '例：木质 1 星 ① 号从 6 变成 9',
+          '**Power skill +3** at max: Classic / Titan / Surfer / Sneaky / Boulder have it, Whale / Pyramid / Diamond do not. '
+              'Example: a wood 1-star roll ① goes from 6 to 9',
         ),
       ]),
       // ---------- 6. 武器与配件 ----------
       GuideBlock.heading('武器与配件的耗电', 'Weapon and gadget consumption'),
       GuideBlock.text(
-        '武器与配件的电力是**负**的（耗电）。武器每档也有 3 个序号，'
-            '**耗电越多 ATK 越多**；配件的耗电则要看具体是 13 种配件里的哪一种。',
-        'Weapons and gadgets have **negative** power (they drain). Weapons also have 3 rolls per tier: '
-            '**the more power they drain the more ATK they have**; a gadget\'s drain depends on which of the 13 gadgets it is.',
+        '武器和配件是**耗电**的（负电力）。武器每档也有 3 套配置：**耗电越多，ATK 越高**。',
+        'Weapons and gadgets **drain** power (negative). Weapons also have 3 configurations per tier: '
+            '**the more power they drain, the more ATK they have**.',
       ),
       GuideBlock.table(
         GuideTable(
@@ -1791,60 +1798,52 @@ const List<GuideChapter> kGuideChapters = <GuideChapter>[
       ),
       GuideBlock.bullets(<GuideBullet>[
         GuideBullet(
-          '配件：耗电与 HP 都**按 13 种配件分别定值**，没有统一的星级区间',
-          'Gadgets: drain and HP are **fixed per gadget type** (13 of them) — there is no single per-star range',
+          '**配件没有「按星级」的规律**：13 种配件各有自己的耗电和 HP，看具体是哪一种',
+          '**Gadgets have no per-star pattern**: the 13 gadget types each have their own drain and HP',
         ),
         GuideBullet(
-          '车轮提供 HP（每档同样有 3 个序号）；治疗类配件提供治疗量',
-          'Wheels give HP (also 3 rolls per tier); healing gadgets give a heal amount',
+          '车轮提供 HP（每档同样是 3 套配置）；治疗类配件提供治疗量',
+          'Wheels give HP (also 3 configurations per tier); healing gadgets give a heal amount',
         ),
         GuideBullet(
-          '部件不同，即使星级相同、电力一样，HP / ATK 也一般不同',
-          'Different parts usually have different HP / ATK even at the same star and the same power',
+          '即使星级、耗电都一样，不同部件的 HP / ATK 也一般不同 —— 要精确数值时查部件图鉴',
+          'Even at the same star and the same drain, different parts usually have different HP / ATK — check the part list for exact numbers',
         ),
       ]),
       // ---------- 7. 车身 HP ----------
       GuideBlock.heading(
-        '车身 HP 怎么算、怎么涨',
-        'How a body\'s HP is computed and grows',
+        '车身 HP：先算 1 级，再按等级加',
+        'Body HP: work out level 1 first, then add per level',
       ),
       GuideBlock.text(
-        '车身 HP 分两段：**1 级的基准值**（配置原值 × 显示系数 × HP 技能 × 车身系数），'
-            '再加上**升级带来的固定增量**。',
-        'A body\'s HP has two parts: the **level-1 base** (config value x display factor x HP skill x body coefficient) '
-            'plus a **fixed amount per level**.',
+        '车身 HP = **1 级的基准值** + **升级攒下来的增量**。1 级基准值分 4 步算：',
+        'A body\'s HP = the **level-1 base** + the **total added by leveling**. The level-1 base takes 4 steps:',
       ),
-      GuideBlock.table(
-        GuideTable(
-          headZh: <String>['乘区', '算法'],
-          headEn: <String>['Factor', 'How it works'],
-          rowsZh: <List<String>>[
-            <String>['配置原值', '该「档 × 序号」的原始 HP 值'],
-            <String>['显示系数', '所有车身统一 × 0.6'],
-            <String>['HP 技能', '满级 +30%；没点技能就是 × 1'],
-            <String>['车身系数', '经典 6/6、滑头 8/6、磐石·巨鲸·金字塔 10/6、浪板 11/6、泰坦·钻石 12/6'],
-            <String>['等级增量', '+ 0.6 × 每级加成 × (等级 − 1)'],
-          ],
-          rowsEn: <List<String>>[
-            <String>['Config value', 'The raw HP of that "tier x roll"'],
-            <String>['Display factor', 'A flat x 0.6 for every body'],
-            <String>['HP skill', '+30% at max; x 1 if not skilled'],
-            <String>[
-              'Body coefficient',
-              'Classic 6/6, Sneaky 8/6, Boulder / Whale / Pyramid 10/6, Surfer 11/6, Titan / Diamond 12/6',
-            ],
-            <String>['Per level', '+ 0.6 x per-level bonus x (level − 1)'],
-          ],
+      GuideBlock.bullets(<GuideBullet>[
+        GuideBullet(
+          '① **查原始 HP**：按「档位 + 序号」查（例：铁制 4 星 ② 号 = 645）',
+          '① **Look up the raw HP** by "tier + roll" (e.g. iron 4-star roll ② = 645)',
         ),
-      ),
-      GuideBlock.tip(
-        '举个例子：铁制 4 星、经典、序号 ②（1 级）→ 645 × 0.6 × 1.3 × 6/6 = **504** HP。',
-        'Example: iron 4-star Classic roll ② at level 1 → 645 x 0.6 x 1.3 x 6/6 = **504** HP.',
-      ),
+        GuideBullet(
+          '② **× 0.6**：所有车身统一打的折扣（游戏里的显示系数）',
+          '② **x 0.6** — a flat discount that every body takes',
+        ),
+        GuideBullet(
+          '③ **× HP 技能**：满级 × 1.3；没点技能就是 × 1',
+          '③ **x HP skill** — x1.3 at max, x1 if you have not skilled it',
+        ),
+        GuideBullet(
+          '④ **× 车身系数**：经典 × 1、滑头 × 1.33、磐石 / 巨鲸 / 金字塔 × 1.67、浪板 × 1.83、泰坦 / 钻石 × 2',
+          '④ **x body coefficient** — Classic x1, Sneaky x1.33, Boulder / Whale / Pyramid x1.67, Surfer x1.83, Titan / Diamond x2',
+        ),
+        GuideBullet(
+          '四步算完就是 1 级 HP。例：铁制 4 星 经典 ② 号 → 645 × 0.6 × 1.3 × 1 = **504** HP',
+          'Those 4 steps give the level-1 HP. Example: iron 4-star Classic roll ② → 645 x 0.6 x 1.3 x 1 = **504** HP',
+        ),
+      ]),
       GuideBlock.text(
-        '**每级加多少 HP** 只跟材料有关，星级越高上限越高（升级经验另见下一节）：',
-        '**How much HP one level adds** depends only on the material, while the star decides how far you can go '
-            '(the XP side is in the next section):',
+        '**升级的增量**：每升一级固定加（只看材料，跟星级无关）：',
+        '**The per-level part**: every level adds a fixed amount that depends on the material only:',
       ),
       GuideBlock.table(
         GuideTable(
@@ -1872,31 +1871,43 @@ const List<GuideChapter> kGuideChapters = <GuideChapter>[
         '**Leveling only adds HP — the supply never changes** (confirmed in game), so leveling never fixes a power '
             'shortage: swap the body, or take another roll within the tier.',
       ),
+      GuideBlock.tip(
+        '能升到几级只看星级：1★ 6 级、2★ 11 级、3★ 16 级、4★ 21 级、5★ 26 级'
+            '（**最高等级 = 5 × 星级 + 1**）—— 1 星铁制件虽然是第 6 档，也照样封顶 6 级。',
+        'How far you can level depends on the star only: 1★ 6, 2★ 11, 3★ 16, 4★ 21, 5★ 26 '
+            '(**max level = 5 x star + 1**) — a 1-star iron part is tier 6 and still caps at level 6.',
+      ),
       // ---------- 8. 升级经验与融合 ----------
-      GuideBlock.heading('升级经验与融合', 'Upgrade XP and fusion'),
+      GuideBlock.heading('升级：经验门槛与融合', 'Upgrading: XP thresholds and fusion'),
       GuideBlock.text(
-        '升级吃的是**同材料部件**当燃料（融合）。经验门槛只跟**材料**有关、跟星级无关 —— '
-            '同样是铁制，喂 1 星和喂 5 星目标，要的经验一模一样。',
-        'Upgrading burns **parts of the same material** as fuel (fusion). The XP threshold depends on the **material** '
-            'only, not on the star — the same iron target costs the same whether it is 1-star or 5-star.',
+        '升级用**融合**：把别的部件当燃料喂给要升的那一件。'
+            '**燃料不要求同材料** —— 任何部件都能喂，只是材料之间有个兑换比例，跨材料喂效率差很多。',
+        'Upgrading uses **fusion**: you feed other parts into the one you want to level as fuel. '
+            '**The fuel does not have to be the same material** — any part can be fed, but materials have an exchange '
+            'rate, so feeding across materials is far less efficient.',
+      ),
+      GuideBlock.text(
+        '**经验门槛**（要多少经验才能升级）只跟目标部件的**材料**有关，跟**星级**无关：'
+            '同样是铁制，1 星件和 5 星件升到同一级要的经验完全一样。',
+        'The **XP threshold** depends on the target\'s **material** only, never on its **star**: an iron 1-star and '
+            'an iron 5-star need exactly the same XP to reach a given level.',
       ),
       GuideBlock.bullets(<GuideBullet>[
         GuideBullet(
-          '达到等级 L 的累计经验 = (L−1)(L+2)/2 × k(材料)；从 L 升到 L+1 需要 (L+1) × k(材料)',
-          'Cumulative XP to reach level L = (L−1)(L+2)/2 x k(material); going from L to L+1 costs (L+1) x k(material)',
+          '**升一级要多少**：从 L 级升到 L+1 级，要 **(L+1) 点基础经验** —— 2 级要 2 点、3 级要 3 点、25 级要 25 点',
+          '**Cost of one level**: going from L to L+1 costs **(L+1) base XP** — 2 points for level 2, 3 for level 3, 25 for level 25',
         ),
         GuideBullet(
-          'k(材料)：木质 1 / 铁制 13 / 军用 144 / 黄金 1597 / 碳钢 17711 —— 每跨一种材料贵十几倍',
-          'k(material): wood 1 / iron 13 / military 144 / gold 1597 / carbon 17711 — each material up costs a dozen times more',
+          '**材料系数 k**：木质 1 / 铁制 13 / 军用 144 / 黄金 1597 / 碳钢 17711（每跨一种材料贵十几倍）',
+          '**Material factor k**: wood 1 / iron 13 / military 144 / gold 1597 / carbon 17711 (each material up costs a dozen times more)',
         ),
         GuideBullet(
-          '燃料贡献 = (1 + 融合经验技能) × [ 0.7 × 燃料已投入经验 + 固有价值 ] × k(燃料材料) ÷ k(目标材料)',
-          'Fuel contribution = (1 + fusion XP skill) x [ 0.7 x XP already in the fuel + intrinsic value ] '
-              'x k(fuel material) ÷ k(target material)',
+          '**实际经验 = 基础经验 × k**。例：铁制（k = 13）从 5 级升 6 级 = 6 × 13 = **78 点**',
+          '**Real XP = base XP x k**. Example: iron (k = 13) from level 5 to 6 = 6 x 13 = **78 points**',
         ),
         GuideBullet(
-          '固有价值只跟星级有关：1★ 1 / 2★ 1.6 / 3★ 2.6 / 4★ 4.2 / 5★ 6.8（斐波那契 ÷ 5）',
-          'Intrinsic value depends on the star only: 1★ 1 / 2★ 1.6 / 3★ 2.6 / 4★ 4.2 / 5★ 6.8',
+          '**累计到 L 级**的经验就是下表：0 / 2 / 5 / 9 / 14 …（三角数）再 × k',
+          'The **cumulative** XP to reach level L is the table below: 0 / 2 / 5 / 9 / 14 … (triangular numbers), times k',
         ),
       ]),
       GuideBlock.table(
@@ -1956,32 +1967,55 @@ const List<GuideChapter> kGuideChapters = <GuideChapter>[
         ),
       ),
       GuideBlock.text(
-        '（表中是**基本单位**：实际经验 = 表里数字 × k(材料)，木质 k=1 所以木质直接看表。）',
-        '(The numbers above are in **base units**: real XP = table value x k(material). Wood has k = 1, so for wood the table is literal.)',
+        '（表里是**基础经验**，× k 才是实际数字；木质的 k = 1，所以木质直接看表。）',
+        '(The table is in **base XP**; multiply by k for the real number. Wood has k = 1, so for wood the table is literal.)',
+      ),
+      GuideBlock.text(
+        '**一件燃料值多少经验**？也分 4 步：',
+        '**How much XP is one piece of fuel worth?** Also 4 steps:',
       ),
       GuideBlock.bullets(<GuideBullet>[
         GuideBullet(
-          '**回收率 70%**：喂过的部件当燃料能拿回已投入经验的 70%（外加它的固有价值）—— 满级废件是最佳燃料',
-          '**Recycling is 70%**: a used part returns 70% of its invested XP as fuel (plus its intrinsic value) — '
-              'a maxed-out spare is the best fuel',
+          '① **已投入经验 × 0.7**：燃料自己被喂进去的经验只能回收 70%',
+          '① **XP already invested x 0.7** — a fuel part only returns 70% of the XP that was put into it',
         ),
         GuideBullet(
-          '低阶材料喂高阶部件 ≈ 白喂：铁制 → 军用只有 13/144 ≈ 9%；反过来高阶喂低阶收益会放大',
-          'Feeding a lower material into a higher one is nearly wasted: iron → military is only 13/144 ≈ 9%; '
-              'the other way round is amplified',
+          '② **+ 固有价值**：只看星级 —— 1★ 1、2★ 1.6、3★ 2.6、4★ 4.2、5★ 6.8（跟等级无关）',
+          '② **+ its intrinsic value** — by star only: 1★ 1, 2★ 1.6, 3★ 2.6, 4★ 4.2, 5★ 6.8 (nothing to do with level)',
         ),
         GuideBullet(
-          '**魔法部件 × 2、传奇部件 × 4**：同一件燃料贡献相对普通件翻 2 / 4 倍'
-              '（但目标部件自身是不是魔法 / 传奇，不影响它收多少经验）',
-          '**Magic parts x 2, legendary x 4**: the same fuel contributes 2x / 4x what a common part would '
-              '(whether the target itself is magic / legendary does not change the XP it receives)',
+          '③ **×（1 + 融合经验技能）**：满级 × 1.3，没点就是 × 1',
+          '③ **x (1 + fusion XP skill)** — x1.3 at max, x1 if you have not skilled it',
+        ),
+        GuideBullet(
+          '④ **× k(燃料材料) ÷ k(目标材料)**：这一步就是上面说的「材料兑换比例」',
+          '④ **x k(fuel material) ÷ k(target material)** — the "exchange rate" mentioned above',
+        ),
+      ]),
+      GuideBlock.bullets(<GuideBullet>[
+        GuideBullet(
+          '**魔法燃料 × 2、传奇燃料 × 4**，而且这两个**跳过第 ④ 步**（不做材料折算，喂给高阶材料也不缩水）',
+          '**Magic fuel x2, legendary fuel x4** — and these two **skip step ④**: no material conversion, so they do '
+              'not shrink even when fed into a higher material',
+        ),
+        GuideBullet(
+          '所以**满级废件是最划算的燃料**（能拿回 70% 经验）；低阶喂高阶几乎白喂：'
+              '铁制 → 军用只剩 13 ÷ 144 ≈ 9%',
+          'So a **maxed-out spare is the best fuel** (it returns 70% of its XP), while feeding a low material into a '
+              'high one is nearly wasted: iron → military keeps only 13 ÷ 144 ≈ 9%',
+        ),
+        GuideBullet(
+          '燃料可以跨材料、跳星级；目标部件自身是不是魔法 / 传奇**不影响**它收多少经验',
+          'Fuel may be any material and any star; whether the target itself is magic / legendary **does not change** '
+              'how much XP it takes in',
         ),
       ]),
       // ---------- 9. 技能解锁 ----------
       GuideBlock.heading('车身技能什么时候解锁', 'When body skills unlock'),
       GuideBlock.text(
-        '车身技能不是一开始就能点的，要按**段位**（stage）或**威望**（prestige）解锁：',
-        'Body skills are not available from the start — they unlock by **stage** or **prestige**:',
+        '车身技能不是一开始就能点的，要按**段位**（stage，主线进度）或**威望**（prestige，转生次数）解锁：',
+        'Body skills are not available from the start — they unlock by **stage** (your main progression) or '
+            '**prestige** (how many times you have restarted):',
       ),
       GuideBlock.table(
         GuideTable(
@@ -2022,11 +2056,11 @@ const List<GuideChapter> kGuideChapters = <GuideChapter>[
       // ---------- 10. 插槽 ----------
       GuideBlock.heading('车身决定插槽', 'The body decides the slots'),
       GuideBlock.text(
-        '能装几件武器 / 车轮 / 配件，全看车身：每个车身自带 **4 组挂点**，'
-            '每组规定了位置和**允许挂载的部件类型**。所以换车身不只是换数值，而是换掉整套插槽。',
-        'How many weapons / wheels / gadgets you can mount is up to the body: every body carries **4 mount groups**, '
-            'each with a position and the **part types it accepts**. So swapping the body changes not just the numbers '
-            'but the whole slot layout.',
+        '车身的数据里带着**挂点**（每个车身 4 组，每组 = 一个位置 + 允许挂载的部件类型），'
+            '所以「能装几件武器 / 车轮 / 配件、分别装在哪」全看车身。换车身不只是换数值，而是换掉整套插槽。',
+        'Body data carries **mount points** (4 groups per body, each = a position plus the part types it accepts), '
+            'so how many weapons / wheels / gadgets you can mount, and where, is entirely up to the body. Swapping '
+            'the body changes the whole slot layout, not just the numbers.',
       ),
       GuideBlock.tip(
         '两套体系别混：锦标赛战车的部件按「材料 + 星级」分 25 档（最高 6-26 级），'
