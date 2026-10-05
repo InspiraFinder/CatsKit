@@ -3868,7 +3868,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         final code = response.statusCode;
         onLog?.call(
           '  响应: HTTP $code'
-          '${code == 403 ? '（API 403：多为匿名调用超过 60 次/小时的限额，或代理出口 IP 被限流）' : ''}',
+          '${code == 403 ? '（API 403：多为未登录调用超过 60 次/小时的限额）' : ''}',
         );
         // 403 / 429 / 5xx 都不算「拿到结果」：继续试下一个候选（镜像）
         if (code == 403 || code == 429 || code >= 500) {
@@ -4001,8 +4001,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
         'Accept-Language': 'zh-CN,zh;q=0.9',
       };
 
-      // ① 先用 github.com 的跳转拿最新 tag：这不是 API，不会撞上匿名调用
-      //    60 次/小时的限额（代理 / 加速器出口 IP 常被共享，早就被限流了）
+      // ① 先用 github.com 的跳转拿最新 tag：这不是 API，不会撞上未登录调用
+      //    60 次/小时的限额（额度可能早已用满）
       final redirectTag = await fetchLatestTagByRedirect(client);
 
       if (redirectTag != null) {
@@ -4087,8 +4087,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
       if (response.statusCode != HttpStatus.ok) {
         throw HttpException(
           response.statusCode == 403
-              ? 'HTTP 403（GitHub API 匿名调用超过每小时 60 次的限额，'
-                    '多为代理 / 加速器出口 IP 被共享导致，稍后再试）'
+              ? 'HTTP 403（GitHub API 未登录调用超过每小时 60 次的限额，'
+                    '稍后再试即可）'
               : 'HTTP ${response.statusCode}',
         );
       }
@@ -4204,9 +4204,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Map<String, dynamic>? pickPlatformAsset(List<dynamic> assets) {
     final names = assets
         .map(
-          (a) =>
-              ((a as Map<String, dynamic>)['name'] as String? ?? '')
-                  .toLowerCase(),
+          (a) => ((a as Map<String, dynamic>)['name'] as String? ?? '')
+              .toLowerCase(),
         )
         .toList();
     final idx = pickAssetIndexForPlatform(names, currentPlatformKey());
@@ -4651,7 +4650,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           '${remain == null ? '' : '，剩余额度 $remain 次/小时'}',
         );
         if (res.statusCode == 403 && remain == '0') {
-          log('    ⇒ API 额度用尽（匿名调用每小时 60 次，代理/加速器出口 IP 常被共享）');
+          log('    ⇒ API 额度用尽（未登录调用每小时 60 次）');
         }
         await res.drain<void>();
         client.close(force: true);
