@@ -81,23 +81,27 @@ class _MechanismGuideScreenState extends State<MechanismGuideScreen> {
         color: isDark ? const Color(0xFF241B3A) : Colors.deepPurple[50],
         borderRadius: BorderRadius.circular(10),
         border: Border.all(
-          color: isDark ? Colors.deepPurple.shade300 : Colors.deepPurple.shade200,
+          color: isDark
+              ? Colors.deepPurple.shade300
+              : Colors.deepPurple.shade200,
         ),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          Icon(Icons.menu_book,
-              size: 18,
-              color: isDark ? Colors.deepPurple[200] : Colors.deepPurple[700]),
+          Icon(
+            Icons.menu_book,
+            size: 18,
+            color: isDark ? Colors.deepPurple[200] : Colors.deepPurple[700],
+          ),
           const SizedBox(width: 8),
           Expanded(
             child: Text(
               _t(
                 '游戏玩法的文字版说明，一个玩法一章，配示意图。\n'
-                '内容会持续补充（帮派联赛、城市之王、活动周期、道具与工具箱…）。',
+                    '内容会持续补充（帮派联赛、城市之王、活动周期、道具与工具箱…）。',
                 'Text wiki of game mechanics: one chapter per mechanic, with diagrams.\n'
-                'More chapters are being added (gang league, city king, activities, items...).',
+                    'More chapters are being added (gang league, city king, activities, items...).',
               ),
               style: TextStyle(
                 fontSize: 12,
@@ -129,7 +133,10 @@ class _MechanismGuideScreenState extends State<MechanismGuideScreen> {
               ),
         hintText: _t('搜索机制 / 关键词', 'Search mechanics'),
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-        contentPadding: const EdgeInsets.symmetric(vertical: 10, horizontal: 10),
+        contentPadding: const EdgeInsets.symmetric(
+          vertical: 10,
+          horizontal: 10,
+        ),
       ),
     );
   }
@@ -144,8 +151,11 @@ class _MechanismGuideScreenState extends State<MechanismGuideScreen> {
       ),
       child: Column(
         children: <Widget>[
-          Icon(Icons.auto_stories,
-              size: 40, color: isDark ? Colors.white38 : Colors.black26),
+          Icon(
+            Icons.auto_stories,
+            size: 40,
+            color: isDark ? Colors.white38 : Colors.black26,
+          ),
           const SizedBox(height: 12),
           Text(
             _query.isEmpty
@@ -160,10 +170,15 @@ class _MechanismGuideScreenState extends State<MechanismGuideScreen> {
           const SizedBox(height: 6),
           Text(
             _query.isEmpty
-                ? _t('这一版先把模块搭起来：每个玩法一章，配文字说明与示意图，'
-                    '后续填充。', 'Module scaffolded first; chapters will be filled in later.')
-                : _t('换个关键词试试，或清空搜索框看全部章节。',
-                    'Try another keyword, or clear the search.'),
+                ? _t(
+                    '这一版先把模块搭起来：每个玩法一章，配文字说明与示意图，'
+                        '后续填充。',
+                    'Module scaffolded first; chapters will be filled in later.',
+                  )
+                : _t(
+                    '换个关键词试试，或清空搜索框看全部章节。',
+                    'Try another keyword, or clear the search.',
+                  ),
             textAlign: TextAlign.center,
             style: TextStyle(
               fontSize: 12,
@@ -198,9 +213,7 @@ class _MechanismGuideScreenState extends State<MechanismGuideScreen> {
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(10),
-            border: Border.all(
-              color: isDark ? Colors.white24 : Colors.black12,
-            ),
+            border: Border.all(color: isDark ? Colors.white24 : Colors.black12),
           ),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -238,8 +251,12 @@ class _MechanismGuideScreenState extends State<MechanismGuideScreen> {
                     const SizedBox(height: 6),
                     Text(
                       sectionCount > 0
-                          ? (_isZh ? '$sectionCount 个小节' : '$sectionCount sections')
-                          : (_isZh ? '$count 个段落' : '$count blocks'),
+                          ? (_isZh
+                                ? '$sectionCount 个小节'
+                                : '$sectionCount sections')
+                          : (count > 0
+                                ? (_isZh ? '$count 个段落' : '$count blocks')
+                                : (_isZh ? '内容整理中' : 'Coming soon')),
                       style: TextStyle(
                         fontSize: 11,
                         color: isDark ? Colors.white38 : Colors.black38,
@@ -248,8 +265,11 @@ class _MechanismGuideScreenState extends State<MechanismGuideScreen> {
                   ],
                 ),
               ),
-              Icon(Icons.chevron_right,
-                  size: 20, color: isDark ? Colors.white38 : Colors.black26),
+              Icon(
+                Icons.chevron_right,
+                size: 20,
+                color: isDark ? Colors.white38 : Colors.black26,
+              ),
             ],
           ),
         ),
@@ -309,6 +329,20 @@ class _GuideChapterScreenState extends State<GuideChapterScreen> {
             if (sections.length > 1) ...<Widget>[
               _buildToc(sections, isDark),
               const SizedBox(height: 14),
+            ],
+            if (chapter.blocks.isEmpty) ...<Widget>[
+              Center(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 48),
+                  child: Text(
+                    _t('本页内容整理中，后续补充。', 'This chapter is coming soon.'),
+                    style: TextStyle(
+                      fontSize: 13,
+                      color: isDark ? Colors.white54 : Colors.black54,
+                    ),
+                  ),
+                ),
+              ),
             ],
             for (var i = 0; i < chapter.blocks.length; i++) ...<Widget>[
               KeyedSubtree(
@@ -405,71 +439,77 @@ class _GuideChapterScreenState extends State<GuideChapterScreen> {
     final parts = <Widget>[];
 
     if (b.headingZh != null) {
-      parts.add(Row(
-        children: <Widget>[
-          Container(
-            width: 4,
-            height: 15,
-            decoration: BoxDecoration(
-              color: chapter.color,
-              borderRadius: BorderRadius.circular(2),
-            ),
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              _t(b.headingZh!, b.headingEn ?? b.headingZh!),
-              style: TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.bold,
-                color: isDark ? Colors.white : Colors.black87,
+      parts.add(
+        Row(
+          children: <Widget>[
+            Container(
+              width: 4,
+              height: 15,
+              decoration: BoxDecoration(
+                color: chapter.color,
+                borderRadius: BorderRadius.circular(2),
               ),
             ),
-          ),
-        ],
-      ));
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                _t(b.headingZh!, b.headingEn ?? b.headingZh!),
+                style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.bold,
+                  color: isDark ? Colors.white : Colors.black87,
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
     }
 
     if (b.textZh != null) {
-      parts.add(Text(
-        _t(b.textZh!, b.textEn ?? b.textZh!),
-        style: const TextStyle(fontSize: 13, height: 1.6),
-      ));
+      parts.add(
+        _guideRichText(
+          _t(b.textZh!, b.textEn ?? b.textZh!),
+          const TextStyle(fontSize: 13, height: 1.6),
+        ),
+      );
     }
 
     if (b.bullets.isNotEmpty) {
       if (parts.isNotEmpty) parts.add(const SizedBox(height: 8));
-      parts.add(Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          for (final item in b.bullets)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 6),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: <Widget>[
-                  Padding(
-                    padding: const EdgeInsets.only(top: 6, right: 8),
-                    child: Container(
-                      width: 5,
-                      height: 5,
-                      decoration: BoxDecoration(
-                        color: chapter.color,
-                        shape: BoxShape.circle,
+      parts.add(
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            for (final item in b.bullets)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 6),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Padding(
+                      padding: const EdgeInsets.only(top: 6, right: 8),
+                      child: Container(
+                        width: 5,
+                        height: 5,
+                        decoration: BoxDecoration(
+                          color: chapter.color,
+                          shape: BoxShape.circle,
+                        ),
                       ),
                     ),
-                  ),
-                  Expanded(
-                    child: Text(
-                      _t(item.zh, item.en),
-                      style: const TextStyle(fontSize: 13, height: 1.5),
+                    Expanded(
+                      child: _guideRichText(
+                        _t(item.zh, item.en),
+                        const TextStyle(fontSize: 13, height: 1.5),
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
-        ],
-      ));
+          ],
+        ),
+      );
     }
 
     if (b.table != null) {
@@ -479,62 +519,72 @@ class _GuideChapterScreenState extends State<GuideChapterScreen> {
 
     if (b.tipZh != null) {
       if (parts.isNotEmpty) parts.add(const SizedBox(height: 8));
-      parts.add(Container(
-        width: double.infinity,
-        padding: const EdgeInsets.all(10),
-        decoration: BoxDecoration(
-          color: isDark ? const Color(0xFF2A2418) : Colors.amber[50],
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(
-            color: isDark ? Colors.amber.shade700 : Colors.amber.shade200,
+      parts.add(
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            color: isDark ? const Color(0xFF2A2418) : Colors.amber[50],
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(
+              color: isDark ? Colors.amber.shade700 : Colors.amber.shade200,
+            ),
           ),
-        ),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: <Widget>[
-            Icon(Icons.lightbulb_outline,
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Icon(
+                Icons.lightbulb_outline,
                 size: 16,
-                color: isDark ? Colors.amber[200] : Colors.amber[800]),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Text(
-                _t(b.tipZh!, b.tipEn ?? b.tipZh!),
-                style: TextStyle(
-                  fontSize: 12,
-                  height: 1.5,
-                  color: isDark ? Colors.amber[100] : Colors.amber[900],
+                color: isDark ? Colors.amber[200] : Colors.amber[800],
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _guideRichText(
+                  _t(b.tipZh!, b.tipEn ?? b.tipZh!),
+                  TextStyle(
+                    fontSize: 12,
+                    height: 1.5,
+                    color: isDark ? Colors.amber[100] : Colors.amber[900],
+                  ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
-      ));
+      );
     }
 
     if (b.figures.isNotEmpty) {
       if (parts.isNotEmpty) parts.add(const SizedBox(height: 10));
       for (final f in b.figures) {
-        parts.add(Padding(
-          padding: const EdgeInsets.only(bottom: 10),
-          child: _FigureFrame(
-            figure: f,
-            locale: locale,
-            server: server,
-            isDark: isDark,
+        parts.add(
+          Padding(
+            padding: const EdgeInsets.only(bottom: 10),
+            child: _FigureFrame(
+              figure: f,
+              locale: locale,
+              server: server,
+              isDark: isDark,
+            ),
           ),
-        ));
+        );
       }
     }
 
     if (parts.isEmpty) return const SizedBox.shrink();
-    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: parts);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: parts,
+    );
   }
 
-  /// 表格：列宽自适应内容，太宽时可以左右滑
+  /// 表格：列宽自适应内容，太宽时可以左右滑；有分组时上面多一行一级表头
   Widget _buildTable(GuideTable t, bool isDark) {
     final zh = locale == 'zh';
     final head = zh ? t.headZh : t.headEn;
     final rows = zh ? t.rowsZh : t.rowsEn;
+    final group = zh ? t.groupZh : t.groupEn;
     final borderColor = isDark ? Colors.white24 : Colors.black12;
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
@@ -542,6 +592,15 @@ class _GuideChapterScreenState extends State<GuideChapterScreen> {
         defaultColumnWidth: const IntrinsicColumnWidth(),
         border: TableBorder.all(color: borderColor, width: 0.7),
         children: <TableRow>[
+          if (group != null)
+            TableRow(
+              decoration: BoxDecoration(
+                color: chapter.color.withValues(alpha: isDark ? 0.34 : 0.16),
+              ),
+              children: <Widget>[
+                for (final g in group) _cell(g, isDark, header: true),
+              ],
+            ),
           TableRow(
             decoration: BoxDecoration(
               color: chapter.color.withValues(alpha: isDark ? 0.24 : 0.10),
@@ -551,11 +610,7 @@ class _GuideChapterScreenState extends State<GuideChapterScreen> {
             ],
           ),
           for (final r in rows)
-            TableRow(
-              children: <Widget>[
-                for (final c in r) _cell(c, isDark),
-              ],
-            ),
+            TableRow(children: <Widget>[for (final c in r) _cell(c, isDark)]),
         ],
       ),
     );
@@ -578,6 +633,30 @@ class _GuideChapterScreenState extends State<GuideChapterScreen> {
 }
 
 // ==================== 配图 ====================
+/// 指南正文/要点/提示的富文本：把 `**这样**` 的片段渲染成加粗
+/// （现有章节里已经用了这套写法，之前会直接显示星号）
+Widget _guideRichText(String text, TextStyle style) {
+  final spans = <TextSpan>[];
+  var rest = text;
+  final bold = style.copyWith(fontWeight: FontWeight.bold);
+  while (rest.isNotEmpty) {
+    final i = rest.indexOf('**');
+    if (i < 0) {
+      spans.add(TextSpan(text: rest));
+      break;
+    }
+    final j = rest.indexOf('**', i + 2);
+    if (j < 0) {
+      spans.add(TextSpan(text: rest));
+      break;
+    }
+    if (i > 0) spans.add(TextSpan(text: rest.substring(0, i)));
+    spans.add(TextSpan(text: rest.substring(i + 2, j), style: bold));
+    rest = rest.substring(j + 2);
+  }
+  return Text.rich(TextSpan(style: style, children: spans));
+}
+
 /// 配图外框：浅底 + 边框 + 图 + 图注
 class _FigureFrame extends StatelessWidget {
   final GuideFigure figure;
@@ -603,8 +682,12 @@ class _FigureFrame extends StatelessWidget {
       ),
       child: Column(
         children: <Widget>[
-          buildGuideFigure(figure,
-              locale: locale, server: server, isDark: isDark),
+          buildGuideFigure(
+            figure,
+            locale: locale,
+            server: server,
+            isDark: isDark,
+          ),
           const SizedBox(height: 8),
           Text(
             locale == 'zh' ? figure.captionZh : figure.captionEn,
@@ -724,25 +807,52 @@ class _CarLayoutPainter extends CustomPainter {
 
     // 车身
     final body = Rect.fromCenter(
-        center: const Offset(170, 88), width: 132, height: 48);
+      center: const Offset(170, 88),
+      width: 132,
+      height: 48,
+    );
     canvas.drawRRect(
       RRect.fromRectAndRadius(body, const Radius.circular(12)),
       Paint()..color = Colors.orange.withValues(alpha: 0.85),
     );
-    _text(canvas, zh ? '车身' : 'Body', const Offset(170, 82), Colors.white,
-        center: true);
+    _text(
+      canvas,
+      zh ? '车身' : 'Body',
+      const Offset(170, 82),
+      Colors.white,
+      center: true,
+    );
 
     // 特殊武器（棕菱形）
-    _diamond(canvas, const Offset(170, 26), 14, Colors.brown.withValues(alpha: 0.9));
-    _text(canvas, zh ? '特殊武器' : 'Special', const Offset(170, 48), labelColor,
-        center: true);
+    _diamond(
+      canvas,
+      const Offset(170, 26),
+      14,
+      Colors.brown.withValues(alpha: 0.9),
+    );
+    _text(
+      canvas,
+      zh ? '特殊武器' : 'Special',
+      const Offset(170, 48),
+      labelColor,
+      center: true,
+    );
 
     // 武器（红六边形）
     for (final dx in <double>[-84, 84]) {
-      _hexagon(canvas, Offset(170 + dx, 34), 15,
-          Colors.red.withValues(alpha: 0.9));
-      _text(canvas, zh ? '武器' : 'Weapon', Offset(170 + dx, 56), labelColor,
-          center: true);
+      _hexagon(
+        canvas,
+        Offset(170 + dx, 34),
+        15,
+        Colors.red.withValues(alpha: 0.9),
+      );
+      _text(
+        canvas,
+        zh ? '武器' : 'Weapon',
+        Offset(170 + dx, 56),
+        labelColor,
+        center: true,
+      );
     }
 
     // 配件（紫方块）
@@ -754,21 +864,40 @@ class _CarLayoutPainter extends CustomPainter {
         ),
         Paint()..color = Colors.purple.withValues(alpha: 0.9),
       );
-      _text(canvas, zh ? '配件' : 'Gadget', Offset(170 + dx, 130), labelColor,
-          center: true);
+      _text(
+        canvas,
+        zh ? '配件' : 'Gadget',
+        Offset(170 + dx, 130),
+        labelColor,
+        center: true,
+      );
     }
 
     // 车轮（绿圆形）
     for (final dx in <double>[-46, 46]) {
-      canvas.drawCircle(Offset(170 + dx, 142), 17,
-          Paint()..color = Colors.green.withValues(alpha: 0.9));
-      _text(canvas, zh ? '车轮' : 'Wheel', Offset(170 + dx, 146), Colors.white,
-          center: true);
+      canvas.drawCircle(
+        Offset(170 + dx, 142),
+        17,
+        Paint()..color = Colors.green.withValues(alpha: 0.9),
+      );
+      _text(
+        canvas,
+        zh ? '车轮' : 'Wheel',
+        Offset(170 + dx, 146),
+        Colors.white,
+        center: true,
+      );
     }
 
     // 电力说明
-    _text(canvas, zh ? '电力 ∑ ≤ 上限' : 'Power ∑ ≤ limit',
-        const Offset(170, 166), labelColor, center: true, fontSize: 9);
+    _text(
+      canvas,
+      zh ? '电力 ∑ ≤ 上限' : 'Power ∑ ≤ limit',
+      const Offset(170, 166),
+      labelColor,
+      center: true,
+      fontSize: 9,
+    );
 
     canvas.restore();
   }
@@ -794,8 +923,14 @@ class _CarLayoutPainter extends CustomPainter {
     canvas.drawPath(path, Paint()..color = color);
   }
 
-  void _text(Canvas canvas, String s, Offset at, Color color,
-      {bool center = false, double fontSize = 10}) {
+  void _text(
+    Canvas canvas,
+    String s,
+    Offset at,
+    Color color, {
+    bool center = false,
+    double fontSize = 10,
+  }) {
     final tp = TextPainter(
       text: TextSpan(
         text: s,
@@ -836,8 +971,10 @@ class _PartSampleFigure extends StatelessWidget {
           break;
         }
       }
-      found ??= list.firstWhere((p) => p.category == cat,
-          orElse: () => list.first);
+      found ??= list.firstWhere(
+        (p) => p.category == cat,
+        orElse: () => list.first,
+      );
       parts.add(found);
     }
     return Row(
@@ -862,10 +999,7 @@ class _PartSampleFigure extends StatelessWidget {
                 ),
                 Text(
                   _catLabel(p.category, locale),
-                  style: TextStyle(
-                    fontSize: 10,
-                    color: _catColor(p.category),
-                  ),
+                  style: TextStyle(fontSize: 10, color: _catColor(p.category)),
                 ),
               ],
             ),
@@ -904,7 +1038,10 @@ class _SponsorFigure extends StatelessWidget {
       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
       children: const <Widget>[
         _SponsorCell(asset: 'assets/images/sp_mecha.png', label: 'Mecha'),
-        _SponsorCell(asset: 'assets/images/sp_naturalis.png', label: 'Naturalis'),
+        _SponsorCell(
+          asset: 'assets/images/sp_naturalis.png',
+          label: 'Naturalis',
+        ),
         _SponsorCell(asset: 'assets/images/sp_gluttony.png', label: 'Gluttony'),
       ],
     );
@@ -970,10 +1107,11 @@ class _ChestTypesFigure extends StatelessWidget {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
       children: <Widget>[
-        _cell('assets/guide/chest_choice.png',
-            zh ? '自选箱（可二选一）' : 'Choice chest'),
-        _cell('assets/guide/chest_fixed.png',
-            zh ? '固定箱（内容固定）' : 'Fixed chest'),
+        _cell(
+          'assets/guide/chest_choice.png',
+          zh ? '自选箱（可二选一）' : 'Choice chest',
+        ),
+        _cell('assets/guide/chest_fixed.png', zh ? '固定箱（内容固定）' : 'Fixed chest'),
       ],
     );
   }
@@ -999,13 +1137,13 @@ class _BattleBuildingsFigure extends StatelessWidget {
   /// 三类加起来就是车位总数；人机不属于任何一方
   static const List<(int, int, int, int, bool, bool)> _buildings =
       <(int, int, int, int, bool, bool)>[
-    (5, 4, 0, 1, true, false),
-    (3, 0, 2, 1, false, true),
-    (5, 3, 0, 2, false, false),
-    (7, 1, 4, 2, true, false),
-    (3, 2, 1, 0, false, false),
-    (5, 1, 1, 3, false, false),
-  ];
+        (5, 4, 0, 1, true, false),
+        (3, 0, 2, 1, false, true),
+        (5, 3, 0, 2, false, false),
+        (7, 1, 4, 2, true, false),
+        (3, 2, 1, 0, false, false),
+        (5, 1, 1, 3, false, false),
+      ];
 
   @override
   Widget build(BuildContext context) {
@@ -1025,11 +1163,11 @@ class _BattleBuildingsFigure extends StatelessWidget {
         Text(
           zh
               ? '蓝＝我方车、红＝对方帮派的车、灰＝人机车（不属于任何一方，只是开局把车位占住、可以被选中攻击）。\n'
-                  '车位过半即占领；计时器归零时每个已占领建筑按车位数给分；'
-                  '链接建筑分数 ×n（n = 同时占领的链接建筑数）；高回报建筑 ×5（持续 2 小时）。'
+                    '车位过半即占领；计时器归零时每个已占领建筑按车位数给分；'
+                    '链接建筑分数 ×n（n = 同时占领的链接建筑数）；高回报建筑 ×5（持续 2 小时）。'
               : 'Blue = ours, red = the opposing gang, grey = bots (they belong to neither side and only keep the slot occupied and attackable at the start).\n'
-                  'Hold over half the slots to occupy; at the timer each occupied building scores its slot count; '
-                  'linked buildings score ×n (n = linked buildings you hold); high-reward building ×5 (lasts 2 hours).',
+                    'Hold over half the slots to occupy; at the timer each occupied building scores its slot count; '
+                    'linked buildings score ×n (n = linked buildings you hold); high-reward building ×5 (lasts 2 hours).',
           style: TextStyle(
             fontSize: 10,
             height: 1.4,
@@ -1040,8 +1178,15 @@ class _BattleBuildingsFigure extends StatelessWidget {
     );
   }
 
-  Widget _building(int total, int mine, int theirs, int bots, bool linked,
-      bool high, bool zh) {
+  Widget _building(
+    int total,
+    int mine,
+    int theirs,
+    int bots,
+    bool linked,
+    bool high,
+    bool zh,
+  ) {
     final ours = mine > total / 2;
     final theirsWin = theirs > total / 2;
     final color = ours
@@ -1082,8 +1227,8 @@ class _BattleBuildingsFigure extends StatelessWidget {
                     color: i < mine
                         ? Colors.blue
                         : (i < mine + theirs
-                            ? Colors.red
-                            : (isDark ? Colors.white30 : Colors.black26)),
+                              ? Colors.red
+                              : (isDark ? Colors.white30 : Colors.black26)),
                   ),
                 ),
             ],
@@ -1133,8 +1278,7 @@ class _StatPipelineFigure extends StatelessWidget {
   const _StatPipelineFigure({required this.locale, required this.isDark});
 
   /// (中文, English, 颜色)
-  static const List<(String, String, Color)> _steps =
-      <(String, String, Color)>[
+  static const List<(String, String, Color)> _steps = <(String, String, Color)>[
     ('裸值', 'Base', Colors.blueGrey),
     ('× 分类加成', '× Category', Colors.blue),
     ('× 额外加成', '× Extra', Colors.purple),
@@ -1292,16 +1436,18 @@ class _GangTiersFigure extends StatelessWidget {
     }
     final rule = up == null
         ? 'no promotion'
-        : (down == null ? 'top $up promote' : 'top $up promote / rank $down+ demote');
+        : (down == null
+              ? 'top $up promote'
+              : 'top $up promote / rank $down+ demote');
     return '$count gangs · $rule · payout x$mult';
   }
 
   static Color _color(GangDivision d) => switch (d) {
-        GangDivision.gold => Colors.amber.shade700,
-        GangDivision.silver => Colors.blueGrey,
-        GangDivision.bronze => Colors.brown,
-        GangDivision.wood => Colors.green.shade700,
-      };
+    GangDivision.gold => Colors.amber.shade700,
+    GangDivision.silver => Colors.blueGrey,
+    GangDivision.bronze => Colors.brown,
+    GangDivision.wood => Colors.green.shade700,
+  };
 }
 
 /// 赛季收尾流程图：10 个帮派到达 30 胜 → +7 天关战斗入口 → +1 天战斗完成 → 发奖 → 缓冲 1 天 → 新赛季
@@ -1311,8 +1457,8 @@ class _SeasonFlowFigure extends StatelessWidget {
   const _SeasonFlowFigure({required this.locale, required this.isDark});
 
   /// (阶段标签, 中文说明, 英文说明, 标签颜色)
-  static const List<(String, String, String, Color)> _steps =
-      <(String, String, String, Color)>[
+  static const List<(String, String, String, Color)>
+  _steps = <(String, String, String, Color)>[
     (
       'T+0',
       '所有组别中累计有 10 个帮派达到 30 胜场 → 赛季准备结束',
@@ -1343,12 +1489,7 @@ class _SeasonFlowFigure extends StatelessWidget {
       'One buffer day: claim rewards and switch gangs',
       Colors.purple,
     ),
-    (
-      '新赛季',
-      '开启新的赛季',
-      'A new season begins',
-      Colors.green,
-    ),
+    ('新赛季', '开启新的赛季', 'A new season begins', Colors.green),
   ];
 
   @override

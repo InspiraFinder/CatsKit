@@ -26,7 +26,7 @@ import 'max_stats_screen.dart';
 import 'mechanism_guide_screen.dart';
 import 'life_sim/life_sim_screen.dart';
 
-const String appVersion = '2.2.3';
+const String appVersion = '2.2.4';
 
 /// 获取部件在当前语言下的显示名称
 String pn(PartData part, String? locale) {
@@ -184,6 +184,10 @@ class MainScreen extends StatefulWidget {
 }
 
 class _MainScreenState extends State<MainScreen> {
+  /// 查车工具数据的持久化键
+  static const String _boxTextsKey = 'vehicleCheckBoxTexts';
+  static const String _boxNumbersKey = 'vehicleCheckBoxNumbers';
+
   List<String> boxTexts = List<String>.filled(25, '');
   List<String> boxButtonNumbers = List<String>.filled(25, '');
   int selectedButton = 0;
@@ -196,6 +200,30 @@ class _MainScreenState extends State<MainScreen> {
     super.initState();
     _locale = widget.locale;
     _server = widget.server;
+    _loadVehicleCheck();
+  }
+
+  /// 读取上次填写的查车数据（方框文字 + 方框下方的数字）
+  Future<void> _loadVehicleCheck() async {
+    final prefs = await SharedPreferences.getInstance();
+    final texts = prefs.getStringList(_boxTextsKey);
+    final numbers = prefs.getStringList(_boxNumbersKey);
+    if (!mounted) return;
+    setState(() {
+      if (texts != null && texts.length == boxTexts.length) {
+        boxTexts = List<String>.from(texts);
+      }
+      if (numbers != null && numbers.length == boxButtonNumbers.length) {
+        boxButtonNumbers = List<String>.from(numbers);
+      }
+    });
+  }
+
+  /// 把当前查车数据存下来（方框文字 + 方框下方的数字）
+  Future<void> _saveVehicleCheck() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setStringList(_boxTextsKey, boxTexts);
+    await prefs.setStringList(_boxNumbersKey, boxButtonNumbers);
   }
 
   bool _showSnackBar = false; // 默认不显示提示
@@ -486,6 +514,9 @@ class _MainScreenState extends State<MainScreen> {
   }
 
   Widget _buildStatistics(Map<int, int> counts, int total) {
+    // 卡片背景是固定的浅色，所以文字颜色必须写死，否则夜间模式下会变成白字看不见
+    final labelColor = Colors.blueGrey.shade800;
+    final titleColor = Colors.blue.shade800;
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(12),
@@ -499,10 +530,10 @@ class _MainScreenState extends State<MainScreen> {
         children: [
           Text(
             '${_t('总数量', 'Total')}: $total',
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.bold,
-              color: Colors.blue,
+              color: titleColor,
             ),
           ),
           const SizedBox(height: 8),
@@ -513,7 +544,7 @@ class _MainScreenState extends State<MainScreen> {
               int num = index + 1;
               return Text(
                 'P$num: ${counts[num]}',
-                style: const TextStyle(fontSize: 15),
+                style: TextStyle(fontSize: 15, color: labelColor),
               );
             }),
           ),
@@ -542,6 +573,7 @@ class _MainScreenState extends State<MainScreen> {
         }
       }
     });
+    _saveVehicleCheck();
     if (anyCleared) {
       _showMessage(
         '已清除所有方框中的数字 $buttonNumber',
@@ -589,6 +621,7 @@ class _MainScreenState extends State<MainScreen> {
       for (int i = 0; i < boxButtonNumbers.length; i++)
         boxButtonNumbers[i] = '';
     });
+    _saveVehicleCheck();
     _showMessage('已清除所有方框下方的数字', 'Cleared all numbers below boxes');
   }
 
@@ -608,6 +641,7 @@ class _MainScreenState extends State<MainScreen> {
           );
         }
       });
+      _saveVehicleCheck();
       return;
     }
 
@@ -622,6 +656,7 @@ class _MainScreenState extends State<MainScreen> {
           ? current + selectedButton.toString()
           : selectedButton.toString();
     });
+    _saveVehicleCheck();
     _showMessage(
       '已向方框 ${boxIndex + 1} 添加按钮 $selectedButton，当前: ${boxButtonNumbers[boxIndex]}',
       'Added button $selectedButton to box ${boxIndex + 1}, now: ${boxButtonNumbers[boxIndex]}',
@@ -634,8 +669,10 @@ class _MainScreenState extends State<MainScreen> {
       MaterialPageRoute(
         builder: (context) => ImportScreen(
           initialBoxTexts: boxTexts,
-          onImportConfirmed: (updatedTexts) =>
-              setState(() => boxTexts = updatedTexts),
+          onImportConfirmed: (updatedTexts) {
+            setState(() => boxTexts = updatedTexts);
+            _saveVehicleCheck();
+          },
         ),
       ),
     );
@@ -811,8 +848,7 @@ class _MainMenuScreenState extends State<MainMenuScreen> {
   /// 一级分类：猫生重开（置顶）> 个人功能 > 帮派功能 > 数据查询 > 通用设置
   /// 主界面背景：纯色方块贴片（沿用 2.0.0 的构图，方块里的图案已清空）
   static const String _gamePattern = 'assets/patterns/game_pattern.png';
-  static const String _activityPattern =
-      'assets/patterns/activity_pattern.png';
+  static const String _activityPattern = 'assets/patterns/activity_pattern.png';
 
   /// 应用图标（唯一一张，README 与主界面共用）
   static const String _mainIcon = 'assets/icon/icon.png';
@@ -859,9 +895,8 @@ class _MainMenuScreenState extends State<MainMenuScreen> {
         _MenuSubItem(
           icon: Icons.auto_awesome,
           label: _t('碎片计算', 'Fragment Calc'),
-          onTap: () => _navigateAndAwaitLocale(
-            FragmentCalcScreen(locale: _locale),
-          ),
+          onTap: () =>
+              _navigateAndAwaitLocale(FragmentCalcScreen(locale: _locale)),
         ),
         _MenuSubItem(
           icon: Icons.upgrade,
@@ -908,15 +943,13 @@ class _MainMenuScreenState extends State<MainMenuScreen> {
         _MenuSubItem(
           icon: Icons.timer,
           label: _t('时间计算', 'Timer'),
-          onTap: () =>
-              _navigateAndAwaitLocale(TimeCalcScreen(locale: _locale)),
+          onTap: () => _navigateAndAwaitLocale(TimeCalcScreen(locale: _locale)),
         ),
         _MenuSubItem(
           icon: Icons.table_chart,
           label: _t('赛季统计', 'Season Stats'),
-          onTap: () => _navigateAndAwaitLocale(
-            SeasonStatsScreen(locale: _locale),
-          ),
+          onTap: () =>
+              _navigateAndAwaitLocale(SeasonStatsScreen(locale: _locale)),
         ),
       ],
     ),
@@ -1023,10 +1056,7 @@ class _MainMenuScreenState extends State<MainMenuScreen> {
           ),
           Center(
             child: SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 20,
-                vertical: 18,
-              ),
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: <Widget>[
@@ -1137,10 +1167,7 @@ class _MainMenuScreenState extends State<MainMenuScreen> {
                               fontWeight: FontWeight.bold,
                               color: Colors.white,
                               shadows: <Shadow>[
-                                Shadow(
-                                  color: Colors.black54,
-                                  blurRadius: 6,
-                                ),
+                                Shadow(color: Colors.black54, blurRadius: 6),
                               ],
                             ),
                           ),
@@ -1217,7 +1244,10 @@ class _MainMenuScreenState extends State<MainMenuScreen> {
                   Text(
                     expanded
                         ? _t('收起', 'close')
-                        : _t('${group.items.length} 个模块', '${group.items.length} items'),
+                        : _t(
+                            '${group.items.length} 个模块',
+                            '${group.items.length} items',
+                          ),
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       fontSize: 12,
@@ -1237,6 +1267,7 @@ class _MainMenuScreenState extends State<MainMenuScreen> {
       ),
     );
   }
+
   /// 展开面板：贴在所属那一行下面，整行宽，列出二级模块
   Widget _buildPanel(BuildContext context, _MenuGroup group) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -1246,9 +1277,7 @@ class _MainMenuScreenState extends State<MainMenuScreen> {
       decoration: BoxDecoration(
         color: group.color.withValues(alpha: isDark ? 0.14 : 0.07),
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(
-          color: group.color.withValues(alpha: 0.35),
-        ),
+        border: Border.all(color: group.color.withValues(alpha: 0.35)),
       ),
       child: Column(
         children: <Widget>[
@@ -1297,7 +1326,6 @@ class _MainMenuScreenState extends State<MainMenuScreen> {
       ),
     );
   }
-
 }
 
 // ==================== 组车工具 ====================
@@ -1702,9 +1730,11 @@ class _BuildToolScreenState extends State<BuildToolScreen> {
                   garageSlotLabel(v, slot - 1, zh: widget.locale == 'zh'),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
+                  // 按钮底色是固定浅色，文字颜色必须写死，否则夜间模式下看不见
+                  style: TextStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.bold,
+                    color: Colors.blueGrey.shade800,
                   ),
                 ),
                 const SizedBox(height: 1),
@@ -3003,8 +3033,8 @@ class CarValidation {
     PartData? extraWeapon,
     Map<String, int> levels,
     Map<String, int> extraBonuses, {
-    Map<String, int> hpBoxPct = const <String, int> {},
-    Map<String, int> atkBoxPct = const <String, int> {},
+    Map<String, int> hpBoxPct = const <String, int>{},
+    Map<String, int> atkBoxPct = const <String, int>{},
   }) {
     // allParts：参与 HP/ATK/加成/赞助计算（含额外武器）
     // powerParts：参与电力计算（不含额外武器，额外武器不耗电）
@@ -3587,6 +3617,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final nb = b ?? (base & 0xFF);
     setState(() => bgColor = 0xFF000000 | (nr << 16) | (ng << 8) | nb);
   }
+
   late TextEditingController updateUrlController;
   late TextEditingController mirrorController;
   late TextEditingController downloadPathController;
@@ -3736,7 +3767,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   /// 解析域名 -> IP，含 DNS-over-HTTPS 回退（绕过 Android 系统 DNS 缺陷）
-  Future<String> resolveHost(String host, {void Function(String)? onLog}) async {
+  Future<String> resolveHost(
+    String host, {
+    void Function(String)? onLog,
+  }) async {
     // 1) 系统 DNS
     try {
       final list = await InternetAddress.lookup(host);
@@ -4881,9 +4915,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       icon: const Icon(Icons.copy_all, size: 18),
                       label: FittedBox(
                         fit: BoxFit.scaleDown,
-                        child: Text(
-                          locale == 'zh' ? '复制更新日志' : 'Copy log',
-                        ),
+                        child: Text(locale == 'zh' ? '复制更新日志' : 'Copy log'),
                       ),
                     ),
                   ),
@@ -5038,7 +5070,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       : mirror.replaceAll('https://', '').replaceAll('/', '');
                   final isActive = mirrorController.text.trim() == mirror;
                   return ActionChip(
-                    label: Text(label, style: const TextStyle(fontSize: 11)),
+                    label: Text(
+                      label,
+                      style: TextStyle(
+                        fontSize: 11,
+                        // 选中时底色是固定浅蓝，文字要写死深色
+                        color: isActive ? Colors.blueGrey.shade900 : null,
+                      ),
+                    ),
                     backgroundColor: isActive ? Colors.blue[100] : null,
                     onPressed: () {
                       setState(() {
