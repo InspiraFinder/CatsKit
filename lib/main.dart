@@ -514,6 +514,9 @@ class _MainScreenState extends State<MainScreen> {
   }
 
   Widget _buildStatistics(Map<int, int> counts, int total) {
+    // 卡片背景是固定的浅色，所以文字颜色必须写死，否则夜间模式下会变成白字看不见
+    final labelColor = Colors.blueGrey.shade800;
+    final titleColor = Colors.blue.shade800;
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(12),
@@ -527,10 +530,10 @@ class _MainScreenState extends State<MainScreen> {
         children: [
           Text(
             '${_t('总数量', 'Total')}: $total',
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.bold,
-              color: Colors.blue,
+              color: titleColor,
             ),
           ),
           const SizedBox(height: 8),
@@ -541,7 +544,7 @@ class _MainScreenState extends State<MainScreen> {
               int num = index + 1;
               return Text(
                 'P$num: ${counts[num]}',
-                style: const TextStyle(fontSize: 15),
+                style: TextStyle(fontSize: 15, color: labelColor),
               );
             }),
           ),
@@ -1727,9 +1730,11 @@ class _BuildToolScreenState extends State<BuildToolScreen> {
                   garageSlotLabel(v, slot - 1, zh: widget.locale == 'zh'),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
+                  // 按钮底色是固定浅色，文字颜色必须写死，否则夜间模式下看不见
+                  style: TextStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.bold,
+                    color: Colors.blueGrey.shade800,
                   ),
                 ),
                 const SizedBox(height: 1),
@@ -5065,7 +5070,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       : mirror.replaceAll('https://', '').replaceAll('/', '');
                   final isActive = mirrorController.text.trim() == mirror;
                   return ActionChip(
-                    label: Text(label, style: const TextStyle(fontSize: 11)),
+                    label: Text(
+                      label,
+                      style: TextStyle(
+                        fontSize: 11,
+                        // 选中时底色是固定浅蓝，文字要写死深色
+                        color: isActive ? Colors.blueGrey.shade900 : null,
+                      ),
+                    ),
                     backgroundColor: isActive ? Colors.blue[100] : null,
                     onPressed: () {
                       setState(() {
