@@ -1890,11 +1890,11 @@ const List<GuideChapter> kGuideChapters = <GuideChapter>[
     titleZh: '锦标赛战车',
     titleEn: 'Championship Car',
     summaryZh:
-        '锦标赛战车：25 档与等级上限、8 种常见车身、车身 / 武器 / 车轮 / 配件的数值表，'
-            '以及车身 HP、武器 ATK、车轮与配件 HP、融合的完整计算式',
+        '锦标赛战车：25 档与等级上限、一条通用公式（基础值 / 显示系数 / 技能加成 / 专属系数），'
+            '以及车身 / 武器 / 车轮 / 配件的数值表与计算式',
     summaryEn:
-        'The Championship car: the 25 tiers and level caps, the 8 common bodies, the value tables for body / weapon / '
-            'wheel / gadget, and the full formulas for body HP, weapon ATK, wheel and gadget HP and fusion',
+        'The Championship car: the 25 tiers and level caps, one universal formula (base value / display factor / '
+            'skill bonus / own factor), and the value tables and formulas for body / weapon / wheel / gadget',
     icon: Icons.directions_car,
     color: Colors.teal,
     keywords: <String>[
@@ -1917,6 +1917,13 @@ const List<GuideChapter> kGuideChapters = <GuideChapter>[
       '车身种类',
       'HP 倍数',
       '数值组合',
+      '通用公式',
+      '基础值',
+      '显示系数',
+      '专属系数',
+      '基础 ATK',
+      '基础车轮 HP',
+      '刻度',
       '碰车',
       '撞车',
       '系数',
@@ -2003,6 +2010,8 @@ const List<GuideChapter> kGuideChapters = <GuideChapter>[
       'paladin',
       'coefficient',
       'formula',
+      'base value',
+      'own factor',
       'category',
       'blades',
       'chainsaw',
@@ -2058,8 +2067,151 @@ const List<GuideChapter> kGuideChapters = <GuideChapter>[
         '例如第 6 档（1 星铁制）的最高等级同样只有 6 级 —— 等级上限按**星级**计算，与**档位**无关。',
         'For example tier 6 (1-star iron) also caps at level 6 — the cap follows the **star**, not the tier.',
       ),
-      // ---------- 3. 车身与 HP 倍数 ----------
-      GuideBlock.heading('车身与 HP 倍数', 'Bodies and the HP multiplier'),
+      // ---------- 3. 显示值的通用公式 ----------
+      GuideBlock.heading('显示值的通用公式', 'The universal display formula'),
+      GuideBlock.text(
+        '四类部件的 HP / ATK 用的是**同一条公式**，区别只在下面 4 个参数；'
+            '每个部件的小节里只列自己的参数，公式本身不重复。',
+        'The HP / ATK of all four part types use **one and the same formula**, and only the 4 parameters below '
+            'change; each part section lists its own parameters instead of repeating the formula.',
+      ),
+      GuideBlock.text(
+        '**显示值 ＝ 向上取整（基础值 × 显示系数 ×（1 ＋ 技能加成）× 专属系数）'
+            '＋ 显示系数 × 每级加成 ×（等级 － 1）**',
+        '**Displayed value = round-up( base value x display factor x (1 + skill bonus) x own factor ) '
+            '+ display factor x per-level bonus x (level - 1)**',
+      ),
+      GuideBlock.table(
+        GuideTable(
+          headZh: <String>['部件', '基础值（从哪张表查）', '显示系数', '技能加成', '专属系数'],
+          headEn: <String>['Part', 'Base value (table)', 'Display factor', 'Skill bonus', 'Own factor'],
+          rowsZh: <List<String>>[
+            <String>[
+              '车身 HP',
+              '第 5 节「基础 HP / 供电」',
+              '0.6',
+              'HP 技能 +10 / 20 / 30%',
+              'HP 倍数 1.00 - 2.33',
+            ],
+            <String>[
+              '武器 ATK',
+              '第 6 节「耗电 / 基础 ATK」',
+              '0.4',
+              '武器伤害 +10 / 20 / 30%',
+              'k（每件武器自带）',
+            ],
+            <String>[
+              '车轮 HP',
+              '第 7 节「基础车轮 HP」',
+              '1.0',
+              '车轮类别技能 +15 / 30 / 45%',
+              '无（＝ 1）',
+            ],
+            <String>[
+              '配件 HP',
+              '第 7 节「基础车轮 HP」（同值）',
+              '1.0',
+              '配件 HP 加成 +15% ~ +50%',
+              '无（＝ 1）',
+            ],
+          ],
+          rowsEn: <List<String>>[
+            <String>[
+              'Body HP',
+              'section 5 "base HP / supply"',
+              '0.6',
+              'HP skill +10 / 20 / 30%',
+              'HP multiplier 1.00 - 2.33',
+            ],
+            <String>[
+              'Weapon ATK',
+              'section 6 "drain / base ATK"',
+              '0.4',
+              'weapon damage +10 / 20 / 30%',
+              'k (carried by each weapon)',
+            ],
+            <String>[
+              'Wheel HP',
+              'section 7 "base wheel HP"',
+              '1.0',
+              'wheel family skill +15 / 30 / 45%',
+              'none (= 1)',
+            ],
+            <String>[
+              'Gadget HP',
+              'section 7 "base wheel HP" (same)',
+              '1.0',
+              'gadget HP bonus +15% - +50%',
+              'none (= 1)',
+            ],
+          ],
+        ),
+      ),
+      GuideBlock.bullets(<GuideBullet>[
+        GuideBullet(
+          '**先把整个乘区算完、向上取整，最后才加等级项** —— 等级项不参与取整',
+          '**Evaluate the whole product, round it up, then add the level term** — the level term is never rounded',
+        ),
+        GuideBullet(
+          '**技能加成**要在第 10 节里点到对应**类别**的技能线才有，未学习按 0 计',
+          'The **skill bonus** needs points in the skill line of the matching **category** (section 10); treat it as '
+              '0 when not learned',
+        ),
+        GuideBullet(
+          '**专属系数**只有车身（HP 倍数）与武器（k）有；车轮与配件没有，按 1 处理',
+          'Only bodies (HP multiplier) and weapons (k) have an **own factor**; wheels and gadgets do not, so use 1',
+        ),
+        GuideBullet(
+          '武器的基础项把「显示系数 × 专属系数」并成了一个 **k**（k ＝ 0.4 × 刻度 ÷ 8），'
+              '所以武器公式的基础项写 k、每级项才写 0.4',
+          'For weapons the base term merges the display factor and the own factor into a single **k** (k = 0.4 x tick '
+              '/ 8), so the weapon formula uses k in its base term and 0.4 only in the level term',
+        ),
+      ]),
+      // ---------- 4. 显示系数与每级加成 ----------
+      GuideBlock.heading('显示系数与每级加成', 'Display factors and per-level bonuses'),
+      GuideBlock.text(
+        '**显示系数**（都不在配置里，写在游戏代码里）：车身 **0.6** ✅、武器 **0.4** ✅、'
+            '车轮 **1.0** ✅、配件 **1.0** ⚠️（随从与治疗量也按 1.0 ⚠️）。',
+        '**Display factors** (none of them are in the config — they live in the game code): bodies **0.6** (verified), '
+            'weapons **0.4** (verified), wheels **1.0** (measured), gadgets **1.0** (assumed); minions and heal '
+            'amounts also use 1.0 (unverified).',
+      ),
+      GuideBlock.text(
+        '**每级加成**（升级时每一级固定提升的原始值，按材质取值；实际增量还要乘上面的显示系数）：',
+        '**Per-level bonus** (the raw gain per level, by material; the real gain is this value x the display factor '
+            'above):',
+      ),
+      GuideBlock.table(
+        GuideTable(
+          headZh: <String>['数值', '木质', '铁制', '军用', '黄金', '碳钢'],
+          headEn: <String>['Value', 'Wood', 'Iron', 'Military', 'Gold', 'Carbon'],
+          rowsZh: <List<String>>[
+            <String>['车身 HP', '6', '30', '150', '750', '3000'],
+            <String>['武器 ATK', '4', '20', '100', '500', '2000'],
+            <String>['车轮 HP', '2', '10', '50', '250', '1000'],
+            <String>['配件 HP', '2', '10', '50', '250', '1000'],
+            <String>['治疗量', '3', '15', '75', '375', '1500'],
+            <String>['随从 HP', '38', '165', '833', '3960', '16898'],
+          ],
+          rowsEn: <List<String>>[
+            <String>['Body HP', '6', '30', '150', '750', '3000'],
+            <String>['Weapon ATK', '4', '20', '100', '500', '2000'],
+            <String>['Wheel HP', '2', '10', '50', '250', '1000'],
+            <String>['Gadget HP', '2', '10', '50', '250', '1000'],
+            <String>['Heal amount', '3', '15', '75', '375', '1500'],
+            <String>['Minion HP', '38', '165', '833', '3960', '16898'],
+          ],
+        ),
+      ),
+      GuideBlock.tip(
+        '**实际每级增量 ＝ 表中数值 × 显示系数**：车身 30 × 0.6 ＝ **+18 HP**、武器 20 × 0.4 ＝ **+8 ATK**'
+            '（两条已实测）；车轮 / 配件 10 × 1.0 ＝ **+10 HP**（车轮已实测、配件待实测）。',
+        '**Real per-level gain = table value x display factor**: bodies 30 x 0.6 = **+18 HP** and weapons 20 x 0.4 = '
+            '**+8 ATK** (both measured); wheels / gadgets 10 x 1.0 = **+10 HP** (wheels measured, gadgets not yet).',
+      ),
+      // ---------- 5. 车身：基础值与 HP 计算 ----------
+      GuideBlock.heading('车身：基础值与 HP 计算', 'Body: base values and the HP formula'),
       GuideBlock.text(
         '车身彼此只差两点：**HP 倍数**与**车身技能**。HP 倍数**只作用在 HP 上**，不影响供电。'
             '下表已收录 **13 种**车身：前 8 种是**常见车身**（有专属技能），后 5 种是**特殊车身**（无专属技能）；'
@@ -2106,28 +2258,27 @@ const List<GuideChapter> kGuideChapters = <GuideChapter>[
         ),
       ),
       GuideBlock.tip(
-        '表中技能数值均为满级（电力技能 +3、HP 技能 +30%）；未学习时按 0 计算。解锁条件见第 11 节。'
+        '表中技能数值均为满级（电力技能 +3、HP 技能 +30%）；未学习时按 0 计算。解锁条件见第 10 节。'
             'HP 倍数由「基础 HP × 0.6 × 倍数 ＝ 1 级显示 HP」反推（特殊车身那个等式里不带 HP 技能）。',
-        'Both skill columns are maxed values (power +3, HP +30%); treat them as 0 when not learned. See section 11 '
+        'Both skill columns are maxed values (power +3, HP +30%); treat them as 0 when not learned. See section 10 '
             'for the unlock requirements. The HP multiplier was derived from "base HP x 0.6 x multiplier = displayed HP '
             'at level 1" (for special bodies that equation has no HP skill in it).',
       ),
-      // ---------- 4. 车身供电 ----------
-      GuideBlock.heading('车身供电与基础 HP', 'Body supply and base HP'),
       GuideBlock.text(
-        '同一档位的车身有 **3 种数值组合**，游戏只会把其中**任意一种**分给具体车身（同一档位的各种车身'
-            '共用这 3 种组合，每个车身拿到哪一种由游戏随机决定）。'
+        '**供电与基础 HP**：同一档位的车身有 **3 种数值组合**，游戏只会把其中**任意一种**分给具体车身'
+            '（同一档位的各种车身共用这 3 种组合，每个车身拿到哪一种由游戏随机决定）。'
             '**组合 1 = HP 最高、供电最低，组合 3 = HP 最低、供电最高**。'
-            '表中每格为「**基础 HP / 供电**」，基础 HP 是计算车身 HP 的原始数值（算法见第 9 节）。',
-        'Bodies of the same tier come in **3 stat combinations**, and a body only ever gets **one of them** (the 8 '
-            'bodies of a tier share these 3 combinations, and which one a given body gets is decided at random). '
-            '**Combination 1 has the most HP and the least supply; combination 3 the least HP and the most supply.** '
-            'Each cell reads "**base HP / supply**"; base HP is the raw value used to compute body HP (see section 9).',
+            '表中每格为「**基础 HP / 供电**」，基础 HP 就是通用公式里的「基础值」（算法见本节末尾）。',
+        '**Supply and base HP**: bodies of the same tier come in **3 stat combinations**, and a body only ever gets '
+            '**one of them** (the bodies of a tier share these 3 combinations, and which one a given body gets is '
+            'decided at random). **Combination 1 has the most HP and the least supply; combination 3 the least HP and '
+            'the most supply.** Each cell reads "**base HP / supply**"; base HP is the "base value" of the universal '
+            'formula (computed at the end of this section).',
       ),
       GuideBlock.table(
         GuideTable(
-          groupZh: <String>['', '', 'HP / 供电', '', ''],
-          groupEn: <String>['', '', 'HP / supply', '', ''],
+          groupZh: <String>['', '', '基础 HP / 供电', '', ''],
+          groupEn: <String>['', '', 'Base HP / supply', '', ''],
           headZh: <String>['档位', '部件材质 / 星级', '组合 1', '组合 2', '组合 3'],
           headEn: <String>[
             'Tier',
@@ -2163,23 +2314,80 @@ const List<GuideChapter> kGuideChapters = <GuideChapter>[
               'Whale, Pyramid, Diamond and the special bodies (Scorpion, Arrow, Vector, Orca, Paladin) do not',
         ),
       ]),
-      // ---------- 5. 武器 ----------
-      GuideBlock.heading('武器：耗电与 ATK', 'Weapons: drain and ATK'),
+      GuideBlock.text(
+        '**车身 HP 的算式**（参数：显示系数 0.6、技能加成 ＝ HP 技能、专属系数 ＝ HP 倍数）：',
+        '**The body HP formula** (parameters: display factor 0.6, skill bonus = HP skill, own factor = HP '
+            'multiplier):',
+      ),
+      GuideBlock.text(
+        '**车身 HP ＝ 向上取整（基础 HP × 0.6 ×（1 ＋ HP 技能加成）× HP 倍数）'
+            '＋ 0.6 × 每级 HP 加成 ×（等级 － 1）**',
+        '**Body HP = round-up( base HP x 0.6 x (1 + HP skill) x HP multiplier ) '
+            '+ 0.6 x HP per level x (level - 1)**',
+      ),
+      GuideBlock.table(
+        GuideTable(
+          headZh: <String>['公式中的项', '取值'],
+          headEn: <String>['Term', 'Value'],
+          rowsZh: <List<String>>[
+            <String>['基础 HP', '上表「基础 HP / 供电」中「/」前面的数（例：铁制 4 星、组合 2 ＝ 645）'],
+            <String>['显示系数', '**0.6**（固定，已验证）'],
+            <String>['HP 技能加成', '满级 0.3；未学习 0'],
+            <String>[
+              'HP 倍数',
+              '上表车身表：经典 1.00、滑头 1.33、磐石 / 巨鲸 / 金字塔 1.67、浪板 1.83、'
+                  '泰坦 / 钻石 / 蝎 / 箭 2.00、向量 / 虎鲸 2.17、圣骑士 2.33',
+            ],
+            <String>[
+              '每级 HP 加成',
+              '＝ 0.6 ×（第 4 节「车身 HP」一行）＝ 木质 3.6 / 铁制 18 / 军用 90 / 黄金 450 / 碳钢 1800',
+            ],
+            <String>['等级', '当前等级；1 级时公式第二项为 0'],
+          ],
+          rowsEn: <List<String>>[
+            <String>['Base HP', 'The number before the "/" in the table above (e.g. iron 4-star, combo 2 = 645)'],
+            <String>['Display factor', '**0.6** (fixed, verified)'],
+            <String>['HP skill', '0.3 at max; 0 if not learned'],
+            <String>[
+              'HP multiplier',
+              'From the body table above: Classic 1.00, Sneaky 1.33, Boulder / Whale / Pyramid 1.67, Surfer 1.83, '
+                  'Titan / Diamond / Scorpion / Arrow 2.00, Vector / Orca 2.17, Paladin 2.33',
+            ],
+            <String>[
+              'HP per level',
+              '= 0.6 x (the "Body HP" row of section 4) = wood 3.6 / iron 18 / military 90 / gold 450 / carbon 1800',
+            ],
+            <String>['Level', 'Current level; the second term is 0 at level 1'],
+          ],
+        ),
+      ),
+      GuideBlock.tip(
+        '例：铁制 4 星、组合 2、经典（倍数 1.00）、HP 技能满级、1 级 → '
+            '向上取整(645 × 0.6 × 1.3 × 1.00) ＝ **504 HP**；升到 4 级再加 3 × 18 ＝ 54，即 558 HP。',
+        'Example: iron 4-star, combo 2, Classic (multiplier 1.00), maxed HP skill, level 1 → '
+            'round-up(645 x 0.6 x 1.3 x 1.00) = **504 HP**; at level 4 add 3 x 18 = 54, giving 558 HP.',
+      ),
+      GuideBlock.tip(
+        '**升级只增加 HP，供电不变**（已实测确认）；等级上限见第 2 节。',
+        '**Leveling only adds HP — the supply never changes** (confirmed in game); see section 2 for the level cap.',
+      ),
+      // ---------- 6. 武器：耗电、ATK 与计算 ----------
+      GuideBlock.heading('武器：耗电、ATK 与计算', 'Weapons: drain, ATK and the ATK formula'),
       GuideBlock.text(
         '武器分 **7 个类别**：**刀刃 / 电锯 / 钻头 / 激光 / 火箭 / 双管火箭 / 尖刺**，'
             '攻击方式分**近战 / 远程**（各有独立技能线）。同一档位有 3 种数值组合，'
-            '表中每格为「**耗电 / ATK**」；**一件武器的耗电决定它用哪一档**（耗电越高、ATK 越高）。'
+            '表中每格为「**耗电 / 基础 ATK**」；**一件武器的耗电决定它用哪一列**（耗电越高、ATK 越高）。'
             '耗电只由**星级**决定（同一星级的所有材质相同）。',
         'Weapons come in **7 categories** — blades / chainsaws / drills / lasers / rockets / double rockets / '
             'stingers — and attack either **melee** or **ranged** (each has its own skill line). Every tier has 3 '
-            'combinations, written "**drain / ATK**"; **a weapon\'s drain decides which of the three it uses** (the '
+            'combinations, written "**drain / base ATK**"; **a weapon\'s drain decides which column it uses** (the '
             'higher the drain, the higher the ATK). The drain depends on the **star** only (all materials of the same '
             'star share it).',
       ),
       GuideBlock.table(
         GuideTable(
-          groupZh: <String>['', '', '耗电 / ATK', '', ''],
-          groupEn: <String>['', '', 'Drain / ATK', '', ''],
+          groupZh: <String>['', '', '耗电 / 基础 ATK', '', ''],
+          groupEn: <String>['', '', 'Drain / base ATK', '', ''],
           headZh: <String>['档位', '部件材质 / 星级', '组合 1', '组合 2', '组合 3'],
           headEn: <String>[
             'Tier',
@@ -2206,43 +2414,67 @@ const List<GuideChapter> kGuideChapters = <GuideChapter>[
               'of the previous tier** — always quote "material + star" when comparing, or the values will clash',
         ),
         GuideBullet(
-          '同一星级、同一耗电下，不同武器的 ATK 也不同（每件武器还有一个自己的系数，见下一节）',
+          '同一星级、同一耗电下，不同武器的 ATK 也不同（每件武器还有一个自己的系数 k，见本节末尾）',
           'Even at the same star and drain, different weapons differ in ATK — each weapon also has its own '
-              'coefficient (see the next section)',
+              'coefficient k (at the end of this section)',
         ),
       ]),
-      // ---------- 6. 武器攻击力的计算 ----------
-      GuideBlock.heading('武器 ATK 的计算', 'How weapon ATK is computed'),
       GuideBlock.text(
-        '完整公式（适用于任意档位、任意武器、任意等级）：',
-        'The full formula (valid for any tier, any weapon and any level):',
+        '**武器 ATK 的算式**（参数：显示系数 0.4、技能加成 ＝ 武器伤害技能、专属系数 ＝ k ÷ 0.4）：',
+        '**The weapon ATK formula** (parameters: display factor 0.4, skill bonus = weapon damage skill, own factor = '
+            'k / 0.4):',
       ),
       GuideBlock.text(
-        '**武器 ATK ＝ 向上取整（该段该档的 ATK × k）＋ 0.4 × 每级 ATK 加成 ×（等级 － 1）**',
-        '**Weapon ATK = round-up( that tier\'s ATK x k ) + 0.4 x ATK per level x (level - 1)**',
+        '**武器 ATK ＝ 向上取整（基础 ATK × k ×（1 ＋ 武器伤害技能加成））'
+            '＋ 0.4 × 每级 ATK 加成 ×（等级 － 1）**',
+        '**Weapon ATK = round-up( base ATK x k x (1 + weapon damage skill) ) '
+            '+ 0.4 x ATK per level x (level - 1)**',
       ),
       GuideBlock.table(
         GuideTable(
           headZh: <String>['公式中的项', '取值'],
           headEn: <String>['Term', 'Value'],
           rowsZh: <List<String>>[
-            <String>['该段该档的 ATK', '第 5 节表里「/」后面的数；用哪一档由该武器的耗电决定'],
-            <String>['k', '每件武器自带的固定系数（与段位、材质、星级、耗电都无关），见下表'],
-            <String>['0.4', '武器的显示系数（车身 0.6、车轮与配件 1.0）'],
-            <String>['每级 ATK 加成', '＝ 0.4 ×（第 8 节的「武器 ATK」一行）＝ 木质 1.6 / 铁制 8 / 军用 40 / 黄金 200 / 碳钢 800'],
+            <String>[
+              '基础 ATK',
+              '上表「耗电 / 基础 ATK」中「/」后面的数；用哪一列由该武器的**耗电**决定'
+                  '（1★ ＝ 4 / 5 / 6、2★ ＝ 5 / 6 / 7 … 5★ ＝ 8 / 9 / 10，第几个就用第几列）',
+            ],
+            <String>['显示系数', '**0.4**（已验证：铁制 +8 / 军用 +40 每级）；基础项里已与专属系数合并成 k'],
+            <String>['武器伤害技能加成', '第 10 节的类别技能（满级 0.3）；未学习 0（位置按同构推测）'],
+            <String>['专属系数', 'k ÷ 0.4（＝ 每件武器自带的刻度 ÷ 8），见下表'],
+            <String>[
+              '每级 ATK 加成',
+              '＝ 0.4 ×（第 4 节「武器 ATK」一行）＝ 木质 1.6 / 铁制 8 / 军用 40 / 黄金 200 / 碳钢 800',
+            ],
             <String>['等级', '当前等级；1 级时公式第二项为 0'],
           ],
           rowsEn: <List<String>>[
-            <String>['ATK of that tier', 'The number after the "/" in the table of section 5; the tier is set by the weapon\'s drain'],
-            <String>['k', 'A fixed coefficient carried by each weapon (independent of tier, material, star and drain) — see below'],
-            <String>['0.4', 'The display factor for weapons (bodies 0.6, wheels and gadgets 1.0)'],
-            <String>['ATK per level', '= 0.4 x (the "Weapon ATK" row of section 8) = wood 1.6 / iron 8 / military 40 / gold 200 / carbon 800'],
+            <String>[
+              'Base ATK',
+              'The number after the "/" in the table above; the column is set by the weapon\'s **drain** '
+                  '(1★ = 4 / 5 / 6, 2★ = 5 / 6 / 7 … 5★ = 8 / 9 / 10 — take the matching column)',
+            ],
+            <String>[
+              'Display factor',
+              '**0.4** (verified: iron +8 / military +40 per level); in the base term it is merged with the own '
+                  'factor into k',
+            ],
+            <String>[
+              'Weapon damage skill',
+              'The category skill of section 10 (0.3 at max); 0 if not learned (position assumed by symmetry)',
+            ],
+            <String>['Own factor', 'k / 0.4 (= the weapon\'s own tick / 8) — see below'],
+            <String>[
+              'ATK per level',
+              '= 0.4 x (the "Weapon ATK" row of section 4) = wood 1.6 / iron 8 / military 40 / gold 200 / carbon 800',
+            ],
             <String>['Level', 'Current level; the second term is 0 at level 1'],
           ],
         ),
       ),
       GuideBlock.text(
-        '**k 实测表**（17 件武器，已跨段位验证 k 与段位无关）：',
+        '**k 实测表**（17 件武器；k ＝ 0.4 × 刻度 ÷ 8，已跨段位验证 k 与段位、材质、星级、列都无关）：',
         '**Measured k table** (17 weapons; cross-tier checks confirm k does not depend on the tier):',
       ),
       GuideBlock.table(
@@ -2301,31 +2533,28 @@ const List<GuideChapter> kGuideChapters = <GuideChapter>[
               'code), so it has to be measured per weapon',
         ),
       ]),
-      // ---------- 7. 车轮、随从与治疗量 ----------
-      GuideBlock.heading(
-        '车轮、随从与治疗量',
-        'Wheels, minions and heal amount',
-      ),
+      // ---------- 7. 车轮与随从：HP 与计算 ----------
+      GuideBlock.heading('车轮与随从：HP 与计算', 'Wheels and minions: HP and the HP formula'),
       GuideBlock.text(
         '车轮与随从提供 HP，治疗类配件提供治疗量。车轮的档位就是它的**尺寸档**：'
-            '表中「车轮 HP」的 3 个数值就是**小 / 中 / 大**三种尺寸。',
+            '表中「基础车轮 HP」的 3 个数值就是**小 / 中 / 大**三种尺寸。',
         'Wheels and minions give HP, and healing gadgets give a heal amount. A wheel\'s tier is simply its **size '
-            'class**: the 3 values in the "Wheel HP" column are the **small / medium / large** sizes.',
+            'class**: the 3 values in the "base wheel HP" column are the **small / medium / large** sizes.',
       ),
       GuideBlock.table(
         GuideTable(
           headZh: <String>[
             '档位',
             '部件材质 / 星级',
-            '车轮 HP（3 种数值）',
-            '随从 HP（3 种数值）',
+            '基础车轮 HP（3 种数值）',
+            '基础随从 HP（3 种数值）',
             '治疗量',
           ],
           headEn: <String>[
             'Tier',
             'Material / star',
-            'Wheel HP (3 values)',
-            'Minion HP (3 values)',
+            'Base wheel HP (3 values)',
+            'Base minion HP (3 values)',
             'Heal amount',
           ],
           rowsZh: _champWheelRowsZh,
@@ -2333,31 +2562,43 @@ const List<GuideChapter> kGuideChapters = <GuideChapter>[
         ),
       ),
       GuideBlock.text(
-        '完整公式（适用于任意档位、任意车轮、任意等级）：',
-        'The full formula (valid for any tier, any wheel and any level):',
+        '**车轮 HP 的算式**（参数：显示系数 1.0、技能加成 ＝ 车轮类别 HP 技能、专属系数 ＝ 无）：',
+        '**The wheel HP formula** (parameters: display factor 1.0, skill bonus = wheel family HP skill, own factor = '
+            'none):',
       ),
       GuideBlock.text(
-        '**车轮 HP ＝ 向上取整（该段该档的车轮 HP ×（1 ＋ 车轮类别 HP 技能））'
-            '＋ 每级 HP 加成 ×（等级 － 1）**',
-        '**Wheel HP = round-up( that tier\'s wheel HP x (1 + wheel family HP skill) ) '
-            '+ HP per level x (level - 1)**',
+        '**车轮 HP ＝ 向上取整（基础车轮 HP × 1.0 ×（1 ＋ 车轮类别 HP 技能））'
+            '＋ 1.0 × 每级 HP 加成 ×（等级 － 1）**',
+        '**Wheel HP = round-up( base wheel HP x 1.0 x (1 + wheel family HP skill) ) '
+            '+ 1.0 x HP per level x (level - 1)**',
       ),
       GuideBlock.table(
         GuideTable(
           headZh: <String>['公式中的项', '取值'],
           headEn: <String>['Term', 'Value'],
           rowsZh: <List<String>>[
-            <String>['该段该档的车轮 HP', '上表「车轮 HP」一列（3 个数值：小 / 中 / 大）'],
+            <String>['基础车轮 HP', '上表「基础车轮 HP」一列（3 个数值：小 / 中 / 大）'],
             <String>['显示系数', '**1.0** —— 与车身不同，车轮**不乘 0.6**（已实测）'],
-            <String>['车轮类别 HP 技能', '按车轮类别给，+15% / +30% / +45%，见下表'],
-            <String>['每级 HP 加成', '见第 8 节的表（车轮 HP 一行）：木质 2 / 铁制 10 / 军用 50 / 黄金 250 / 碳钢 1000'],
+            <String>['车轮类别 HP 技能', '第 10 节里按车轮类别点到：+15% / +30% / +45%，见下表'],
+            <String>['专属系数', '无（＝ 1）'],
+            <String>[
+              '每级 HP 加成',
+              '＝ 1.0 ×（第 4 节「车轮 HP」一行）＝ 木质 2 / 铁制 10 / 军用 50 / 黄金 250 / 碳钢 1000',
+            ],
             <String>['等级', '当前等级；1 级时公式第二项为 0'],
           ],
           rowsEn: <List<String>>[
-            <String>['Wheel HP of that tier', 'The "Wheel HP" column above (3 values: small / medium / large)'],
+            <String>['Base wheel HP', 'The "base wheel HP" column above (3 values: small / medium / large)'],
             <String>['Display factor', '**1.0** — unlike bodies, wheels **are not multiplied by 0.6** (measured)'],
-            <String>['Wheel family skill', 'Granted per wheel family: +15% / +30% / +45%, see below'],
-            <String>['HP per level', 'See the table in section 8 (Wheel HP row): wood 2 / iron 10 / military 50 / gold 250 / carbon 1000'],
+            <String>[
+              'Wheel family HP skill',
+              'Points spent on that family in section 10: +15% / +30% / +45%, see below',
+            ],
+            <String>['Own factor', 'none (= 1)'],
+            <String>[
+              'HP per level',
+              '= 1.0 x (the "Wheel HP" row of section 4) = wood 2 / iron 10 / military 50 / gold 250 / carbon 1000',
+            ],
             <String>['Level', 'Current level; the second term is 0 at level 1'],
           ],
         ),
@@ -2408,8 +2649,11 @@ const List<GuideChapter> kGuideChapters = <GuideChapter>[
             'safest one to compare with; the small and large values do collide (small of one tier = large of the '
             'previous one). Wheels also have crushing ATK, but that table has not been located yet.',
       ),
-      // ---------- 8. 配件与每级加成 ----------
-      GuideBlock.heading('配件与每级加成', 'Gadgets and per-level bonuses'),
+      // ---------- 8. 配件：数值档、耗电与 HP 计算 ----------
+      GuideBlock.heading(
+        '配件：数值档、耗电与 HP 计算',
+        'Gadgets: value classes, drain and the HP formula',
+      ),
       GuideBlock.text(
         '配件共 **12 种**，但**数值只有 3 个档**（小 / 中 / 大）—— 同一档的所有配件数值完全相同，'
             '配件种类只决定它落在哪一档。**渔网与渔叉数值完全一样**（共用同一档）。',
@@ -2450,20 +2694,49 @@ const List<GuideChapter> kGuideChapters = <GuideChapter>[
         ),
       ),
       GuideBlock.text(
-        '完整公式（配件的 HP 与车轮是同一套数值）：',
-        'The full formula (gadget HP uses the same values as wheels):',
+        '**配件 HP 的算式**（参数：显示系数 1.0、技能加成 ＝ 配件 HP 加成、专属系数 ＝ 无；'
+            '基础值就是同段同档的**基础车轮 HP**）：',
+        '**The gadget HP formula** (parameters: display factor 1.0, skill bonus = gadget HP bonus, own factor = none; '
+            'the base value is the **base wheel HP** of the same tier):',
       ),
       GuideBlock.text(
-        '**配件 HP ＝ 向上取整（该段该档的车轮 HP ×（1 ＋ 配件 HP 加成））'
-            '＋ 每级 HP 加成 ×（等级 － 1）**',
-        '**Gadget HP = round-up( that tier\'s wheel HP x (1 + gadget HP bonus) ) + HP per level x (level - 1)**',
+        '**配件 HP ＝ 向上取整（基础车轮 HP × 1.0 ×（1 ＋ 配件 HP 加成））'
+            '＋ 1.0 × 每级 HP 加成 ×（等级 － 1）**',
+        '**Gadget HP = round-up( base wheel HP x 1.0 x (1 + gadget HP bonus) ) '
+            '+ 1.0 x HP per level x (level - 1)**',
+      ),
+      GuideBlock.table(
+        GuideTable(
+          headZh: <String>['公式中的项', '取值'],
+          headEn: <String>['Term', 'Value'],
+          rowsZh: <List<String>>[
+            <String>['基础车轮 HP', '第 7 节表「基础车轮 HP」一列（配件与该档车轮同值）；3 个数值 ＝ 小 / 中 / 大'],
+            <String>['显示系数', '**1.0**（⚠️ 未解锁技能时，读数就等于基础车轮 HP）'],
+            <String>['配件 HP 加成', '点数解锁的全局技能：+15% ~ +50%（实测 +45%）；未解锁 0'],
+            <String>['专属系数', '无（＝ 1）'],
+            <String>[
+              '每级 HP 加成',
+              '＝ 1.0 ×（第 4 节「配件 HP」一行）＝ 木质 2 / 铁制 10 / 军用 50 / 黄金 250 / 碳钢 1000（**尚未实测**）',
+            ],
+            <String>['等级', '当前等级；1 级时公式第二项为 0'],
+          ],
+          rowsEn: <List<String>>[
+            <String>[
+              'Base wheel HP',
+              'The "base wheel HP" column of section 7 (a gadget has the same value as that tier\'s wheel); 3 values = small / medium / large',
+            ],
+            <String>['Display factor', '**1.0** (without the skill the reading equals the base wheel HP)'],
+            <String>['Gadget HP bonus', 'A global, point-unlocked skill: +15% to +50% (measured +45%); 0 if not unlocked'],
+            <String>['Own factor', 'none (= 1)'],
+            <String>[
+              'HP per level',
+              '= 1.0 x (the "Gadget HP" row of section 4) = wood 2 / iron 10 / military 50 / gold 250 / carbon 1000 (not measured yet)',
+            ],
+            <String>['Level', 'Current level; the second term is 0 at level 1'],
+          ],
+        ),
       ),
       GuideBlock.bullets(<GuideBullet>[
-        GuideBullet(
-          '车轮 HP 查第 7 节的表（组合 1 / 2 / 3 ＝ 小 / 中 / 大）；配件同样**不乘 0.6**',
-          'Take the wheel HP from the table in section 7 (combinations 1 / 2 / 3 = small / medium / large); gadgets '
-              'also **are not multiplied by 0.6**',
-        ),
         GuideBullet(
           '**配件 HP 加成**来自「配件专长」技能（+15% ~ +50%，靠点数解锁）：'
               '未解锁时读数就等于车轮 HP，解锁 +45% 后 × 1.45（例：2085 × 1.45 ＝ 3024）',
@@ -2471,132 +2744,17 @@ const List<GuideChapter> kGuideChapters = <GuideChapter>[
               'points): without it the reading equals the wheel HP, with +45% it is x1.45 (e.g. 2085 x 1.45 = 3024)',
         ),
         GuideBullet(
-          '治疗类配件的治疗量见第 7 节的表（≈ 1.5 × 车轮中档，逐档有 ±1 的取整差）',
+          '治疗类配件的**治疗量**见第 7 节的表（≈ 1.5 × 车轮中档，逐档有 ±1 的取整差）',
           'The heal amount of healing gadgets is in the table of section 7 (≈ 1.5 x the medium wheel value, with a '
               '±1 rounding difference per tier)',
         ),
         GuideBullet(
-          '**配件每级 +HP 尚未实测**；下表的「配件 HP」一行是配置值，按车轮的规律推测不做折算',
-          '**The gadget HP per level is not measured yet**; the "Gadget HP" row below is the config value and is '
-              'assumed (like wheels) not to be scaled',
+          '**配件 HP 与同段同档的车轮 HP 逐值相等**（车轮与随从也共用这套数值），配件种类只决定它落在哪一档',
+          'A **gadget\'s HP equals the wheel HP of the same tier** value by value (wheels and minions share the same '
+              'numbers too); the gadget type only decides which class it falls into',
         ),
       ]),
-      GuideBlock.text(
-        '**每级加成**（升级时每一级固定提升的量，按材质取值）：',
-        '**Per-level bonus** (the fixed gain for each level, by material):',
-      ),
-      GuideBlock.table(
-        GuideTable(
-          headZh: <String>['数值', '木质', '铁制', '军用', '黄金', '碳钢'],
-          headEn: <String>[
-            'Value',
-            'Wood',
-            'Iron',
-            'Military',
-            'Gold',
-            'Carbon',
-          ],
-          rowsZh: <List<String>>[
-            <String>['车身 HP', '6', '30', '150', '750', '3000'],
-            <String>['武器 ATK', '4', '20', '100', '500', '2000'],
-            <String>['车轮 HP', '2', '10', '50', '250', '1000'],
-            <String>['配件 HP', '2', '10', '50', '250', '1000'],
-            <String>['治疗量', '3', '15', '75', '375', '1500'],
-            <String>['随从 HP', '38', '165', '833', '3960', '16898'],
-          ],
-          rowsEn: <List<String>>[
-            <String>['Body HP', '6', '30', '150', '750', '3000'],
-            <String>['Weapon ATK', '4', '20', '100', '500', '2000'],
-            <String>['Wheel HP', '2', '10', '50', '250', '1000'],
-            <String>['Gadget HP', '2', '10', '50', '250', '1000'],
-            <String>['Heal amount', '3', '15', '75', '375', '1500'],
-            <String>['Minion HP', '38', '165', '833', '3960', '16898'],
-          ],
-        ),
-      ),
-      GuideBlock.table(
-        GuideTable(
-          headZh: <String>['部件', '显示系数', '状态'],
-          headEn: <String>['Part', 'Display factor', 'Status'],
-          rowsZh: <List<String>>[
-            <String>['车身 HP', '× 0.6', '✅ 已验证'],
-            <String>['武器 ATK', '× 0.4', '✅ 已验证（铁制 +8 / 军用 +40 每级）'],
-            <String>['车轮 HP', '× 1.0', '✅ 已实测（基础值不乘系数）'],
-            <String>['配件 HP', '× 1.0', '⚠️ 推测（未解锁技能时等于车轮 HP）'],
-            <String>['随从 HP', '× 1.0', '⚠️ 未验证'],
-          ],
-          rowsEn: <List<String>>[
-            <String>['Body HP', 'x 0.6', 'verified'],
-            <String>['Weapon ATK', 'x 0.4', 'verified (iron +8 / military +40 per level)'],
-            <String>['Wheel HP', 'x 1.0', 'measured (base value is not scaled)'],
-            <String>['Gadget HP', 'x 1.0', 'assumed (equals wheel HP without skills)'],
-            <String>['Minion HP', 'x 1.0', 'unverified'],
-          ],
-        ),
-      ),
-      GuideBlock.tip(
-        '升级带来的增量：车身每级 ＝ 表中数值 × 0.6（铁制 30 × 0.6 ＝ **+18 HP**）；'
-            '武器每级 ＝ 表中数值 × 0.4（铁制 20 × 0.4 ＝ **+8 ATK**）；车轮与配件不乘系数。',
-        'Per-level gains: bodies use the table value x 0.6 (iron 30 x 0.6 = **+18 HP**); weapons use the table value '
-            'x 0.4 (iron 20 x 0.4 = **+8 ATK**); wheels and gadgets are not scaled.',
-      ),
-      // ---------- 9. 车身 HP ----------
-      GuideBlock.heading('车身 HP 的计算', 'How body HP is computed'),
-      GuideBlock.text(
-        '完整公式（适用于任意档位、任意车身、任意等级）：',
-        'The full formula (valid for any tier, any body and any level):',
-      ),
-      GuideBlock.text(
-        '**车身 HP ＝ 向上取整（基础 HP × 0.6 ×（1 ＋ HP 技能加成）× HP 倍数）'
-            '＋ 0.6 × 每级 HP 加成 ×（等级 － 1）**',
-        '**Body HP = round-up( base HP x 0.6 x (1 + HP skill) x HP multiplier ) '
-            '+ 0.6 x HP per level x (level - 1)**',
-      ),
-      GuideBlock.table(
-        GuideTable(
-          headZh: <String>['公式中的项', '取值'],
-          headEn: <String>['Term', 'Value'],
-          rowsZh: <List<String>>[
-            <String>['基础 HP', '该档位、该数值组合的原始数值，查第 4 节的表（例：铁制 4 星、HP 居中 ＝ 645）'],
-            <String>['0.6', '固定系数'],
-            <String>['HP 技能加成', '满级 0.3；未学习 0'],
-            <String>[
-              'HP 倍数',
-              '见第 3 节：经典 1.00、滑头 1.33、磐石 / 巨鲸 / 金字塔 1.67、浪板 1.83、泰坦 / 钻石 2.00',
-            ],
-            <String>['每级 HP 加成', '见第 8 节的「每级加成」表（车身 HP 一行）；实际值再 × 0.6'],
-            <String>['等级', '当前等级；1 级时公式第二项为 0'],
-          ],
-          rowsEn: <List<String>>[
-            <String>[
-              'Base HP',
-              'The raw value of that tier and stat combination — see the table in section 4 (e.g. iron 4-star, middle HP = 645)',
-            ],
-            <String>['0.6', 'A fixed factor'],
-            <String>['HP skill', '0.3 at max; 0 if not learned'],
-            <String>[
-              'HP multiplier',
-              'See section 3: Classic 1.00, Sneaky 1.33, Boulder / Whale / Pyramid 1.67, Surfer 1.83, Titan / Diamond 2.00',
-            ],
-            <String>[
-              'HP per level',
-              'See the per-level bonus table in section 8 (the Body HP row); multiply by 0.6 for the real value',
-            ],
-            <String>['Level', 'Current level; the second term is 0 at level 1'],
-          ],
-        ),
-      ),
-      GuideBlock.tip(
-        '例：铁制 4 星、HP 居中、经典（倍数 1.00）、HP 技能满级、1 级 → '
-            '向上取整(645 × 0.6 × 1.3 × 1.00) ＝ **504 HP**；升到 4 级再加 3 × 18 ＝ 54，即 558 HP。',
-        'Example: iron 4-star, middle HP, Classic (multiplier 1.00), maxed HP skill, level 1 → '
-            'round-up(645 x 0.6 x 1.3 x 1.00) = **504 HP**; at level 4 add 3 x 18 = 54, giving 558 HP.',
-      ),
-      GuideBlock.tip(
-        '**升级只增加 HP，供电不变**（已实测确认）；等级上限见第 2 节。',
-        '**Leveling only adds HP — the supply never changes** (confirmed in game); see section 2 for the level cap.',
-      ),
-      // ---------- 10. 升级与融合 ----------
+      // ---------- 9. 升级与融合 ----------
       GuideBlock.heading('升级与融合', 'Upgrading and fusion'),
       GuideBlock.text(
         '升级通过**融合**完成：把其他部件融合进目标部件以换取经验。**不要求材质相同**，'
@@ -2683,7 +2841,7 @@ const List<GuideChapter> kGuideChapters = <GuideChapter>[
           'The fused part may be of any material, star and level; whether the target itself is magic / legendary does not change the XP gained',
         ),
       ]),
-      // ---------- 11. 技能一览 ----------
+      // ---------- 10. 技能一览 ----------
       GuideBlock.heading('技能一览与解锁条件', 'Skills and unlock conditions'),
       GuideBlock.text(
         '车身技能按**段位**（stage）或**威望**（prestige，转生次数）解锁：',
@@ -2857,7 +3015,7 @@ const List<GuideChapter> kGuideChapters = <GuideChapter>[
         'while weapon damage and wheel HP need points in the skill line of the matching **category**; both appear in '
         'the formulas and multiply together.',
       ),
-      // ---------- 12. 插槽 ----------
+      // ---------- 11. 插槽 ----------
       GuideBlock.heading('车身决定插槽', 'The body decides the slots'),
       GuideBlock.text(
         '车身数据中包含**挂点**（位置与允许挂载的部件类型），因此「能装几件武器 / 车轮 / 配件、'
