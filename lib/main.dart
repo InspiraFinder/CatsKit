@@ -24,6 +24,7 @@ import 'season_stats_screen.dart';
 import 'balance_history_screen.dart';
 import 'max_stats_screen.dart';
 import 'mechanism_guide_screen.dart';
+import 'update_check_utils.dart';
 import 'life_sim/life_sim_screen.dart';
 
 const String appVersion = '2.2.4';
@@ -3849,6 +3850,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     void Function(String)? onLog,
   }) async {
     String? lastError;
+    HttpClientResponse? lastRetryable;
     for (final url in urls) {
       try {
         onLog?.call('尝试: $url');
@@ -3863,13 +3865,28 @@ class _SettingsScreenState extends State<SettingsScreen> {
         final response = await request.close().timeout(
           const Duration(seconds: 20),
         );
-        onLog?.call('  响应: HTTP ${response.statusCode}');
+        final code = response.statusCode;
+        onLog?.call(
+          '  响应: HTTP $code'
+          '${code == 403 ? '（API 403：多为匿名调用超过 60 次/小时的限额，或代理出口 IP 被限流）' : ''}',
+        );
+        // 403 / 429 / 5xx 都不算「拿到结果」：继续试下一个候选（镜像）
+        if (code == 403 || code == 429 || code >= 500) {
+          onLog?.call('  ⇒ 该候选不可用，继续尝试下一个');
+          lastRetryable = response;
+          continue;
+        }
         return response;
       } catch (e) {
         onLog?.call('  失败: $e');
         lastError = e.toString();
         continue;
       }
+    }
+    // 所有候选都是 403 / 429 / 5xx：返回最后一个响应，让调用方报错
+    if (lastRetryable != null) {
+      onLog?.call('所有候选都失败（最后 HTTP ${lastRetryable.statusCode}）');
+      return lastRetryable;
     }
     // 只有在「系统 DNS 完全不可用」时才用 DoH 解析 + IP 直连兜底。
     // 这种连接没有正确 SNI，多数服务器仍会拒绝，但聊胜于无。
@@ -3984,6 +4001,37 @@ class _SettingsScreenState extends State<SettingsScreen> {
         'Accept-Language': 'zh-CN,zh;q=0.9',
       };
 
+      // ① 先用 github.com 的跳转拿最新 tag：这不是 API，不会撞上匿名调用
+      //    60 次/小时的限额（代理 / 加速器出口 IP 常被共享，早就被限流了）
+      final redirectTag = await fetchLatestTagByRedirect(client);
+
+      if (redirectTag != null) {
+        // ② 顺手用 API 取附件直链；API 不可用也不影响结果：
+        //    附件名是固定的，按平台拼出来即可
+        String? assetUrl;
+        String? assetName;
+        bool apiSawEmptyAssets = false;
+        final apiJson = await tryFetchReleaseJson(client, headers);
+        if (apiJson != null) {
+          final assets = apiJson['assets'] as List<dynamic>? ?? const [];
+          apiSawEmptyAssets = assets.isEmpty;
+          final asset = pickPlatformAsset(assets);
+          if (asset != null) {
+            assetUrl = asset['browser_download_url'] as String?;
+            assetName = asset['name'] as String?;
+          }
+        }
+        processReleaseTag(
+          redirectTag,
+          assetUrl:
+              assetUrl ??
+              (apiSawEmptyAssets ? null : defaultAssetUrl(redirectTag)),
+          assetName: assetName,
+        );
+        return;
+      }
+      _logOp('github.com 跳转未取到 tag，改用 API');
+
       final response = await tryFetchUrls(
         client,
         urlCandidates(apiUrl),
@@ -4037,7 +4085,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
       }
 
       if (response.statusCode != HttpStatus.ok) {
-        throw HttpException('HTTP ${response.statusCode}');
+        throw HttpException(
+          response.statusCode == 403
+              ? 'HTTP 403（GitHub API 匿名调用超过每小时 60 次的限额，'
+                    '多为代理 / 加速器出口 IP 被共享导致，稍后再试）'
+              : 'HTTP ${response.statusCode}',
+        );
       }
 
       body = await response.transform(utf8.decoder).join();
@@ -4079,10 +4132,97 @@ class _SettingsScreenState extends State<SettingsScreen> {
     return 0;
   }
 
-  void processReleaseJson(Map<String, dynamic> json) {
-    final tagName = json['tag_name'] as String? ?? 'unknown';
-    final assets = json['assets'] as List<dynamic>? ?? [];
+  /// release 页面（非 API）—— github.com 会 302 到最新 tag 的页面
+  static const String releasesLatestPage =
+      'https://github.com/InspiraFinder/CatsKit/releases/latest';
 
+  /// 用 github.com 的 302 跳转取最新 tag。
+  ///
+  /// ⓐ 不走 api.github.com，因此**不受匿名调用 60 次/小时的限额**（403）；
+  /// ⓑ 返回的不只是版本号，也说明「有没有新版本」，不需要解析 JSON。
+  Future<String?> fetchLatestTagByRedirect(HttpClient client) async {
+    for (final url in <String>{
+      getMirrorUrl(releasesLatestPage),
+      releasesLatestPage,
+    }) {
+      try {
+        _logOp('尝试(github.com 跳转): $url');
+        final request = await client
+            .getUrl(Uri.parse(url))
+            .timeout(const Duration(seconds: 15));
+        // 只要跳转目标，不要真下载整个页面
+        request.followRedirects = false;
+        request.headers.set('User-Agent', 'CatsKit');
+        request.headers.set('Accept', 'text/html,application/xhtml+xml');
+        final response = await request.close().timeout(
+          const Duration(seconds: 20),
+        );
+        final location = response.headers.value('location');
+        _logOp(
+          '  响应: HTTP ${response.statusCode}'
+          '${location == null ? '' : ' → $location'}',
+        );
+        await response.drain<void>();
+        if (location == null) continue;
+        final tag = latestTagFromLocation(location);
+        if (tag != null) return tag;
+      } catch (e) {
+        _logOp('  失败: $e');
+      }
+    }
+    return null;
+  }
+
+  /// 尝试用 API 取 release JSON（失败只记日志，返回 null，不影响主流程）
+  Future<Map<String, dynamic>?> tryFetchReleaseJson(
+    HttpClient client,
+    Map<String, String> headers,
+  ) async {
+    const apiUrl =
+        'https://api.github.com/repos/InspiraFinder/CatsKit/releases/latest';
+    try {
+      final response = await tryFetchUrls(
+        client,
+        urlCandidates(apiUrl),
+        headers: headers,
+        onLog: _logOp,
+      );
+      if (response.statusCode != HttpStatus.ok) {
+        _logOp('API 不可用（HTTP ${response.statusCode}），改用按平台拼出的附件直链');
+        await response.drain<void>();
+        return null;
+      }
+      final body = await response.transform(utf8.decoder).join();
+      return jsonDecode(body) as Map<String, dynamic>;
+    } catch (e) {
+      _logOp('API 取 release 失败: $e');
+      return null;
+    }
+  }
+
+  /// 从 API 的 assets 里挑出当前平台的附件（挑不到返回 null）
+  Map<String, dynamic>? pickPlatformAsset(List<dynamic> assets) {
+    final names = assets
+        .map(
+          (a) =>
+              ((a as Map<String, dynamic>)['name'] as String? ?? '')
+                  .toLowerCase(),
+        )
+        .toList();
+    final idx = pickAssetIndexForPlatform(names, currentPlatformKey());
+    return idx == null ? null : assets[idx] as Map<String, dynamic>;
+  }
+
+  /// 按当前平台拼出附件直链（附件命名见 .github/workflows/release.yml）
+  String defaultAssetUrl(String tag) =>
+      releaseAssetUrlFor(tag, currentPlatformKey());
+
+  /// 统一处理「发现最新版」的界面逻辑（tag + 可选附件直链）
+  void processReleaseTag(
+    String tagName, {
+    String? assetUrl,
+    String? assetName,
+  }) {
     if (!mounted) return;
     Navigator.of(context, rootNavigator: true).pop();
     setState(() {
@@ -4093,7 +4233,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
     // 对比版本号
     final cmp = compareVersion(tagName, appVersion);
     if (cmp <= 0) {
-      // tag 版本 <= 当前版本 → 已是最新
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
@@ -4106,33 +4245,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
       return;
     }
 
-    if (assets.isEmpty) {
-      updateUrlController.text =
-          'https://github.com/InspiraFinder/CatsKit/releases/tag/$tagName';
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('发现最新版 $tagName，已填入 release 页面地址')),
-        );
-      }
-      return;
-    }
-
-    final firstAsset = assets.first as Map<String, dynamic>;
-    final downloadUrl = firstAsset['browser_download_url'] as String? ?? '';
-    final assetName = firstAsset['name'] as String? ?? '';
-
-    if (downloadUrl.isEmpty) {
+    if (assetUrl == null || assetUrl.isEmpty) {
       updateUrlController.text =
           'https://github.com/InspiraFinder/CatsKit/releases/tag/$tagName';
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('发现最新版 $tagName，但无法获取直链，已填入 release 页面')),
+        SnackBar(content: Text('发现最新版 $tagName，已填入 release 页面地址')),
       );
       return;
     }
 
-    updateUrlController.text = downloadUrl;
+    updateUrlController.text = assetUrl;
 
-    if (!mounted) return;
     showDialog<void>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -4144,7 +4267,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
             Text('当前版本: v$appVersion'),
             Text('最新版本: $tagName'),
             const SizedBox(height: 4),
-            Text('文件: ${assetName.isNotEmpty ? assetName : "（无附件）"}'),
+            Text(
+              '文件: ${(assetName ?? '').isNotEmpty ? assetName! : defaultAssetUrl(tagName).split('/').last}',
+            ),
             const SizedBox(height: 8),
             const Text('下载地址已自动填入，点击"下载更新包"开始下载。'),
           ],
@@ -4156,6 +4281,24 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
         ],
       ),
+    );
+  }
+
+  void processReleaseJson(Map<String, dynamic> json) {
+    final tagName = json['tag_name'] as String? ?? 'unknown';
+    final assets = json['assets'] as List<dynamic>? ?? const [];
+    if (assets.isEmpty) {
+      // 没有附件（或仓库还没有 release）：只填 release 页面
+      processReleaseTag(tagName);
+      return;
+    }
+    final asset = pickPlatformAsset(assets);
+    processReleaseTag(
+      tagName,
+      assetUrl:
+          (asset?['browser_download_url'] as String?) ??
+          defaultAssetUrl(tagName),
+      assetName: asset?['name'] as String?,
     );
   }
 
@@ -4485,21 +4628,61 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
       log('');
       log('--- 3) HTTPS 连通性 (api.github.com) ---');
-      // 3a) 直接用域名（App 实际使用的下载方式：系统 DNS + 正确 SNI）
+      // 3a) 直接用域名（App 实际使用的方式：系统 DNS + 正确 SNI）
+      //     用「检测更新」真正请求的接口，而不是不会被限流的 /rate_limit，
+      //     否则接口 403（匿名 60 次/小时限额）时诊断却显示 200
       try {
         final client = HttpClient()
           ..connectionTimeout = const Duration(seconds: 10)
           ..badCertificateCallback = (_, _, _) => true;
         final req = await client
-            .getUrl(Uri.parse('https://api.github.com/rate_limit'))
+            .getUrl(
+              Uri.parse(
+                'https://api.github.com/repos/InspiraFinder/CatsKit/releases/latest',
+              ),
+            )
             .timeout(const Duration(seconds: 15));
         req.headers.set('User-Agent', 'CatsKit');
         req.headers.set('Accept', 'application/vnd.github+json');
         final res = await req.close().timeout(const Duration(seconds: 15));
-        log('3a) 直连域名 -> HTTP ${res.statusCode}');
+        final remain = res.headers.value('x-ratelimit-remaining');
+        log(
+          '3a) 直连域名(API) -> HTTP ${res.statusCode}'
+          '${remain == null ? '' : '，剩余额度 $remain 次/小时'}',
+        );
+        if (res.statusCode == 403 && remain == '0') {
+          log('    ⇒ API 额度用尽（匿名调用每小时 60 次，代理/加速器出口 IP 常被共享）');
+        }
+        await res.drain<void>();
         client.close(force: true);
       } catch (e) {
-        log('3a) 直连域名 -> ❌ $e');
+        log('3a) 直连域名(API) -> ❌ $e');
+      }
+
+      // 3c) github.com 跳转取最新 tag（App 现在优先用的方式：不是 API，无 60 次限制）
+      try {
+        final client = HttpClient()
+          ..connectionTimeout = const Duration(seconds: 10)
+          ..badCertificateCallback = (_, _, _) => true;
+        final req = await client
+            .getUrl(
+              Uri.parse(
+                'https://github.com/InspiraFinder/CatsKit/releases/latest',
+              ),
+            )
+            .timeout(const Duration(seconds: 15));
+        req.followRedirects = false;
+        req.headers.set('User-Agent', 'CatsKit');
+        final res = await req.close().timeout(const Duration(seconds: 15));
+        final loc = res.headers.value('location');
+        log(
+          '3c) github.com 跳转 -> HTTP ${res.statusCode}'
+          '${loc == null ? '' : ' → $loc'}',
+        );
+        await res.drain<void>();
+        client.close(force: true);
+      } catch (e) {
+        log('3c) github.com 跳转 -> ❌ $e');
       }
 
       // 3b) 旧做法：按 IP 直连（SNI 会变成 IP，一般会握手中断，仅作对照）
