@@ -1083,12 +1083,6 @@ class _LifeSimScreenState extends State<LifeSimScreen> {
                           }
                           Navigator.pop(ctx);
                           _run(() {});
-                          _snack(
-                            _t(
-                              '本次活动$unitZh ×${r.multiplier}',
-                              'Event $unitEn ×${r.multiplier}',
-                            ),
-                          );
                         },
                       ),
                     ),
@@ -1129,12 +1123,6 @@ class _LifeSimScreenState extends State<LifeSimScreen> {
                         }
                         setState(() {});
                         _run(() {});
-                        _snack(
-                          _t(
-                            'GP 乘数总加成 +${r.bonusPct}%（第 ${r.count} 次）',
-                            'GP total bonus +${r.bonusPct}% (#${r.count})',
-                          ),
-                        );
                       },
                     ),
                   ),
@@ -1173,7 +1161,6 @@ class _LifeSimScreenState extends State<LifeSimScreen> {
                         }
                         setState(() {});
                         _run(() {});
-                        _snack(_t('分数 +${r.gain}', 'Score +${r.gain}'));
                       },
                     ),
                   ),
@@ -1780,11 +1767,8 @@ class _LifeSimScreenState extends State<LifeSimScreen> {
                     width: double.infinity,
                     child: OutlinedButton.icon(
                       onPressed: () {
-                        final n = _engine.removeDuplicateParts(s);
+                        _engine.removeDuplicateParts(s);
                         _run(() {});
-                        _snack(
-                          _t('已清理 $n 个重复部件', 'Removed $n duplicated part(s)'),
-                        );
                       },
                       icon: const Icon(Icons.cleaning_services, size: 16),
                       label: Text(
@@ -2224,12 +2208,6 @@ class _LifeSimScreenState extends State<LifeSimScreen> {
                             return;
                           }
                           _run(() {});
-                          _snack(
-                            _t(
-                              '帮派活跃度 +${r.gained}（当前 ${s.gangActivity}%）',
-                              'Gang activity +${r.gained} (now ${s.gangActivity}%)',
-                            ),
-                          );
                         },
                   icon: const Icon(Icons.local_fire_department, size: 18),
                   label: Text(
@@ -2329,14 +2307,6 @@ class _LifeSimScreenState extends State<LifeSimScreen> {
                         return;
                       }
                       _run(() {});
-                      _snack(
-                        _t(
-                          '已踢出「${r.member?.name}」'
-                              '${_engine.isGangSealed(s) ? '（帮派已封存）' : ''}',
-                          'Kicked "${r.member?.name}"'
-                              '${_engine.isGangSealed(s) ? ' (gang is now sealed)' : ''}',
-                        ),
-                      );
                     },
               icon: const Icon(Icons.person_remove),
               label: Text(
@@ -2639,14 +2609,6 @@ class _LifeSimScreenState extends State<LifeSimScreen> {
       return;
     }
     _run(() {});
-    _snack(
-      _t(
-        '${hp ? '生命' : '攻击'}工具箱已使用：对应数值 +$kToolboxBonusPct%'
-            '（已叠 ${r.stacks}/$kToolboxMaxStack 层）',
-        '${hp ? 'HP' : 'ATK'} toolbox used: +$kToolboxBonusPct% '
-            '(stack ${r.stacks}/$kToolboxMaxStack)',
-      ),
-    );
   }
 
   // ===================================================================
@@ -2708,14 +2670,7 @@ class _LifeSimScreenState extends State<LifeSimScreen> {
     }
     _run(() {});
     if (isGp) {
-      // GP：提示旗帜变动与分数
-      final flag = r.flagDelta >= 0 ? '+${r.flagDelta}' : '${r.flagDelta}';
-      _snack(
-        _t(
-          '旗帜 $flag（剩 ${r.gpFlags}）· 分数 +${_fmt(r.progress)}',
-          'Flags $flag (left ${r.gpFlags}) · Score +${_fmt(r.progress)}',
-        ),
-      );
+      // GP：旗帜归零时提醒
       if (r.gpFlags <= 0) {
         _dialog(
           title: _t('旗帜归零', 'Flags at zero'),
@@ -2771,16 +2726,6 @@ class _LifeSimScreenState extends State<LifeSimScreen> {
       );
       return;
     }
-    if (r.backfired) {
-      _snack(
-        _t(
-          '翻车了！只拿到 ${r.progress} 进度',
-          'Backfired! Only ${r.progress} progress',
-        ),
-      );
-    } else {
-      _snack(_t('进度 +${r.progress}', 'Progress +${r.progress}'));
-    }
   }
 
   void _endDay() {
@@ -2816,18 +2761,6 @@ class _LifeSimScreenState extends State<LifeSimScreen> {
           ),
         ],
       );
-    } else if (r.settledActivityId != null) {
-      // 废铁行动：只有节点奖励，进度条重置
-      _snack(
-        _t(
-          '${LifeSimEngine.activityName(r.settledActivityId!, _locale)} 结束，'
-              '进度条已重置（节点奖励已即时发放）',
-          '${LifeSimEngine.activityName(r.settledActivityId!, _locale)} finished; '
-              'the progress bar has been reset',
-        ),
-      );
-    } else {
-      _snack(_t('进入第 ${r.newDay} 天', 'Day ${r.newDay} begins'));
     }
   }
 
@@ -2856,10 +2789,7 @@ class _LifeSimScreenState extends State<LifeSimScreen> {
   void _claimRewards() {
     final s = _save!;
     final claimed = _engine.claimRewards(s);
-    if (claimed.isEmpty) {
-      _snack(_t('没有可领取的奖励', 'Nothing to claim'));
-      return;
-    }
+    if (claimed.isEmpty) return;
     _run(() {});
     _dialog(
       title: _t('领取奖励', 'Rewards claimed'),
@@ -2877,12 +2807,6 @@ class _LifeSimScreenState extends State<LifeSimScreen> {
       return;
     }
     _run(() {});
-    _snack(
-      _t(
-        '帮派活跃度 +${r.gained}（当前 ${s.gangActivity}%）',
-        'Gang activity +${r.gained} (now ${s.gangActivity}%)',
-      ),
-    );
     // 活跃度影响城市之王分数，方便连续提升 → 重新打开
     _showCityKingDialog(s);
   }
@@ -3055,7 +2979,6 @@ class _LifeSimScreenState extends State<LifeSimScreen> {
       return;
     }
     _run(() {});
-    _snack(_t('招募了「${r.member?.name}」', 'Recruited "${r.member?.name}"'));
   }
 
   void _confirmLeaveGang(LifeSimSave s) {
@@ -3389,6 +3312,10 @@ class _LifeSimScreenState extends State<LifeSimScreen> {
     );
   }
 
+  /// 底部提示条 —— **只用于「操作失败」的报错**。
+  ///
+  /// 操作成功的反馈（加了多少分 / 进度 / 招募了谁…）已经全部去掉，
+  /// 界面上的数值与列表会自己刷新；需要看明细的地方用的是 [_dialog]。
   void _snack(String text) {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(

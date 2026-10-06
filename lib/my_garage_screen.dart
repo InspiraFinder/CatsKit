@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 
 import 'garage_data.dart';
 import 'main.dart';
+import 'mini_slider.dart';
 import 'part_shape_view.dart' show hexagonPath;
 import 'parts_data.dart';
 import 'parts_shape_data.dart';
@@ -706,12 +707,12 @@ class _MyGarageScreenState extends State<MyGarageScreen> {
       children: [
         const Icon(Icons.zoom_out, size: 18, color: Colors.grey),
         Expanded(
-          child: Slider(
-            value: _shapeZoom,
+          child: MiniSlider(
             min: 0.5,
             max: 3.0,
+            value: _shapeZoom,
             divisions: 25,
-            label: '${(_shapeZoom * 100).round()}%',
+            formatValue: (v) => '${(v * 100).round()}%',
             onChanged: (v) => setState(() => _shapeZoom = v),
           ),
         ),
