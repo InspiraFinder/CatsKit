@@ -6,7 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'fusion_calc_data.dart';
 import 'mini_slider.dart';
 
-/// 熔铸计算：把锦标赛战车的部件加进来，随时看它的「金币价值 / 售价 / 融合花费」，
+/// 熔铸计算：把锦标赛战车的部件加进来，随时看它的「金币价值 / 售价 / 被融合需要」，
 /// 并在模块内直接做融合（材料从已添加的部件里挑）。
 ///
 /// 数值口径见 [fusion_calc_data]，与机制指南「融合：经验、花费与出售」完全一致。
@@ -201,10 +201,11 @@ class _FusionCalcScreenState extends State<FusionCalcScreen> {
       materialQuality: material.quality,
       mechanicLevel: _mechanicLevel,
     );
+    // 融合扣的是**材料自己**的花费（与目标部件无关）
     final cost = fusionCostOf(
-      target.exp,
-      target.materialIdx,
-      target.star,
+      material.exp,
+      material.materialIdx,
+      material.star,
       _dealerLevel,
     );
     final tbCount = material.toolboxCount;
@@ -243,7 +244,7 @@ class _FusionCalcScreenState extends State<FusionCalcScreen> {
               style: const TextStyle(fontWeight: FontWeight.w700),
             ),
             Text(
-              _t('花费金币', 'coins'),
+              _t('被融合需要', 'fuse-in cost'),
               style: TextStyle(fontSize: 11, color: theme.colorScheme.outline),
             ),
           ],
@@ -255,7 +256,7 @@ class _FusionCalcScreenState extends State<FusionCalcScreen> {
 
   /// 融合一次（材料被吃掉）+ 存盘。
   ///
-  /// 没有提示条：目标卡上会立即显示新的等级 / 经验 / 花费与出售价，
+  /// 没有提示条：目标卡上会立即显示新的等级 / 经验 / 被融合需要与出售价，
   /// 材料卡则从列表里消失。
   Future<void> _performFusion({
     required FusionPart target,
@@ -409,8 +410,8 @@ class _FusionCalcScreenState extends State<FusionCalcScreen> {
             _skillRow(
               _t('专业交易商（威名 5）', 'Pro Dealer (prestige 5)'),
               _t(
-                '−10% / −20% / −30%　降低融合花费',
-                '-10% / -20% / -30%  cuts fusion cost',
+                '−10% / −20% / −30%　降低被融合需要',
+                '-10% / -20% / -30%  cuts the fuse-in cost',
               ),
               0,
               _dealerLevel,
@@ -543,7 +544,7 @@ class _FusionCalcScreenState extends State<FusionCalcScreen> {
             Text(
               p.isMaxLevel
                   ? '${p.level} ${_t('级', '')}　${_t('已满级（＝ ${p.level - 1} 级 100%，进度恒为 0%）', 'max level (= ${p.level - 1} at 100%, progress is always 0%)')}'
-                  : '${_levelText(p)}　${_t('升到下一级还需 ${_num(p.toNextLevel)} 经验', '${_num(p.toNextLevel)} XP to next level')}',
+                  : '${_levelText(p)}　${_num(p.xpInLevel)}/${_num(p.levelExpSpan)}',
               style: TextStyle(fontSize: 12, color: theme.colorScheme.outline),
             ),
             const SizedBox(height: 8),
@@ -594,7 +595,11 @@ class _FusionCalcScreenState extends State<FusionCalcScreen> {
                   ),
                   Container(width: 1, height: 30, color: theme.dividerColor),
                   Expanded(
-                    child: _moneyBlock(theme, _t('融合需要', 'Fusion costs'), cost),
+                    child: _moneyBlock(
+                      theme,
+                      _t('被融合需要', 'Cost to fuse it in'),
+                      cost,
+                    ),
                   ),
                 ],
               ),
@@ -831,12 +836,14 @@ class _FusionCalcScreenState extends State<FusionCalcScreen> {
                 '· Coin value = the 34-step coin ladder read at the composite value',
               ),
               _t(
-                '· 融合需要 ＝ round(金币价值 × (1 − 专业交易商))',
-                '· Fusion costs = round(coin value x (1 - Pro Dealer))',
+                '· 被融合需要 ＝ round(金币价值 × (1 − 专业交易商))，'
+                    '也就是把这个部件当材料喂掉时要花的钱（与被喂的目标部件无关）',
+                '· Cost to fuse it in = round(coin value x (1 - Pro Dealer)): what you pay when this part is '
+                    'used as material (independent of the target)',
               ),
               _t(
-                '· 出售可得 ＝ round(融合需要 × 0.5 × 品质系数 × (1 + 商人))，品质系数 普通 1 / 魔法 2 / 传奇 4',
-                '· Sells for = round(cost x 0.5 x quality x (1 + Merchant)); quality common 1 / magic 2 / legendary 4',
+                '· 出售可得 ＝ round(被融合需要 × 0.5 × 品质系数 × (1 + 商人))，品质系数 普通 1 / 魔法 2 / 传奇 4',
+                '· Sells for = round(fuse-in cost x 0.5 x quality x (1 + Merchant)); quality common 1 / magic 2 / legendary 4',
               ),
               _t(
                 '· 融合获得经验 = ⌈(1 + 专业机械师) × 品质系数 × 材料的经验价值⌉，按融合当时的技能档位取',
@@ -1216,10 +1223,10 @@ class _PartEditorDialogState extends State<_PartEditorDialog> {
                       _t(
                         '已投入经验 ${_num(preview.exp)}（满级上限 ${_num(preview.maxExp)}）　'
                             '综合价值 ${_num(preview.compositeValue)}　经验价值 ${_num(preview.xpValue)}\n'
-                            '金币价值 ${_num(coinValue)}　融合需要 ${_num(cost)}　出售可得 ${_num(sell)}',
+                            '金币价值 ${_num(coinValue)}　被融合需要 ${_num(cost)}　出售可得 ${_num(sell)}',
                         'XP invested ${_num(preview.exp)} (cap ${_num(preview.maxExp)})　'
                             'composite ${_num(preview.compositeValue)}　XP value ${_num(preview.xpValue)}\n'
-                            'coin value ${_num(coinValue)}　fusion ${_num(cost)}　sells ${_num(sell)}',
+                            'coin value ${_num(coinValue)}　fuse-in ${_num(cost)}　sells ${_num(sell)}',
                       ),
                       style: const TextStyle(fontSize: 12, height: 1.5),
                     ),

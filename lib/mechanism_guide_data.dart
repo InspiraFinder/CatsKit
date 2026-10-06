@@ -909,7 +909,7 @@ const List<List<String>> _champExpRowsEn = <List<String>>[
   <String>['26', '—', '334'],
 ];
 
-/// 锦标赛战车：25 档 1 级部件的价值 / 融合花费 / 出售价（专业交易商、商人均满级）
+/// 锦标赛战车：25 档 1 级部件的价值 / 被融合需要 / 出售价（专业交易商、商人均满级）
 const List<List<String>> _champValueRowsZh = <List<String>>[
   <String>['1', '木质 1 星', '469', '328', '213'],
   <String>['2', '木质 2 星', '750', '525', '341'],
@@ -2209,6 +2209,7 @@ const List<GuideChapter> kGuideChapters = <GuideChapter>[
       '回收',
       '经验',
       '融合花费',
+      '被融合需要',
       '出售',
       '出售价',
       '价值',
@@ -2635,10 +2636,10 @@ const List<GuideChapter> kGuideChapters = <GuideChapter>[
       GuideBlock.tip(
         '表中技能数值均为满级（电力技能 +3、HP 技能 +30%）；未学习时按 0 计算。解锁条件见第 9 节。'
             'HP/ATK 倍数由「基础 HP × 0.6 × 倍数 ＝ 1 级显示 HP」反推（特殊车身那个等式里不带 HP 技能）。'
-            '第 8 节里的融合花费与出售价也都按技能满级算。',
+            '第 8 节里的被融合需要与出售价也都按技能满级算。',
         'Both skill columns are maxed values (power +3, HP +30%); treat them as 0 when not learned. See section 9 '
             'for the unlock requirements. The HP/ATK multiplier was derived from "base HP x 0.6 x multiplier = '
-            'displayed HP at level 1" (for special bodies that equation has no HP skill in it). The fusion cost and '
+            'displayed HP at level 1" (for special bodies that equation has no HP skill in it). The fuse-in cost and '
             'sale price in section 8 also assume the skills are maxed.',
       ),
       GuideBlock.text(
@@ -3597,7 +3598,7 @@ const List<GuideChapter> kGuideChapters = <GuideChapter>[
               '固有价值 ＋ 0.7 × Σ 融合获得经验',
               '它当材料被融合时贡献多少经验的基础值（历次经验只按 70% 计入）',
             ],
-            <String>['**部件金币价值**', '把部件综合价值当坐标去查金币阶梯（本节后面讲）', '融合花费、出售价'],
+            <String>['**部件金币价值**', '把部件综合价值当坐标去查金币阶梯（本节后面讲）', '被融合需要、出售价'],
           ],
           rowsEn: <List<String>>[
             <String>[
@@ -3614,7 +3615,7 @@ const List<GuideChapter> kGuideChapters = <GuideChapter>[
             <String>[
               '**Coin value**',
               'the coin ladder read at the composite value (covered later in this section)',
-              'fusion cost, sale price',
+              'fuse-in cost, sale price',
             ],
           ],
         ),
@@ -3837,11 +3838,13 @@ const List<GuideChapter> kGuideChapters = <GuideChapter>[
         ),
       ]),
       GuideBlock.text(
-        '**融合要花金币，部件也能卖金币** —— 这两件事看的是**部件金币价值**，'
+        '**融合要花金币，部件也能卖金币** —— 这两件事看的都是**部件金币价值**，'
             '也就是把上面算出来的**部件综合价值**当坐标去查金币阶梯。'
+            '**融合花的是「被喂进去那一件（材料）」的钱；卖钱卖的是「部件自己」的钱。**'
             '游戏的配置里并排放着**两条 34 级阶梯**，**同一位置的条目一一对应**：',
         '**Fusing costs coins and parts can be sold for coins** — both look at the **coin value**, which is the '
-            '**composite value** from above used as a coordinate on the coin ladder. The game config holds **two '
+            '**composite value** from above used as a coordinate on the coin ladder. **A fusion is charged on the part '
+            'being fed in (the material); a sale is always about the part itself.** The game config holds **two '
             'parallel 34-step ladders** whose entries line up one to one:',
       ),
       GuideBlock.bullets(<GuideBullet>[
@@ -3880,33 +3883,33 @@ const List<GuideChapter> kGuideChapters = <GuideChapter>[
             'is the money. All three coincide only when **nothing has been fused in** (Σ = 0, i.e. level 1 / 0%).',
       ),
       GuideBlock.text(
-        '两个用钱的场合都从它出发：',
-        'Both places where money changes hands start from it:',
+        '两个用钱的场合都从它出发（两者都只跟**这一件自己**有关）：',
+        'Both places where money changes hands start from it — and both are about **the part itself** only:',
       ),
       GuideBlock.table(
         GuideTable(
           headZh: <String>['用途', '公式'],
           headEn: <String>['What', 'Formula'],
           rowsZh: <List<String>>[
-            <String>['融合花费', '**取整（部件金币价值 ×（1 － 专业交易商））**'],
-            <String>['出售部件', '**取整（融合花费 × 0.5 × 品质系数 ×（1 ＋ 商人））**'],
+            <String>['被融合需要', '**取整（它自己的部件金币价值 ×（1 － 专业交易商））**'],
+            <String>['出售部件', '**取整（被融合需要 × 0.5 × 品质系数 ×（1 ＋ 商人））**'],
           ],
           rowsEn: <List<String>>[
             <String>[
-              'Fusion cost',
-              '**round( coin value x (1 - Pro Dealer) )**',
+              'Cost to fuse it in',
+              '**round( its own coin value x (1 - Pro Dealer) )**',
             ],
             <String>[
               'Selling a part',
-              '**round( fusion cost x 0.5 x quality factor x (1 + Merchant) )**',
+              '**round( its fuse-in cost x 0.5 x quality factor x (1 + Merchant) )**',
             ],
           ],
         ),
       ),
       GuideBlock.bullets(<GuideBullet>[
         GuideBullet(
-          '**品质系数**：普通 1、魔法 2、传奇 4 —— 也就是说**品质不影响融合花费**，只影响卖价',
-          '**Quality factor**: common 1, magic 2, legendary 4 — so **quality never changes the fusion cost**, only '
+          '**品质系数**：普通 1、魔法 2、传奇 4 —— 也就是说**品质不影响被融合需要**，只影响卖价',
+          '**Quality factor**: common 1, magic 2, legendary 4 — so **quality never changes the fuse-in cost**, only '
               'the sale price',
         ),
         GuideBullet(
@@ -3915,14 +3918,15 @@ const List<GuideChapter> kGuideChapters = <GuideChapter>[
               'price drops to 0.7x with it',
         ),
         GuideBullet(
-          '**融合花费先乘折扣、最后才取整**；出售价用的是**取整之后**的融合花费',
-          'The **fusion cost applies the discount first and rounds last**; the sale price uses the **already rounded** '
-              'fusion cost',
+          '**被融合需要先乘折扣、最后才取整**；出售价用的是**取整之后**的被融合需要',
+          'The **fuse-in cost applies the discount first and rounds last**; the sale price uses the **already rounded** '
+              'fuse-in cost',
         ),
         GuideBullet(
-          '**一次只能融合一个材料**，所以花费就是「目标部件在这一刻的**部件金币价值**」，不涉及求和',
-          '**Only one material per fusion**, so the cost is simply the target\'s **coin value** at that moment — '
-              'nothing to sum up',
+          '**一次只能融合一个材料**：扣的钱就是**那个材料自己的被融合需要**'
+              '（＝ 它此刻的部件金币价值 × 折扣）；**目标部件再贵也不涨花费**',
+          '**Only one material per fusion**: the coins charged are that **material\'s own fuse-in cost** (its coin '
+              'value at that moment x the discount). A pricier **target** does not raise the charge',
         ),
         GuideBullet(
           '部件会**随等级涨钱**：等级越高价值越大，所以「升完再卖」通常比「直接卖」划算',
@@ -3933,21 +3937,23 @@ const List<GuideChapter> kGuideChapters = <GuideChapter>[
         '**25 档 1 级部件的价值与价格**。1 级 0% 时「固有价值 ＋ Σ 融合获得经验」恰好等于该档位的固有价值，'
             '所以**下表第 N 行的「部件金币价值」就是金币阶梯第 N 格的读数**'
             '（军用 3 星 ＝ 15188 就是金币阶梯第 13 格）。'
-            '下表按「专业交易商、商人都是满级」计算；没点技能时：融合花费 ＝ 金币价值，出售 ＝ 金币价值 × 0.5 × 品质系数。',
+            '表里的**「被融合需要」都是这一档部件自己**的数：把这一档、1 级 0% 的部件当材料喂掉就扣这个钱。'
+            '下表按「专业交易商、商人都是满级」计算；没点技能时：被融合需要 ＝ 金币价值，出售 ＝ 金币价值 × 0.5 × 品质系数。',
         '**Value and prices of a level-1 part in each of the 25 tiers.** At level 1 / 0% the sum "intrinsic value + '
             'Σ XP gained" equals the tier intrinsic value itself, so the **"Coin value" column of row N below is '
-            'simply rung N of the coin ladder** (military 3 stars = 15188 = rung 13). The table assumes Pro Dealer and '
-            'Merchant are maxed; with no skills the fusion cost equals the coin value and the sale is coin value x '
-            '0.5 x quality factor.',
+            'simply rung N of the coin ladder** (military 3 stars = 15188 = rung 13). The **"Fuse-in cost" column is '
+            'each part\'s own** figure: feed a level-1 / 0% part of that tier in as material and this is what it costs. '
+            'The table assumes Pro Dealer and Merchant are maxed; with no skills the fuse-in cost equals the coin value '
+            'and the sale is coin value x 0.5 x quality factor.',
       ),
       GuideBlock.table(
         GuideTable(
-          headZh: <String>['档位', '部件材质 / 星级', '部件金币价值', '融合花费', '出售（普通）'],
+          headZh: <String>['档位', '部件材质 / 星级', '部件金币价值', '被融合需要', '出售（普通）'],
           headEn: <String>[
             'Tier',
             'Material / star',
             'Coin value',
-            'Fusion cost',
+            'Fuse-in cost',
             'Sale (common)',
           ],
           rowsZh: _champValueRowsZh,
@@ -3964,8 +3970,9 @@ const List<GuideChapter> kGuideChapters = <GuideChapter>[
             'the tables above.',
       ),
       GuideBlock.text(
-        '**第 1 轮**：把 11 段喂进 13 段。',
-        '**Round 1**: fuse the tier-11 part into the tier-13 part.',
+        '**第 1 轮**：把 11 段喂进 13 段 —— **扣的是 11 段自己的钱（7612）**。',
+        '**Round 1**: fuse the tier-11 part into the tier-13 part — **the coins charged are the tier-11 part\'s own '
+            '(7612)**.',
       ),
       GuideBlock.table(
         GuideTable(
@@ -4009,12 +4016,13 @@ const List<GuideChapter> kGuideChapters = <GuideChapter>[
               '17154.33476',
             ],
             <String>[
-              '11. 融合花费',
-              '取整（17154.33476 ×（1 － 0.30））＝ 取整（17154.33476 × 0.70）＝ 取整（12008.0343）',
+              '11. 目标的被融合需要',
+              '取整（17154.33476 ×（1 － 0.30））＝ 取整（17154.33476 × 0.70）＝ 取整（12008.0343）'
+                  '（这次融合**真正扣的是材料 11 段的 7612**）',
               '12008',
             ],
             <String>[
-              '12. 出售价（普通）',
+              '12. 出售价（普通，用目标自己的被融合需要）',
               '取整（12008 × 0.5 × 1 ×（1 ＋ 0.30））＝ 取整（12008 × 0.65）＝ 取整（7805.2）',
               '7805',
             ],
@@ -4084,12 +4092,13 @@ const List<GuideChapter> kGuideChapters = <GuideChapter>[
               '17154.33476',
             ],
             <String>[
-              '11. Fusion cost',
-              'round( 17154.33476 x (1 - 0.30) ) = round( 17154.33476 x 0.70 ) = round( 12008.0343 )',
+              '11. Fuse-in cost of the target',
+              'round( 17154.33476 x (1 - 0.30) ) = round( 17154.33476 x 0.70 ) = round( 12008.0343 ) '
+                  '(**the fusion really charges the material\'s 7612**)',
               '12008',
             ],
             <String>[
-              '12. Sale price (common)',
+              '12. Sale price (common, from the target\'s own fuse-in cost)',
               'round( 12008 x 0.5 x 1 x (1 + 0.30) ) = round( 12008 x 0.65 ) = round( 7805.2 )',
               '7805',
             ],
@@ -4109,10 +4118,11 @@ const List<GuideChapter> kGuideChapters = <GuideChapter>[
       ),
       GuideBlock.text(
         '**第 2 轮**：把刚刚变成「1 级 65%」的那个 13 段当作材料，喂给**另一个** 13 段（1 级 0%）。'
-            '这一轮才能看出「部件经验价值」里 **0.7 × Σ 融合获得经验** 那一项的作用。',
+            '这一轮才能看出「部件经验价值」里 **0.7 × Σ 融合获得经验** 那一项的作用。'
+            '**这一轮扣的是材料那件（1 级 65% 的 13 段）自己的 12008。**',
         '**Round 2**: use the tier-13 part that just became level 1 / 65% as the material and fuse it into '
             '**another** tier-13 part (level 1 / 0%). Only this round exercises the **0.7 x Σ XP gained** term inside '
-            'the XP value.',
+            'the XP value. **Here the charge is the material\'s own 12008** (the tier-13 part at level 1 / 65%).',
       ),
       GuideBlock.table(
         GuideTable(
@@ -4162,12 +4172,13 @@ const List<GuideChapter> kGuideChapters = <GuideChapter>[
               '20489.79672',
             ],
             <String>[
-              '11. 融合花费',
-              '取整（20489.79672 × 0.70）＝ 取整（14342.85770）',
+              '11. 目标的被融合需要',
+              '取整（20489.79672 × 0.70）＝ 取整（14342.85770）'
+                  '（这次融合**真正扣的是材料那件的 12008**）',
               '14343',
             ],
             <String>[
-              '12. 出售价（普通）',
+              '12. 出售价（普通，用目标自己的被融合需要）',
               '取整（14343 × 0.5 × 1 × 1.30）＝ 取整（14343 × 0.65）＝ 取整（9322.95）',
               '9323',
             ],
@@ -4228,12 +4239,12 @@ const List<GuideChapter> kGuideChapters = <GuideChapter>[
               '20489.79672',
             ],
             <String>[
-              '11. Fusion cost',
-              'round( 20489.79672 x 0.70 ) = round( 14342.85770 )',
+              '11. Fuse-in cost of the target',
+              'round( 20489.79672 x 0.70 ) = round( 14342.85770 ) (**the fusion charges the material\'s 12008**)',
               '14343',
             ],
             <String>[
-              '12. Sale price (common)',
+              '12. Sale price (common, from the target\'s own fuse-in cost)',
               'round( 14343 x 0.5 x 1 x 1.30 ) = round( 14343 x 0.65 ) = round( 9322.95 )',
               '9323',
             ],
@@ -4242,10 +4253,12 @@ const List<GuideChapter> kGuideChapters = <GuideChapter>[
       ),
       GuideBlock.text(
         '**第 3 轮**：同一个 13 段（1 级 0%），但**中途把技能升了级** —— 先按专业机械师 2 级（＋20%）'
-            '融合一次，再把技能升到 3 级（＋30%）融合第二次。两次喂的是**同一个 11 段**（军用 1 星、1 级 0%）。',
+            '融合一次，再把技能升到 3 级（＋30%）融合第二次。两次喂的是**同一个 11 段**（军用 1 星、1 级 0%），'
+            '**两次扣的都是 11 段自己的 7612**。',
         '**Round 3**: the same tier-13 part (level 1 / 0%), but with the **skill upgraded in between** — first a fusion '
             'at Pro Mechanic level 2 (+20%), then the skill is raised to level 3 (+30%) and a second fusion happens. '
-            'Both times the material is the **same tier-11 part** (military 1 star, level 1 / 0%).',
+            'Both times the material is the **same tier-11 part** (military 1 star, level 1 / 0%), so **both fusions '
+            'charge the tier-11 part\'s own 7612**.',
       ),
       GuideBlock.table(
         GuideTable(
@@ -4294,12 +4307,13 @@ const List<GuideChapter> kGuideChapters = <GuideChapter>[
               '18516.24668',
             ],
             <String>[
-              '11. 融合花费',
-              '取整（18516.24668 × 0.70）＝ 取整（12961.37268）',
+              '11. 目标的被融合需要',
+              '取整（18516.24668 × 0.70）＝ 取整（12961.37268）'
+                  '（两次融合**各扣材料 11 段的 7612**）',
               '12961',
             ],
             <String>[
-              '12. 出售价（普通）',
+              '12. 出售价（普通，用目标自己的被融合需要）',
               '取整（12961 × 0.5 × 1 × 1.30）＝ 取整（12961 × 0.65）＝ 取整（8424.65）',
               '8425',
             ],
@@ -4359,12 +4373,12 @@ const List<GuideChapter> kGuideChapters = <GuideChapter>[
               '18516.24668',
             ],
             <String>[
-              '11. Fusion cost',
-              'round( 18516.24668 x 0.70 ) = round( 12961.37268 )',
+              '11. Fuse-in cost of the target',
+              'round( 18516.24668 x 0.70 ) = round( 12961.37268 ) (**both fusions charge the material\'s 7612**)',
               '12961',
             ],
             <String>[
-              '12. Sale price (common)',
+              '12. Sale price (common, from the target\'s own fuse-in cost)',
               'round( 12961 x 0.5 x 1 x 1.30 ) = round( 12961 x 0.65 ) = round( 8424.65 )',
               '8425',
             ],
@@ -4374,14 +4388,14 @@ const List<GuideChapter> kGuideChapters = <GuideChapter>[
       GuideBlock.tip(
         '前两个算例的结果可以直接对照游戏：10632 / 6911 / 13822 / 27643（目标还是 1 级 0% 时）与 '
             '12008 / 7805（喂完 11 段之后）都是实测值。'
-            '两个比值自己就能验证：花费 ÷ 金币价值 ≈ 0.70（专业交易商满级），出售 ÷ 花费 ≈ '
+            '两个比值自己就能验证：被融合需要 ÷ 金币价值 ≈ 0.70（专业交易商满级），出售 ÷ 被融合需要 ≈ '
             '普通 0.65 / 魔法 1.30 / 传奇 2.60（商人满级）。'
             '第 3 轮则是技能档位的影响：**同一个 11 段，技能 ＋20% 时只给 173，＋30% 时给 188**。',
         'The first two examples can be checked directly in game: 10632 / 6911 / 13822 / 27643 (while the target is '
             'still at level 1 / 0%) and 12008 / 7805 (after fusing the tier-11 part) are all measured values. Two '
-            'ratios verify themselves: cost / coin value is about 0.70 (Pro Dealer maxed), and sale / cost is about '
-            '0.65 common / 1.30 magic / 2.60 legendary (Merchant maxed). Round 3 shows what the skill level does: '
-            '**the same tier-11 part is worth 173 at +20% and 188 at +30%**.',
+            'ratios verify themselves: fuse-in cost / coin value is about 0.70 (Pro Dealer maxed), and sale / fuse-in '
+            'cost is about 0.65 common / 1.30 magic / 2.60 legendary (Merchant maxed). Round 3 shows what the skill '
+            'level does: **the same tier-11 part is worth 173 at +20% and 188 at +30%**.',
       ),
       // ---------- 工具箱的融合花费（自成一节） ----------
       GuideBlock.text(

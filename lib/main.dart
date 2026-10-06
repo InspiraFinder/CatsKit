@@ -29,7 +29,7 @@ import 'mini_slider.dart';
 import 'update_check_utils.dart';
 import 'life_sim/life_sim_screen.dart';
 
-const String appVersion = '2.3.1';
+const String appVersion = '2.3.2';
 
 /// 获取部件在当前语言下的显示名称
 String pn(PartData part, String? locale) {
