@@ -146,90 +146,89 @@ const List<ActivityChoice> kCommonChoices = <ActivityChoice>[
 ];
 
 /// 每个活动专属的决策（风味 + 差异化收益）
-final Map<String, ActivityChoice> kSignatureChoices =
-    <String, ActivityChoice>{
-      'gp': const ActivityChoice(
-        id: 'nip',
-        nameZh: '氮气全开',
-        nameEn: 'Nitro Overdrive',
-        descZh: '额外获得 40 紫票',
-        descEn: 'Also grants 40 Cash',
-        energyCost: 3,
-        coef: 1.35,
-        bonusCash: 40,
-      ),
-      'space': const ActivityChoice(
-        id: 'mega',
-        nameZh: '模块拼装',
-        nameEn: 'Module Assembly',
-        descZh: '帮派活跃度 +3',
-        descEn: 'Gang activity +3',
-        energyCost: 3,
-        coef: 1.30,
-        gangActivityGain: 3,
-      ),
-      'scrap': const ActivityChoice(
-        id: 'recycle',
-        nameZh: '废铁回收',
-        nameEn: 'Scrap Recycling',
-        descZh: '额外获得 60 代币',
-        descEn: 'Also grants 60 Tokens',
-        energyCost: 3,
-        coef: 1.25,
-        bonusToken: 60,
-      ),
-      'allstar': const ActivityChoice(
-        id: 'show',
-        nameZh: '全明星秀',
-        nameEn: 'All-Star Showcase',
-        descZh: '消耗 5 精力，但收益极高',
-        descEn: 'Costs 5 energy for a huge payoff',
-        energyCost: 5,
-        coef: 1.55,
-        bonusCash: 80,
-      ),
-      'gear': const ActivityChoice(
-        id: 'overdrive',
-        nameZh: '齿轮超频',
-        nameEn: 'Gear Overdrive',
-        descZh: '20% 概率翻车',
-        descEn: '20% chance to backfire',
-        energyCost: 3,
-        coef: 1.45,
-        backfireChance: 0.20,
-        backfireCoef: 0.60,
-      ),
-      'champ': const ActivityChoice(
-        id: 'gamble',
-        nameZh: '黑市豪赌',
-        nameEn: 'Black Market Gamble',
-        descZh: '额外获得 120 代币',
-        descEn: 'Also grants 120 Tokens',
-        energyCost: 4,
-        coef: 1.60,
-        bonusToken: 120,
-      ),
-      'tavern': const ActivityChoice(
-        id: 'intel',
-        nameZh: '酒馆情报',
-        nameEn: 'Tavern Intel',
-        descZh: '下个活动进度 +20%',
-        descEn: 'Next activity +20% progress',
-        energyCost: 2,
-        coef: 1.10,
-        nextActivityBonus: 0.20,
-      ),
-      'joker': const ActivityChoice(
-        id: 'wild',
-        nameZh: '王牌百搭',
-        nameEn: 'Wild Card',
-        descZh: '系数在 0.8~2.0 之间随机',
-        descEn: 'Random multiplier 0.8~2.0',
-        energyCost: 3,
-        coef: 1.00,
-        wildCard: true,
-      ),
-    };
+final Map<String, ActivityChoice> kSignatureChoices = <String, ActivityChoice>{
+  'gp': const ActivityChoice(
+    id: 'nip',
+    nameZh: '氮气全开',
+    nameEn: 'Nitro Overdrive',
+    descZh: '额外获得 40 紫票',
+    descEn: 'Also grants 40 Cash',
+    energyCost: 3,
+    coef: 1.35,
+    bonusCash: 40,
+  ),
+  'space': const ActivityChoice(
+    id: 'mega',
+    nameZh: '模块拼装',
+    nameEn: 'Module Assembly',
+    descZh: '帮派活跃度 +3',
+    descEn: 'Gang activity +3',
+    energyCost: 3,
+    coef: 1.30,
+    gangActivityGain: 3,
+  ),
+  'scrap': const ActivityChoice(
+    id: 'recycle',
+    nameZh: '废铁回收',
+    nameEn: 'Scrap Recycling',
+    descZh: '额外获得 60 代币',
+    descEn: 'Also grants 60 Tokens',
+    energyCost: 3,
+    coef: 1.25,
+    bonusToken: 60,
+  ),
+  'allstar': const ActivityChoice(
+    id: 'show',
+    nameZh: '全明星秀',
+    nameEn: 'All-Star Showcase',
+    descZh: '消耗 5 精力，但收益极高',
+    descEn: 'Costs 5 energy for a huge payoff',
+    energyCost: 5,
+    coef: 1.55,
+    bonusCash: 80,
+  ),
+  'gear': const ActivityChoice(
+    id: 'overdrive',
+    nameZh: '齿轮超频',
+    nameEn: 'Gear Overdrive',
+    descZh: '20% 概率翻车',
+    descEn: '20% chance to backfire',
+    energyCost: 3,
+    coef: 1.45,
+    backfireChance: 0.20,
+    backfireCoef: 0.60,
+  ),
+  'champ': const ActivityChoice(
+    id: 'gamble',
+    nameZh: '黑市豪赌',
+    nameEn: 'Black Market Gamble',
+    descZh: '额外获得 120 代币',
+    descEn: 'Also grants 120 Tokens',
+    energyCost: 4,
+    coef: 1.60,
+    bonusToken: 120,
+  ),
+  'tavern': const ActivityChoice(
+    id: 'intel',
+    nameZh: '酒馆情报',
+    nameEn: 'Tavern Intel',
+    descZh: '下个活动进度 +20%',
+    descEn: 'Next activity +20% progress',
+    energyCost: 2,
+    coef: 1.10,
+    nextActivityBonus: 0.20,
+  ),
+  'joker': const ActivityChoice(
+    id: 'wild',
+    nameZh: '王牌百搭',
+    nameEn: 'Wild Card',
+    descZh: '系数在 0.8~2.0 之间随机',
+    descEn: 'Random multiplier 0.8~2.0',
+    energyCost: 3,
+    coef: 1.00,
+    wildCard: true,
+  ),
+};
 
 // =====================================================================
 // 三、档位阈值与奖励
@@ -288,18 +287,8 @@ const double kMinorRewardScale = 0.5;
 
 /// 大活动档位奖励
 const Map<String, RankReward> kRankRewards = <String, RankReward>{
-  'S': RankReward(
-    rank: 'S',
-    cash: 1200,
-    token: 500,
-    partCount: 3,
-  ),
-  'A': RankReward(
-    rank: 'A',
-    cash: 500,
-    token: 200,
-    partCount: 2,
-  ),
+  'S': RankReward(rank: 'S', cash: 1200, token: 500, partCount: 3),
+  'A': RankReward(rank: 'A', cash: 500, token: 200, partCount: 2),
   'B': RankReward(
     rank: 'B',
     cash: 200,
@@ -314,12 +303,7 @@ const Map<String, RankReward> kRankRewards = <String, RankReward>{
     partCount: 1,
     extraPartChancePct: 20,
   ),
-  'D': RankReward(
-    rank: 'D',
-    cash: 30,
-    token: 10,
-    partCount: 1,
-  ),
+  'D': RankReward(rank: 'D', cash: 30, token: 10, partCount: 1),
 };
 
 /// 部件掉落稀有度权重。
@@ -686,10 +670,7 @@ List<AllStarEntry> buildAllStarBoard({required int seed}) {
     final jitter =
         1 - kAllStarBoardJitter + rng.nextDouble() * kAllStarBoardJitter * 2;
     entries.add(
-      AllStarEntry(
-        '${100000 + rng.nextInt(8999999)}',
-        (base * jitter).round(),
-      ),
+      AllStarEntry('${100000 + rng.nextInt(8999999)}', (base * jitter).round()),
     );
   }
   entries.sort((a, b) => b.score.compareTo(a.score));
@@ -834,13 +815,12 @@ const int kGpBoardSize = 400;
 /// - 200 氪（20 次 ×+150% = +3000%，乘数约 ×33）：31 / 21 / 47 → 落在 10-50 ✓
 /// - 500 氪（氪满 50 次，乘数封顶 ×77.5）：7 / 1 / 32 → 第 1 名可达 ✓
 /// - 全程低风险（不亏旗帜，约 11 万分）：275 → 兜底档 ✓
-const List<({int rank, int score})> kGpBoardAnchors =
-    <({int rank, int score})>[
-      (rank: 1, score: 95000000),
-      (rank: 30, score: 30200000),
-      (rank: 75, score: 1660000),
-      (rank: 400, score: 20000),
-    ];
+const List<({int rank, int score})> kGpBoardAnchors = <({int rank, int score})>[
+  (rank: 1, score: 95000000),
+  (rank: 30, score: 30200000),
+  (rank: 75, score: 1660000),
+  (rank: 400, score: 20000),
+];
 
 /// GP 榜单每天的抖动幅度（±；比全明星小，因为顶部对分数很敏感）
 const double kGpBoardJitter = 0.05;
@@ -949,8 +929,7 @@ List<AllStarEntry> buildGpBoard({required int seed}) {
   final rng = Random(seed);
   final entries = <AllStarEntry>[];
   for (var rank = 1; rank <= kGpBoardSize; rank++) {
-    final jitter =
-        1 - kGpBoardJitter + rng.nextDouble() * kGpBoardJitter * 2;
+    final jitter = 1 - kGpBoardJitter + rng.nextDouble() * kGpBoardJitter * 2;
     entries.add(
       AllStarEntry(
         '${200000 + rng.nextInt(7999999)}',
@@ -1118,9 +1097,7 @@ int gangStrengthOf({required int gangPower, required int gangActivity}) {
 }) {
   final sum = myStrength + oppStrength;
   final d = sum <= 0 ? 0.0 : (myStrength - oppStrength) / sum;
-  final win = (kCityMaxScore * (1 + d) / 2)
-      .round()
-      .clamp(0, kCityMaxScore);
+  final win = (kCityMaxScore * (1 + d) / 2).round().clamp(0, kCityMaxScore);
   return (win: win, loss: kCityMaxScore - win);
 }
 
@@ -1388,12 +1365,13 @@ List<ScrapNode> buildMilestoneNodes({
 }
 
 /// 废铁行动：指定 15 种 R6 部件，各 11 个碎片（先 5 后 6）
-List<ScrapReward> buildScrapPartRewards(List<String> r6PartIds) => <ScrapReward>[
-  for (final id in r6PartIds)
-    ScrapReward(ScrapRewardKind.r6Part, kScrapR6FirstBatch, partId: id),
-  for (final id in r6PartIds)
-    ScrapReward(ScrapRewardKind.r6Part, kScrapR6SecondBatch, partId: id),
-];
+List<ScrapReward> buildScrapPartRewards(List<String> r6PartIds) =>
+    <ScrapReward>[
+      for (final id in r6PartIds)
+        ScrapReward(ScrapRewardKind.r6Part, kScrapR6FirstBatch, partId: id),
+      for (final id in r6PartIds)
+        ScrapReward(ScrapRewardKind.r6Part, kScrapR6SecondBatch, partId: id),
+    ];
 
 /// 齿轮奔袭：15 组随机 R6 部件，各 11 个碎片（先 5 后 6）
 List<ScrapReward> buildGearPartRewards() => <ScrapReward>[
@@ -1638,10 +1616,8 @@ int gangDivisionRosterSize(GangDivision division) =>
     kGangSeedRoster[division]!.length;
 
 /// 全服帮派总数
-int get gangTotalSize => kGangSeedRoster.values.fold(
-  0,
-  (sum, list) => sum + list.length,
-);
+int get gangTotalSize =>
+    kGangSeedRoster.values.fold(0, (sum, list) => sum + list.length);
 
 /// **离线生成用**：每组本赛季的帮派数量区间
 ///

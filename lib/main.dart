@@ -9,6 +9,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import 'fragment_calc_screen.dart';
+import 'fusion_calc_screen.dart';
 import 'garage_data.dart';
 import 'my_garage_screen.dart';
 import 'part_shape_view.dart';
@@ -27,7 +28,7 @@ import 'mechanism_guide_screen.dart';
 import 'update_check_utils.dart';
 import 'life_sim/life_sim_screen.dart';
 
-const String appVersion = '2.2.4';
+const String appVersion = '2.3.0';
 
 /// 获取部件在当前语言下的显示名称
 String pn(PartData part, String? locale) {
@@ -48,6 +49,8 @@ Future<void> main() async {
   final savedServer = prefs.getString('appServer') ?? 'cn';
   final savedDarkMode = prefs.getBool('appDarkMode') ?? false;
   final savedBgColor = prefs.getInt('appBgColor'); // null = 跟随主题默认
+  final savedBgStyle =
+      prefs.getString('appBgStyle') ?? 'pattern'; // pattern / solid
   // 国服只能使用中文
   if (savedServer == 'cn') {
     savedLocale = 'zh';
@@ -58,6 +61,7 @@ Future<void> main() async {
       initialServer: savedServer,
       initialDarkMode: savedDarkMode,
       initialBgColor: savedBgColor,
+      initialBgStyle: savedBgStyle,
     ),
   );
 }
@@ -69,12 +73,16 @@ class MyApp extends StatefulWidget {
 
   /// 自定义背景色（ARGB int），null = 跟随主题默认
   final int? initialBgColor;
+
+  /// 背景样式：'pattern' 图案水印 / 'solid' 纯色
+  final String initialBgStyle;
   const MyApp({
     super.key,
     this.initialLocale = 'zh',
     this.initialServer = 'cn',
     this.initialDarkMode = false,
     this.initialBgColor,
+    this.initialBgStyle = 'pattern',
   });
 
   @override
@@ -86,6 +94,7 @@ class _MyAppState extends State<MyApp> {
   late String _appServer; // 'cn' 国服, 'intl' 国际服
   late bool _appDarkMode;
   late int? _appBgColor; // 自定义背景色（ARGB），null = 默认
+  late String _appBgStyle; // 'pattern' 图案 / 'solid' 纯色
 
   @override
   void initState() {
@@ -94,6 +103,7 @@ class _MyAppState extends State<MyApp> {
     _appServer = widget.initialServer;
     _appDarkMode = widget.initialDarkMode;
     _appBgColor = widget.initialBgColor;
+    _appBgStyle = widget.initialBgStyle;
   }
 
   void _onLocaleChanged(String newLocale) {
@@ -129,6 +139,14 @@ class _MyAppState extends State<MyApp> {
     });
   }
 
+  /// 背景样式变更（'pattern' 图案 / 'solid' 纯色）
+  void _onBgStyleChanged(String newValue) {
+    setState(() => _appBgStyle = newValue);
+    SharedPreferences.getInstance().then(
+      (prefs) => prefs.setString('appBgStyle', newValue),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final bg = _appBgColor == null ? null : Color(_appBgColor!);
@@ -158,6 +176,8 @@ class _MyAppState extends State<MyApp> {
         onDarkModeChanged: _onDarkModeChanged,
         bgColor: _appBgColor,
         onBgColorChanged: _onBgColorChanged,
+        bgStyle: _appBgStyle,
+        onBgStyleChanged: _onBgStyleChanged,
       ),
     );
   }
@@ -170,6 +190,10 @@ class MainScreen extends StatefulWidget {
   final ValueChanged<bool>? onDarkModeChanged;
   final int? bgColor;
   final ValueChanged<int?>? onBgColorChanged;
+
+  /// 背景样式：'pattern' 图案水印 / 'solid' 纯色
+  final String bgStyle;
+  final ValueChanged<String>? onBgStyleChanged;
   const MainScreen({
     super.key,
     this.locale = 'zh',
@@ -178,6 +202,8 @@ class MainScreen extends StatefulWidget {
     this.onDarkModeChanged,
     this.bgColor,
     this.onBgColorChanged,
+    this.bgStyle = 'pattern',
+    this.onBgStyleChanged,
   });
 
   @override
@@ -689,6 +715,7 @@ class _MainScreenState extends State<MainScreen> {
           currentShowSnackBar: _showSnackBar,
           currentDarkMode: widget.darkMode,
           currentBgColor: widget.bgColor,
+          currentBgStyle: widget.bgStyle,
           currentGithubUpdateUrl: githubUpdateUrl,
           currentMirrorUrl: _mirrorUrl,
         ),
@@ -707,6 +734,9 @@ class _MainScreenState extends State<MainScreen> {
       }
       if (result.containsKey('bgColor')) {
         widget.onBgColorChanged?.call(result['bgColor'] as int?);
+      }
+      if (result['bgStyle'] != null) {
+        widget.onBgStyleChanged?.call(result['bgStyle'] as String);
       }
       _showMessage('语言已切换', 'Language changed');
     }
@@ -755,6 +785,10 @@ class MainMenuScreen extends StatefulWidget {
   final ValueChanged<bool>? onDarkModeChanged;
   final int? bgColor;
   final ValueChanged<int?>? onBgColorChanged;
+
+  /// 背景样式：'pattern' 图案水印 / 'solid' 纯色
+  final String bgStyle;
+  final ValueChanged<String>? onBgStyleChanged;
   const MainMenuScreen({
     super.key,
     this.locale = 'zh',
@@ -765,6 +799,8 @@ class MainMenuScreen extends StatefulWidget {
     this.onDarkModeChanged,
     this.bgColor,
     this.onBgColorChanged,
+    this.bgStyle = 'pattern',
+    this.onBgStyleChanged,
   });
 
   @override
@@ -776,6 +812,7 @@ class _MainMenuScreenState extends State<MainMenuScreen> {
   late String _server;
   late bool _darkMode;
   late int? _bgColor;
+  late String _bgStyle;
 
   /// 展开的一级分类（默认全部收起，5 个一级选项一屏可见）
   final Set<String> _expandedGroups = <String>{};
@@ -789,6 +826,7 @@ class _MainMenuScreenState extends State<MainMenuScreen> {
     _server = widget.server;
     _darkMode = widget.darkMode;
     _bgColor = widget.bgColor;
+    _bgStyle = widget.bgStyle;
   }
 
   @override
@@ -805,6 +843,9 @@ class _MainMenuScreenState extends State<MainMenuScreen> {
     }
     if (widget.bgColor != oldWidget.bgColor) {
       _bgColor = widget.bgColor;
+    }
+    if (widget.bgStyle != oldWidget.bgStyle) {
+      _bgStyle = widget.bgStyle;
     }
   }
 
@@ -841,6 +882,13 @@ class _MainMenuScreenState extends State<MainMenuScreen> {
         if (newBg != _bgColor) {
           setState(() => _bgColor = newBg);
           widget.onBgColorChanged?.call(newBg);
+        }
+      }
+      if (result['bgStyle'] != null) {
+        final newStyle = result['bgStyle'] as String;
+        if (newStyle != _bgStyle) {
+          setState(() => _bgStyle = newStyle);
+          widget.onBgStyleChanged?.call(newStyle);
         }
       }
     }
@@ -906,6 +954,13 @@ class _MainMenuScreenState extends State<MainMenuScreen> {
             UpgradePlanScreen(locale: _locale, server: _server),
           ),
         ),
+        _MenuSubItem(
+          icon: Icons.merge_type,
+          label: _t('熔铸计算', 'Fusion Calculator'),
+          onTap: () => _navigateAndAwaitLocale(
+            FusionCalcScreen(locale: _locale, server: _server),
+          ),
+        ),
       ],
     ),
     _MenuGroup(
@@ -931,6 +986,8 @@ class _MainMenuScreenState extends State<MainMenuScreen> {
               onDarkModeChanged: widget.onDarkModeChanged,
               bgColor: _bgColor,
               onBgColorChanged: widget.onBgColorChanged,
+              bgStyle: _bgStyle,
+              onBgStyleChanged: widget.onBgStyleChanged,
             ),
           ),
         ),
@@ -1004,6 +1061,7 @@ class _MainMenuScreenState extends State<MainMenuScreen> {
               currentShowSnackBar: false,
               currentDarkMode: _darkMode,
               currentBgColor: _bgColor,
+              currentBgStyle: _bgStyle,
               currentGithubUpdateUrl:
                   'https://github.com/InspiraFinder/CatsKit/releases',
               currentMirrorUrl: '',
@@ -1040,21 +1098,23 @@ class _MainMenuScreenState extends State<MainMenuScreen> {
       body: Stack(
         children: <Widget>[
           // 周期性图案背景（纯色方块贴片，低透明度当水印）
-          Positioned.fill(
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                image: DecorationImage(
-                  image: const AssetImage(_gamePattern),
-                  repeat: ImageRepeat.repeat,
-                  opacity: isDark ? 0.10 : 0.07,
-                  colorFilter: ColorFilter.mode(
-                    isDark ? Colors.white : Colors.black,
-                    BlendMode.srcIn,
+          // 「背景样式」为纯色时直接不画，露出主题背景色
+          if (_bgStyle == 'pattern')
+            Positioned.fill(
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  image: DecorationImage(
+                    image: const AssetImage(_gamePattern),
+                    repeat: ImageRepeat.repeat,
+                    opacity: isDark ? 0.10 : 0.07,
+                    colorFilter: ColorFilter.mode(
+                      isDark ? Colors.white : Colors.black,
+                      BlendMode.srcIn,
+                    ),
                   ),
                 ),
               ),
             ),
-          ),
           Center(
             child: SingleChildScrollView(
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
@@ -3567,6 +3627,9 @@ class SettingsScreen extends StatefulWidget {
 
   /// 当前自定义背景色（ARGB），null = 默认
   final int? currentBgColor;
+
+  /// 背景样式：'pattern' 图案水印 / 'solid' 纯色
+  final String currentBgStyle;
   final String currentGithubUpdateUrl;
   final String currentMirrorUrl;
 
@@ -3577,6 +3640,7 @@ class SettingsScreen extends StatefulWidget {
     required this.currentShowSnackBar,
     this.currentDarkMode = false,
     this.currentBgColor,
+    this.currentBgStyle = 'pattern',
     required this.currentGithubUpdateUrl,
     required this.currentMirrorUrl,
   });
@@ -3591,6 +3655,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   late bool showSnackBar;
   late bool darkMode;
   int? bgColor; // 自定义背景色（ARGB），null = 默认
+  String bgStyle = 'pattern'; // 'pattern' 图案水印 / 'solid' 纯色
 
   /// 常用背景色预设（ARGB，不命名）
   static const List<int> bgPresets = [
@@ -3670,6 +3735,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     showSnackBar = widget.currentShowSnackBar;
     darkMode = widget.currentDarkMode;
     bgColor = widget.currentBgColor;
+    bgStyle = widget.currentBgStyle;
     updateUrlController = TextEditingController(
       text: widget.currentGithubUpdateUrl,
     );
@@ -4913,6 +4979,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             'showSnackBar': showSnackBar,
             'darkMode': darkMode,
             'bgColor': bgColor,
+            'bgStyle': bgStyle,
             'githubUpdateUrl': updateUrlController.text.trim(),
             'mirrorUrl': mirrorController.text.trim(),
           });
@@ -5025,6 +5092,41 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 });
               },
             ),
+            // 背景样式（图案 / 纯色）
+            const Divider(),
+            ListTile(
+              title: Text(locale == 'zh' ? '背景样式' : 'Background style'),
+              subtitle: Text(
+                bgStyle == 'solid'
+                    ? (locale == 'zh'
+                          ? '纯色：只显示背景颜色，不画图案水印'
+                          : 'Solid: plain colour, no pattern watermark')
+                    : (locale == 'zh'
+                          ? '图案：在背景色上叠一层低透明度贴片'
+                          : 'Pattern: a faint tiled watermark over the colour'),
+              ),
+              trailing: SegmentedButton<String>(
+                segments: <ButtonSegment<String>>[
+                  ButtonSegment<String>(
+                    value: 'pattern',
+                    label: Text(locale == 'zh' ? '图案' : 'Pattern'),
+                    icon: const Icon(Icons.grid_on, size: 16),
+                  ),
+                  ButtonSegment<String>(
+                    value: 'solid',
+                    label: Text(locale == 'zh' ? '纯色' : 'Solid'),
+                    icon: const Icon(Icons.square, size: 16),
+                  ),
+                ],
+                selected: <String>{bgStyle},
+                showSelectedIcon: false,
+                style: const ButtonStyle(
+                  visualDensity: VisualDensity.compact,
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+                onSelectionChanged: (s) => setState(() => bgStyle = s.first),
+              ),
+            ),
             // 自定义背景颜色
             _buildBgColorSection(),
             const Divider(),
@@ -5038,6 +5140,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     'showSnackBar': showSnackBar,
                     'darkMode': darkMode,
                     'bgColor': bgColor,
+                    'bgStyle': bgStyle,
                     'githubUpdateUrl': updateUrlController.text.trim(),
                     'mirrorUrl': mirrorController.text.trim(),
                   });

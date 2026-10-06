@@ -594,258 +594,259 @@ const List<List<String>> _champSupplyRowsEn = <List<String>>[
 ];
 
 /// 锦标赛战车：25 档武器的三种数值组合（每格 = 耗电 / 基础 ATK / 随从 HP）
-/// 组合 1 = 耗电、ATK 与随从 HP 最低，组合 3 = 三者最高
+/// 组合 1 = 耗电与基础 ATK 最低、随从 HP 最高；组合 3 = 耗电与基础 ATK 最高、随从 HP 最低
+/// （随从 HP 与耗电反向：耗电越高，随从 HP 越低）
 const List<List<String>> _champWeaponRowsZh = <List<String>>[
   <String>['1', '木质 1 星', '4 / 20 / 23', '5 / 25 / 23', '6 / 30 / 23'],
-  <String>['2', '木质 2 星', '5 / 30 / 23', '6 / 40 / 30', '7 / 50 / 38'],
-  <String>['3', '木质 3 星', '6 / 50 / 38', '7 / 60 / 45', '8 / 70 / 53'],
-  <String>['4', '木质 4 星', '7 / 70 / 53', '8 / 80 / 60', '9 / 90 / 68'],
-  <String>['5', '木质 5 星', '8 / 90 / 68', '9 / 105 / 79', '10 / 120 / 90'],
-  <String>['6', '金属 1 星', '4 / 120 / 90', '5 / 155 / 117', '6 / 190 / 143'],
-  <String>['7', '金属 2 星', '5 / 190 / 143', '6 / 230 / 173', '7 / 270 / 203'],
-  <String>['8', '金属 3 星', '6 / 270 / 203', '7 / 320 / 240', '8 / 370 / 278'],
-  <String>['9', '金属 4 星', '7 / 370 / 278', '8 / 430 / 323', '9 / 480 / 360'],
-  <String>['10', '金属 5 星', '8 / 480 / 360', '9 / 545 / 409', '10 / 610 / 458'],
-  <String>['11', '军用 1 星', '4 / 610 / 458', '5 / 765 / 574', '6 / 920 / 690'],
-  <String>['12', '军用 2 星', '5 / 920 / 690', '6 / 1105 / 829', '7 / 1290 / 968'],
+  <String>['2', '木质 2 星', '5 / 30 / 38', '6 / 40 / 30', '7 / 50 / 23'],
+  <String>['3', '木质 3 星', '6 / 50 / 53', '7 / 60 / 45', '8 / 70 / 38'],
+  <String>['4', '木质 4 星', '7 / 70 / 68', '8 / 80 / 60', '9 / 90 / 53'],
+  <String>['5', '木质 5 星', '8 / 90 / 90', '9 / 105 / 79', '10 / 120 / 68'],
+  <String>['6', '金属 1 星', '4 / 120 / 143', '5 / 155 / 117', '6 / 190 / 90'],
+  <String>['7', '金属 2 星', '5 / 190 / 203', '6 / 230 / 173', '7 / 270 / 143'],
+  <String>['8', '金属 3 星', '6 / 270 / 278', '7 / 320 / 240', '8 / 370 / 203'],
+  <String>['9', '金属 4 星', '7 / 370 / 360', '8 / 430 / 323', '9 / 480 / 278'],
+  <String>['10', '金属 5 星', '8 / 480 / 458', '9 / 545 / 409', '10 / 610 / 360'],
+  <String>['11', '军用 1 星', '4 / 610 / 690', '5 / 765 / 574', '6 / 920 / 458'],
+  <String>['12', '军用 2 星', '5 / 920 / 968', '6 / 1105 / 829', '7 / 1290 / 690'],
   <String>[
     '13',
     '军用 3 星',
-    '6 / 1290 / 968',
+    '6 / 1290 / 1290',
     '7 / 1505 / 1129',
-    '8 / 1720 / 1290',
+    '8 / 1720 / 968',
   ],
   <String>[
     '14',
     '军用 4 星',
-    '7 / 1720 / 1290',
+    '7 / 1720 / 1665',
     '8 / 1970 / 1478',
-    '9 / 2220 / 1665',
+    '9 / 2220 / 1290',
   ],
   <String>[
     '15',
     '军用 5 星',
-    '8 / 2220 / 1665',
+    '8 / 2220 / 2085',
     '9 / 2500 / 1875',
-    '10 / 2780 / 2085',
+    '10 / 2780 / 1665',
   ],
   <String>[
     '16',
     '黄金 1 星',
-    '4 / 2780 / 2085',
+    '4 / 2780 / 3128',
     '5 / 3475 / 2607',
-    '6 / 4170 / 3128',
+    '6 / 4170 / 2085',
   ],
   <String>[
     '17',
     '黄金 2 星',
-    '5 / 4170 / 3128',
+    '5 / 4170 / 4380',
     '6 / 5005 / 3754',
-    '7 / 5840 / 4380',
+    '7 / 5840 / 3128',
   ],
   <String>[
     '18',
     '黄金 3 星',
-    '6 / 5840 / 4380',
+    '6 / 5840 / 5843',
     '7 / 6815 / 5112',
-    '8 / 7790 / 5843',
+    '8 / 7790 / 4380',
   ],
   <String>[
     '19',
     '黄金 4 星',
-    '7 / 7790 / 5843',
+    '7 / 7790 / 7515',
     '8 / 8905 / 6679',
-    '9 / 10020 / 7515',
+    '9 / 10020 / 5843',
   ],
   <String>[
     '20',
     '黄金 5 星',
-    '8 / 10020 / 7515',
+    '8 / 10020 / 9398',
     '9 / 11280 / 8460',
-    '10 / 12530 / 9398',
+    '10 / 12530 / 7515',
   ],
   <String>[
     '21',
     '碳钢 1 星',
-    '4 / 12530 / 9398',
+    '4 / 12530 / 14108',
     '5 / 15670 / 11753',
-    '6 / 18810 / 14108',
+    '6 / 18810 / 9398',
   ],
   <String>[
     '22',
     '碳钢 2 星',
-    '5 / 18810 / 14108',
+    '5 / 18810 / 19763',
     '6 / 22580 / 16935',
-    '7 / 26350 / 19763',
+    '7 / 26350 / 14108',
   ],
   <String>[
     '23',
     '碳钢 3 星',
-    '6 / 26350 / 19763',
+    '6 / 26350 / 26363',
     '7 / 30750 / 23063',
-    '8 / 35150 / 26363',
+    '8 / 35150 / 19763',
   ],
   <String>[
     '24',
     '碳钢 4 星',
-    '7 / 35150 / 26363',
+    '7 / 35150 / 33900',
     '8 / 40170 / 30128',
-    '9 / 45200 / 33900',
+    '9 / 45200 / 26363',
   ],
   <String>[
     '25',
     '碳钢 5 星',
-    '8 / 45200 / 33900',
+    '8 / 45200 / 42390',
     '9 / 50860 / 38145',
-    '10 / 56520 / 42390',
+    '10 / 56520 / 33900',
   ],
 ];
 
 const List<List<String>> _champWeaponRowsEn = <List<String>>[
   <String>['1', 'Wood 1 star', '4 / 20 / 23', '5 / 25 / 23', '6 / 30 / 23'],
-  <String>['2', 'Wood 2 stars', '5 / 30 / 23', '6 / 40 / 30', '7 / 50 / 38'],
-  <String>['3', 'Wood 3 stars', '6 / 50 / 38', '7 / 60 / 45', '8 / 70 / 53'],
-  <String>['4', 'Wood 4 stars', '7 / 70 / 53', '8 / 80 / 60', '9 / 90 / 68'],
-  <String>['5', 'Wood 5 stars', '8 / 90 / 68', '9 / 105 / 79', '10 / 120 / 90'],
+  <String>['2', 'Wood 2 stars', '5 / 30 / 38', '6 / 40 / 30', '7 / 50 / 23'],
+  <String>['3', 'Wood 3 stars', '6 / 50 / 53', '7 / 60 / 45', '8 / 70 / 38'],
+  <String>['4', 'Wood 4 stars', '7 / 70 / 68', '8 / 80 / 60', '9 / 90 / 53'],
+  <String>['5', 'Wood 5 stars', '8 / 90 / 90', '9 / 105 / 79', '10 / 120 / 68'],
   <String>[
     '6',
     'Metal 1 star',
-    '4 / 120 / 90',
+    '4 / 120 / 143',
     '5 / 155 / 117',
-    '6 / 190 / 143',
+    '6 / 190 / 90',
   ],
   <String>[
     '7',
     'Metal 2 stars',
-    '5 / 190 / 143',
+    '5 / 190 / 203',
     '6 / 230 / 173',
-    '7 / 270 / 203',
+    '7 / 270 / 143',
   ],
   <String>[
     '8',
     'Metal 3 stars',
-    '6 / 270 / 203',
+    '6 / 270 / 278',
     '7 / 320 / 240',
-    '8 / 370 / 278',
+    '8 / 370 / 203',
   ],
   <String>[
     '9',
     'Metal 4 stars',
-    '7 / 370 / 278',
+    '7 / 370 / 360',
     '8 / 430 / 323',
-    '9 / 480 / 360',
+    '9 / 480 / 278',
   ],
   <String>[
     '10',
     'Metal 5 stars',
-    '8 / 480 / 360',
+    '8 / 480 / 458',
     '9 / 545 / 409',
-    '10 / 610 / 458',
+    '10 / 610 / 360',
   ],
   <String>[
     '11',
     'Military 1 star',
-    '4 / 610 / 458',
+    '4 / 610 / 690',
     '5 / 765 / 574',
-    '6 / 920 / 690',
+    '6 / 920 / 458',
   ],
   <String>[
     '12',
     'Military 2 stars',
-    '5 / 920 / 690',
+    '5 / 920 / 968',
     '6 / 1105 / 829',
-    '7 / 1290 / 968',
+    '7 / 1290 / 690',
   ],
   <String>[
     '13',
     'Military 3 stars',
-    '6 / 1290 / 968',
+    '6 / 1290 / 1290',
     '7 / 1505 / 1129',
-    '8 / 1720 / 1290',
+    '8 / 1720 / 968',
   ],
   <String>[
     '14',
     'Military 4 stars',
-    '7 / 1720 / 1290',
+    '7 / 1720 / 1665',
     '8 / 1970 / 1478',
-    '9 / 2220 / 1665',
+    '9 / 2220 / 1290',
   ],
   <String>[
     '15',
     'Military 5 stars',
-    '8 / 2220 / 1665',
+    '8 / 2220 / 2085',
     '9 / 2500 / 1875',
-    '10 / 2780 / 2085',
+    '10 / 2780 / 1665',
   ],
   <String>[
     '16',
     'Gold 1 star',
-    '4 / 2780 / 2085',
+    '4 / 2780 / 3128',
     '5 / 3475 / 2607',
-    '6 / 4170 / 3128',
+    '6 / 4170 / 2085',
   ],
   <String>[
     '17',
     'Gold 2 stars',
-    '5 / 4170 / 3128',
+    '5 / 4170 / 4380',
     '6 / 5005 / 3754',
-    '7 / 5840 / 4380',
+    '7 / 5840 / 3128',
   ],
   <String>[
     '18',
     'Gold 3 stars',
-    '6 / 5840 / 4380',
+    '6 / 5840 / 5843',
     '7 / 6815 / 5112',
-    '8 / 7790 / 5843',
+    '8 / 7790 / 4380',
   ],
   <String>[
     '19',
     'Gold 4 stars',
-    '7 / 7790 / 5843',
+    '7 / 7790 / 7515',
     '8 / 8905 / 6679',
-    '9 / 10020 / 7515',
+    '9 / 10020 / 5843',
   ],
   <String>[
     '20',
     'Gold 5 stars',
-    '8 / 10020 / 7515',
+    '8 / 10020 / 9398',
     '9 / 11280 / 8460',
-    '10 / 12530 / 9398',
+    '10 / 12530 / 7515',
   ],
   <String>[
     '21',
     'Carbon 1 star',
-    '4 / 12530 / 9398',
+    '4 / 12530 / 14108',
     '5 / 15670 / 11753',
-    '6 / 18810 / 14108',
+    '6 / 18810 / 9398',
   ],
   <String>[
     '22',
     'Carbon 2 stars',
-    '5 / 18810 / 14108',
+    '5 / 18810 / 19763',
     '6 / 22580 / 16935',
-    '7 / 26350 / 19763',
+    '7 / 26350 / 14108',
   ],
   <String>[
     '23',
     'Carbon 3 stars',
-    '6 / 26350 / 19763',
+    '6 / 26350 / 26363',
     '7 / 30750 / 23063',
-    '8 / 35150 / 26363',
+    '8 / 35150 / 19763',
   ],
   <String>[
     '24',
     'Carbon 4 stars',
-    '7 / 35150 / 26363',
+    '7 / 35150 / 33900',
     '8 / 40170 / 30128',
-    '9 / 45200 / 33900',
+    '9 / 45200 / 26363',
   ],
   <String>[
     '25',
     'Carbon 5 stars',
-    '8 / 45200 / 33900',
+    '8 / 45200 / 42390',
     '9 / 50860 / 38145',
-    '10 / 56520 / 42390',
+    '10 / 56520 / 33900',
   ],
 ];
 
@@ -875,8 +876,8 @@ const List<List<String>> _champExpRowsZh = <List<String>>[
   <String>['22', '23', '252'],
   <String>['23', '24', '275'],
   <String>['24', '25', '299'],
-  <String>['25', '26', '324'],
-  <String>['26', '—', '350'],
+  <String>['25', '10', '324'],
+  <String>['26', '—', '334'],
 ];
 
 const List<List<String>> _champExpRowsEn = <List<String>>[
@@ -904,69 +905,69 @@ const List<List<String>> _champExpRowsEn = <List<String>>[
   <String>['22', '23', '252'],
   <String>['23', '24', '275'],
   <String>['24', '25', '299'],
-  <String>['25', '26', '324'],
-  <String>['26', '—', '350'],
+  <String>['25', '10', '324'],
+  <String>['26', '—', '334'],
 ];
 
-/// 锦标赛战车：25 档车轮 HP（3 种数值）与治疗量
+/// 锦标赛战车：25 档 1 级部件的价值 / 融合花费 / 出售价（专业交易商、商人均满级）
+const List<List<String>> _champValueRowsZh = <List<String>>[
+  <String>['1', '木质 1 星', '469', '328', '213'],
+  <String>['2', '木质 2 星', '750', '525', '341'],
+  <String>['3', '木质 3 星', '1125', '788', '512'],
+  <String>['4', '木质 4 星', '1688', '1182', '768'],
+  <String>['5', '木质 5 星', '2438', '1707', '1110'],
+  <String>['6', '金属 1 星', '3375', '2363', '1536'],
+  <String>['7', '金属 2 星', '4500', '3150', '2048'],
+  <String>['8', '金属 3 星', '5813', '4069', '2645'],
+  <String>['9', '金属 4 星', '7313', '5119', '3327'],
+  <String>['10', '金属 5 星', '9000', '6300', '4095'],
+  <String>['11', '军用 1 星', '10875', '7612', '4948'],
+  <String>['12', '军用 2 星', '12938', '9057', '5887'],
+  <String>['13', '军用 3 星', '15188', '10632', '6911'],
+  <String>['14', '军用 4 星', '17625', '12338', '8020'],
+  <String>['15', '军用 5 星', '20250', '14175', '9214'],
+  <String>['16', '黄金 1 星', '23063', '16144', '10494'],
+  <String>['17', '黄金 2 星', '26063', '18244', '11859'],
+  <String>['18', '黄金 3 星', '29250', '20475', '13309'],
+  <String>['19', '黄金 4 星', '32625', '22838', '14845'],
+  <String>['20', '黄金 5 星', '36188', '25332', '16466'],
+  <String>['21', '碳钢 1 星', '39938', '27957', '18172'],
+  <String>['22', '碳钢 2 星', '43875', '30712', '19963'],
+  <String>['23', '碳钢 3 星', '48000', '33600', '21840'],
+  <String>['24', '碳钢 4 星', '52313', '36619', '23802'],
+  <String>['25', '碳钢 5 星', '56813', '39769', '25850'],
+];
+
+const List<List<String>> _champValueRowsEn = <List<String>>[
+  <String>['1', 'Wood 1 star', '469', '328', '213'],
+  <String>['2', 'Wood 2 stars', '750', '525', '341'],
+  <String>['3', 'Wood 3 stars', '1125', '788', '512'],
+  <String>['4', 'Wood 4 stars', '1688', '1182', '768'],
+  <String>['5', 'Wood 5 stars', '2438', '1707', '1110'],
+  <String>['6', 'Metal 1 star', '3375', '2363', '1536'],
+  <String>['7', 'Metal 2 stars', '4500', '3150', '2048'],
+  <String>['8', 'Metal 3 stars', '5813', '4069', '2645'],
+  <String>['9', 'Metal 4 stars', '7313', '5119', '3327'],
+  <String>['10', 'Metal 5 stars', '9000', '6300', '4095'],
+  <String>['11', 'Military 1 star', '10875', '7612', '4948'],
+  <String>['12', 'Military 2 stars', '12938', '9057', '5887'],
+  <String>['13', 'Military 3 stars', '15188', '10632', '6911'],
+  <String>['14', 'Military 4 stars', '17625', '12338', '8020'],
+  <String>['15', 'Military 5 stars', '20250', '14175', '9214'],
+  <String>['16', 'Gold 1 star', '23063', '16144', '10494'],
+  <String>['17', 'Gold 2 stars', '26063', '18244', '11859'],
+  <String>['18', 'Gold 3 stars', '29250', '20475', '13309'],
+  <String>['19', 'Gold 4 stars', '32625', '22838', '14845'],
+  <String>['20', 'Gold 5 stars', '36188', '25332', '16466'],
+  <String>['21', 'Carbon 1 star', '39938', '27957', '18172'],
+  <String>['22', 'Carbon 2 stars', '43875', '30712', '19963'],
+  <String>['23', 'Carbon 3 stars', '48000', '33600', '21840'],
+  <String>['24', 'Carbon 4 stars', '52313', '36619', '23802'],
+  <String>['25', 'Carbon 5 stars', '56813', '39769', '25850'],
+];
+
+/// 锦标赛战车：25 档车轮 HP（3 种数值）
 const List<List<String>> _champWheelRowsZh = <List<String>>[
-  <String>['1', '木质 1 星', '10 / 13 / 15', '19'],
-  <String>['2', '木质 2 星', '15 / 20 / 25', '30'],
-  <String>['3', '木质 3 星', '25 / 30 / 35', '45'],
-  <String>['4', '木质 4 星', '35 / 40 / 45', '60'],
-  <String>['5', '木质 5 星', '45 / 53 / 60', '79'],
-  <String>['6', '金属 1 星', '60 / 78 / 95', '116'],
-  <String>['7', '金属 2 星', '95 / 115 / 135', '173'],
-  <String>['8', '金属 3 星', '135 / 160 / 185', '240'],
-  <String>['9', '金属 4 星', '185 / 215 / 240', '323'],
-  <String>['10', '金属 5 星', '240 / 273 / 305', '409'],
-  <String>['11', '军用 1 星', '305 / 383 / 460', '574'],
-  <String>['12', '军用 2 星', '460 / 553 / 645', '829'],
-  <String>['13', '军用 3 星', '645 / 753 / 860', '1129'],
-  <String>['14', '军用 4 星', '860 / 985 / 1110', '1478'],
-  <String>['15', '军用 5 星', '1110 / 1250 / 1390', '1875'],
-  <String>['16', '黄金 1 星', '1390 / 1738 / 2085', '2606'],
-  <String>['17', '黄金 2 星', '2085 / 2503 / 2920', '3754'],
-  <String>['18', '黄金 3 星', '2920 / 3408 / 3895', '5111'],
-  <String>['19', '黄金 4 星', '3895 / 4453 / 5010', '6679'],
-  <String>['20', '黄金 5 星', '5010 / 5640 / 6265', '8460'],
-  <String>['21', '碳钢 1 星', '6265 / 7835 / 9405', '11753'],
-  <String>['22', '碳钢 2 星', '9405 / 11290 / 13175', '16935'],
-  <String>['23', '碳钢 3 星', '13175 / 15375 / 17575', '23063'],
-  <String>['24', '碳钢 4 星', '17575 / 20085 / 22600', '30128'],
-  <String>['25', '碳钢 5 星', '22600 / 25430 / 28260', '38145'],
-];
-
-const List<List<String>> _champWheelRowsEn = <List<String>>[
-  <String>['1', 'Wood 1 star', '10 / 13 / 15', '19'],
-  <String>['2', 'Wood 2 stars', '15 / 20 / 25', '30'],
-  <String>['3', 'Wood 3 stars', '25 / 30 / 35', '45'],
-  <String>['4', 'Wood 4 stars', '35 / 40 / 45', '60'],
-  <String>['5', 'Wood 5 stars', '45 / 53 / 60', '79'],
-  <String>['6', 'Metal 1 star', '60 / 78 / 95', '116'],
-  <String>['7', 'Metal 2 stars', '95 / 115 / 135', '173'],
-  <String>['8', 'Metal 3 stars', '135 / 160 / 185', '240'],
-  <String>['9', 'Metal 4 stars', '185 / 215 / 240', '323'],
-  <String>['10', 'Metal 5 stars', '240 / 273 / 305', '409'],
-  <String>['11', 'Military 1 star', '305 / 383 / 460', '574'],
-  <String>['12', 'Military 2 stars', '460 / 553 / 645', '829'],
-  <String>['13', 'Military 3 stars', '645 / 753 / 860', '1129'],
-  <String>['14', 'Military 4 stars', '860 / 985 / 1110', '1478'],
-  <String>['15', 'Military 5 stars', '1110 / 1250 / 1390', '1875'],
-  <String>['16', 'Gold 1 star', '1390 / 1738 / 2085', '2606'],
-  <String>['17', 'Gold 2 stars', '2085 / 2503 / 2920', '3754'],
-  <String>['18', 'Gold 3 stars', '2920 / 3408 / 3895', '5111'],
-  <String>['19', 'Gold 4 stars', '3895 / 4453 / 5010', '6679'],
-  <String>['20', 'Gold 5 stars', '5010 / 5640 / 6265', '8460'],
-  <String>['21', 'Carbon 1 star', '6265 / 7835 / 9405', '11753'],
-  <String>['22', 'Carbon 2 stars', '9405 / 11290 / 13175', '16935'],
-  <String>['23', 'Carbon 3 stars', '13175 / 15375 / 17575', '23063'],
-  <String>['24', 'Carbon 4 stars', '17575 / 20085 / 22600', '30128'],
-  <String>['25', 'Carbon 5 stars', '22600 / 25430 / 28260', '38145'],
-];
-
-/// 锦标赛战车：配件 HP 用的基础值（= 同段同档的「基础车轮 HP」，只取车轮表的前 3 列）
-const List<List<String>> _champWheelBaseRowsZh = <List<String>>[
   <String>['1', '木质 1 星', '10 / 13 / 15'],
   <String>['2', '木质 2 星', '15 / 20 / 25'],
   <String>['3', '木质 3 星', '25 / 30 / 35'],
@@ -994,8 +995,7 @@ const List<List<String>> _champWheelBaseRowsZh = <List<String>>[
   <String>['25', '碳钢 5 星', '22600 / 25430 / 28260'],
 ];
 
-/// Championship: the base value used by gadget HP (= base wheel HP of the same tier)
-const List<List<String>> _champWheelBaseRowsEn = <List<String>>[
+const List<List<String>> _champWheelRowsEn = <List<String>>[
   <String>['1', 'Wood 1 star', '10 / 13 / 15'],
   <String>['2', 'Wood 2 stars', '15 / 20 / 25'],
   <String>['3', 'Wood 3 stars', '25 / 30 / 35'],
@@ -1021,6 +1021,121 @@ const List<List<String>> _champWheelBaseRowsEn = <List<String>>[
   <String>['23', 'Carbon 3 stars', '13175 / 15375 / 17575'],
   <String>['24', 'Carbon 4 stars', '17575 / 20085 / 22600'],
   <String>['25', 'Carbon 5 stars', '22600 / 25430 / 28260'],
+];
+
+/// 锦标赛战车：配件用的基础值（= 同段同档的「基础配件 HP」3 种数值 + 该档基础治疗量）
+const List<List<String>> _champWheelBaseRowsZh = <List<String>>[
+  <String>['1', '木质 1 星', '10 / 13 / 15', '19'],
+  <String>['2', '木质 2 星', '15 / 20 / 25', '30'],
+  <String>['3', '木质 3 星', '25 / 30 / 35', '45'],
+  <String>['4', '木质 4 星', '35 / 40 / 45', '60'],
+  <String>['5', '木质 5 星', '45 / 53 / 60', '79'],
+  <String>['6', '金属 1 星', '60 / 78 / 95', '116'],
+  <String>['7', '金属 2 星', '95 / 115 / 135', '173'],
+  <String>['8', '金属 3 星', '135 / 160 / 185', '240'],
+  <String>['9', '金属 4 星', '185 / 215 / 240', '323'],
+  <String>['10', '金属 5 星', '240 / 273 / 305', '409'],
+  <String>['11', '军用 1 星', '305 / 383 / 460', '574'],
+  <String>['12', '军用 2 星', '460 / 553 / 645', '829'],
+  <String>['13', '军用 3 星', '645 / 753 / 860', '1129'],
+  <String>['14', '军用 4 星', '860 / 985 / 1110', '1478'],
+  <String>['15', '军用 5 星', '1110 / 1250 / 1390', '1875'],
+  <String>['16', '黄金 1 星', '1390 / 1738 / 2085', '2606'],
+  <String>['17', '黄金 2 星', '2085 / 2503 / 2920', '3754'],
+  <String>['18', '黄金 3 星', '2920 / 3408 / 3895', '5111'],
+  <String>['19', '黄金 4 星', '3895 / 4453 / 5010', '6679'],
+  <String>['20', '黄金 5 星', '5010 / 5640 / 6265', '8460'],
+  <String>['21', '碳钢 1 星', '6265 / 7835 / 9405', '11753'],
+  <String>['22', '碳钢 2 星', '9405 / 11290 / 13175', '16935'],
+  <String>['23', '碳钢 3 星', '13175 / 15375 / 17575', '23063'],
+  <String>['24', '碳钢 4 星', '17575 / 20085 / 22600', '30128'],
+  <String>['25', '碳钢 5 星', '22600 / 25430 / 28260', '38145'],
+];
+
+/// Championship: the base value used by gadget HP (= base gadget HP of the same tier)
+const List<List<String>> _champWheelBaseRowsEn = <List<String>>[
+  <String>['1', 'Wood 1 star', '10 / 13 / 15', '19'],
+  <String>['2', 'Wood 2 stars', '15 / 20 / 25', '30'],
+  <String>['3', 'Wood 3 stars', '25 / 30 / 35', '45'],
+  <String>['4', 'Wood 4 stars', '35 / 40 / 45', '60'],
+  <String>['5', 'Wood 5 stars', '45 / 53 / 60', '79'],
+  <String>['6', 'Metal 1 star', '60 / 78 / 95', '116'],
+  <String>['7', 'Metal 2 stars', '95 / 115 / 135', '173'],
+  <String>['8', 'Metal 3 stars', '135 / 160 / 185', '240'],
+  <String>['9', 'Metal 4 stars', '185 / 215 / 240', '323'],
+  <String>['10', 'Metal 5 stars', '240 / 273 / 305', '409'],
+  <String>['11', 'Military 1 star', '305 / 383 / 460', '574'],
+  <String>['12', 'Military 2 stars', '460 / 553 / 645', '829'],
+  <String>['13', 'Military 3 stars', '645 / 753 / 860', '1129'],
+  <String>['14', 'Military 4 stars', '860 / 985 / 1110', '1478'],
+  <String>['15', 'Military 5 stars', '1110 / 1250 / 1390', '1875'],
+  <String>['16', 'Gold 1 star', '1390 / 1738 / 2085', '2606'],
+  <String>['17', 'Gold 2 stars', '2085 / 2503 / 2920', '3754'],
+  <String>['18', 'Gold 3 stars', '2920 / 3408 / 3895', '5111'],
+  <String>['19', 'Gold 4 stars', '3895 / 4453 / 5010', '6679'],
+  <String>['20', 'Gold 5 stars', '5010 / 5640 / 6265', '8460'],
+  <String>['21', 'Carbon 1 star', '6265 / 7835 / 9405', '11753'],
+  <String>['22', 'Carbon 2 stars', '9405 / 11290 / 13175', '16935'],
+  <String>['23', 'Carbon 3 stars', '13175 / 15375 / 17575', '23063'],
+  <String>['24', 'Carbon 4 stars', '17575 / 20085 / 22600', '30128'],
+  <String>['25', 'Carbon 5 stars', '22600 / 25430 / 28260', '38145'],
+];
+
+/// 锦标赛战车：25 档工具箱（基础花费 / 售价 = 基础花费 × 8 / 生命值与攻击力加成）
+const List<List<String>> _champToolboxRowsZh = <List<String>>[
+  <String>['1', '木质 1 星', '100', '800', '8', '4'],
+  <String>['2', '木质 2 星', '150', '1200', '12', '6'],
+  <String>['3', '木质 3 星', '225', '1800', '20', '10'],
+  <String>['4', '木质 4 星', '325', '2600', '28', '14'],
+  <String>['5', '木质 5 星', '450', '3600', '36', '18'],
+  <String>['6', '金属 1 星', '600', '4800', '48', '24'],
+  <String>['7', '金属 2 星', '775', '6200', '76', '38'],
+  <String>['8', '金属 3 星', '975', '7800', '108', '54'],
+  <String>['9', '金属 4 星', '1200', '9600', '148', '74'],
+  <String>['10', '金属 5 星', '1450', '11600', '192', '96'],
+  <String>['11', '军用 1 星', '1725', '13800', '244', '122'],
+  <String>['12', '军用 2 星', '2025', '16200', '368', '184'],
+  <String>['13', '军用 3 星', '2350', '18800', '516', '258'],
+  <String>['14', '军用 4 星', '2700', '21600', '688', '344'],
+  <String>['15', '军用 5 星', '3075', '24600', '888', '444'],
+  <String>['16', '黄金 1 星', '3475', '27800', '1112', '556'],
+  <String>['17', '黄金 2 星', '3900', '31200', '1668', '834'],
+  <String>['18', '黄金 3 星', '4350', '34800', '2336', '1168'],
+  <String>['19', '黄金 4 星', '4825', '38600', '3116', '1558'],
+  <String>['20', '黄金 5 星', '5325', '42600', '4008', '2004'],
+  <String>['21', '碳钢 1 星', '5850', '46800', '5012', '2506'],
+  <String>['22', '碳钢 2 星', '6400', '51200', '7524', '3762'],
+  <String>['23', '碳钢 3 星', '6975', '55800', '10540', '5270'],
+  <String>['24', '碳钢 4 星', '7575', '60600', '14060', '7030'],
+  <String>['25', '碳钢 5 星', '8137', '65096', '18080', '9040'],
+];
+
+const List<List<String>> _champToolboxRowsEn = <List<String>>[
+  <String>['1', 'Wood 1 star', '100', '800', '8', '4'],
+  <String>['2', 'Wood 2 stars', '150', '1200', '12', '6'],
+  <String>['3', 'Wood 3 stars', '225', '1800', '20', '10'],
+  <String>['4', 'Wood 4 stars', '325', '2600', '28', '14'],
+  <String>['5', 'Wood 5 stars', '450', '3600', '36', '18'],
+  <String>['6', 'Metal 1 star', '600', '4800', '48', '24'],
+  <String>['7', 'Metal 2 stars', '775', '6200', '76', '38'],
+  <String>['8', 'Metal 3 stars', '975', '7800', '108', '54'],
+  <String>['9', 'Metal 4 stars', '1200', '9600', '148', '74'],
+  <String>['10', 'Metal 5 stars', '1450', '11600', '192', '96'],
+  <String>['11', 'Military 1 star', '1725', '13800', '244', '122'],
+  <String>['12', 'Military 2 stars', '2025', '16200', '368', '184'],
+  <String>['13', 'Military 3 stars', '2350', '18800', '516', '258'],
+  <String>['14', 'Military 4 stars', '2700', '21600', '688', '344'],
+  <String>['15', 'Military 5 stars', '3075', '24600', '888', '444'],
+  <String>['16', 'Gold 1 star', '3475', '27800', '1112', '556'],
+  <String>['17', 'Gold 2 stars', '3900', '31200', '1668', '834'],
+  <String>['18', 'Gold 3 stars', '4350', '34800', '2336', '1168'],
+  <String>['19', 'Gold 4 stars', '4825', '38600', '3116', '1558'],
+  <String>['20', 'Gold 5 stars', '5325', '42600', '4008', '2004'],
+  <String>['21', 'Carbon 1 star', '5850', '46800', '5012', '2506'],
+  <String>['22', 'Carbon 2 stars', '6400', '51200', '7524', '3762'],
+  <String>['23', 'Carbon 3 stars', '6975', '55800', '10540', '5270'],
+  <String>['24', 'Carbon 4 stars', '7575', '60600', '14060', '7030'],
+  <String>['25', 'Carbon 5 stars', '8137', '65096', '18080', '9040'],
 ];
 
 /// 全部章节 —— **内容都加在这里**
@@ -2026,11 +2141,12 @@ const List<GuideChapter> kGuideChapters = <GuideChapter>[
     titleZh: '锦标赛战车',
     titleEn: 'Championship Car',
     summaryZh:
-        '锦标赛战车：25 档与等级上限、每级加成，以及车身 / 武器 / 车轮 / 配件四条同形的计算式'
-        '（基础值 × 技能 × 倍数 + 等级项）',
+        '锦标赛战车：25 档与等级上限、每级加成，车身 / 武器 / 车轮 / 配件四条同形的计算式'
+        '（基础值 × 技能 × 倍数 + 等级项），以及升级与融合的经验、花费与售价',
     summaryEn:
-        'The Championship car: the 25 tiers and level caps, the per-level bonuses, and four formulas of the same '
-        'shape for body / weapon / wheel / gadget (base value x skill x multiplier + the level term)',
+        'The Championship car: the 25 tiers and level caps, the per-level bonuses, four formulas of the same '
+        'shape for body / weapon / wheel / gadget (base value x skill x multiplier + the level term), plus the XP, '
+        'cost and sale price of upgrading and fusing',
     icon: Icons.directions_car,
     color: Colors.teal,
     keywords: <String>[
@@ -2060,6 +2176,7 @@ const List<GuideChapter> kGuideChapters = <GuideChapter>[
       '治疗量系数',
       '基础 ATK',
       '基础车轮 HP',
+      '基础配件 HP',
       '碰车',
       '撞车',
       '系数',
@@ -2091,6 +2208,21 @@ const List<GuideChapter> kGuideChapters = <GuideChapter>[
       '融合',
       '回收',
       '经验',
+      '融合花费',
+      '出售',
+      '出售价',
+      '价值',
+      '部件价值',
+      '金币',
+      '阶梯',
+      '专业交易商',
+      '专业机械师',
+      '商人',
+      '固有价值',
+      '综合价值',
+      '经验价值',
+      '金币价值',
+      '融合获得经验',
       '魔法部件',
       '传奇部件',
       '技能',
@@ -2235,17 +2367,35 @@ const List<GuideChapter> kGuideChapters = <GuideChapter>[
             <String>['车身 HP', '× 0.6', '6', '30', '150', '750', '3000'],
             <String>['武器 ATK', '× 0.4', '4', '20', '100', '500', '2000'],
             <String>['车轮 HP', '× 1', '2', '10', '50', '250', '1000'],
+            <String>['车轮碾压 ATK', '× 0.4', '2', '10', '50', '250', '1000'],
             <String>['配件 HP', '× 1', '2', '10', '50', '250', '1000'],
             <String>['治疗量', '× 2', '3', '15', '75', '375', '1500'],
-            <String>['随从（无人机）', '无数据', '—', '—', '—', '—', '—'],
+            <String>['随从（无人机）', '× 1', '38', '165', '833', '3960', '16898'],
           ],
           rowsEn: <List<String>>[
             <String>['Body HP', 'x 0.6', '6', '30', '150', '750', '3000'],
             <String>['Weapon ATK', 'x 0.4', '4', '20', '100', '500', '2000'],
             <String>['Wheel HP', 'x 1', '2', '10', '50', '250', '1000'],
+            <String>[
+              'Wheel crushing ATK',
+              'x 0.4',
+              '2',
+              '10',
+              '50',
+              '250',
+              '1000',
+            ],
             <String>['Gadget HP', 'x 1', '2', '10', '50', '250', '1000'],
             <String>['Heal amount', 'x 2', '3', '15', '75', '375', '1500'],
-            <String>['Minion (drone)', 'no data', '—', '—', '—', '—', '—'],
+            <String>[
+              'Minion (drone)',
+              'x 1',
+              '38',
+              '165',
+              '833',
+              '3960',
+              '16898',
+            ],
           ],
         ),
       ),
@@ -2268,24 +2418,31 @@ const List<GuideChapter> kGuideChapters = <GuideChapter>[
             <String>['车身 HP', '3.6', '18', '90', '450', '1800'],
             <String>['武器 ATK', '1.6', '8', '40', '200', '800'],
             <String>['车轮 HP', '2', '10', '50', '250', '1000'],
+            <String>['车轮碾压 ATK', '0.8', '4', '20', '100', '400'],
             <String>['配件 HP', '2', '10', '50', '250', '1000'],
             <String>['治疗量', '6', '30', '150', '750', '3000'],
+            <String>['随从（无人机）', '38', '165', '833', '3960', '16898'],
           ],
           rowsEn: <List<String>>[
             <String>['Body HP', '3.6', '18', '90', '450', '1800'],
             <String>['Weapon ATK', '1.6', '8', '40', '200', '800'],
             <String>['Wheel HP', '2', '10', '50', '250', '1000'],
+            <String>['Wheel crushing ATK', '0.8', '4', '20', '100', '400'],
             <String>['Gadget HP', '2', '10', '50', '250', '1000'],
             <String>['Heal amount', '6', '30', '150', '750', '3000'],
+            <String>['Minion (drone)', '38', '165', '833', '3960', '16898'],
           ],
         ),
       ),
       GuideBlock.tip(
         '车身 ×0.6（金属 30 → 每级 **+18 HP**）、武器 ×0.4（金属 20 → 每级 **+8 ATK**）、'
-            '治疗量 ×2（金属 15 → 每级 **+30**）、车轮与配件 ×1（金属 10 → 每级 **+10 HP**）。'
-            '随从（无人机）暂时没有数据。',
-        'Bodies x0.6 (metal 30 -> **+18 HP** per level), weapons x0.4 (metal 20 -> **+8 ATK**), heal x2 (metal 15 -> '
-            '**+30**), wheels and gadgets x1 (metal 10 -> **+10 HP**). Minions (drones) have no data yet.',
+            '车轮 HP ×1、车轮碾压 ATK ×0.4（军用 → 每级 **+50 HP / +20 ATK**）、'
+            '治疗量 ×2（金属 15 → 每级 **+30**）、配件 HP ×1（金属 10 → 每级 **+10 HP**）。'
+            '随从（无人机）也是 ×1（军用 833 → 每级 **+833 HP**），而且随从 HP **不吃任何加成**。',
+        'Bodies x0.6 (metal 30 -> **+18 HP** per level), weapons x0.4 (metal 20 -> **+8 ATK**), wheel HP x1 and wheel '
+            'crushing ATK x0.4 (military -> **+50 HP / +20 ATK** per level), heal x2 (metal 15 -> **+30**), gadget HP x1 '
+            '(metal 10 -> **+10 HP**). Minions (drones) are x1 too (military 833 -> **+833 HP** per level), and a '
+            'minion\'s HP **gets no bonus at all**.',
       ),
       // ---------- 4. 车身：基础值与 HP 计算 ----------
       GuideBlock.heading(
@@ -2477,10 +2634,12 @@ const List<GuideChapter> kGuideChapters = <GuideChapter>[
       ),
       GuideBlock.tip(
         '表中技能数值均为满级（电力技能 +3、HP 技能 +30%）；未学习时按 0 计算。解锁条件见第 9 节。'
-            'HP/ATK 倍数由「基础 HP × 0.6 × 倍数 ＝ 1 级显示 HP」反推（特殊车身那个等式里不带 HP 技能）。',
+            'HP/ATK 倍数由「基础 HP × 0.6 × 倍数 ＝ 1 级显示 HP」反推（特殊车身那个等式里不带 HP 技能）。'
+            '第 8 节里的融合花费与出售价也都按技能满级算。',
         'Both skill columns are maxed values (power +3, HP +30%); treat them as 0 when not learned. See section 9 '
-            'for the unlock requirements. The HP/ATK multiplier was derived from "base HP x 0.6 x multiplier = displayed HP '
-            'at level 1" (for special bodies that equation has no HP skill in it).',
+            'for the unlock requirements. The HP/ATK multiplier was derived from "base HP x 0.6 x multiplier = '
+            'displayed HP at level 1" (for special bodies that equation has no HP skill in it). The fusion cost and '
+            'sale price in section 8 also assume the skills are maxed.',
       ),
       GuideBlock.text(
         '**供电与基础 HP**：同一档位的车身有 **3 种数值组合**，游戏只会把其中**任意一种**分给具体车身'
@@ -2607,14 +2766,14 @@ const List<GuideChapter> kGuideChapters = <GuideChapter>[
       GuideBlock.text(
         '武器分 **7 个类别**：**圆锯 / 电锯 / 电钻 / 激光 / 火箭 / 双管火箭 / 长钉**，'
             '攻击方式分**近战 / 远程**（各有独立技能线）。同一档位有 3 种数值组合，'
-            '表中每格为「**耗电 / 基础 ATK / 随从 HP**」（随从 HP 按 小 / 中 / 大 三档排列）；'
-            '**一件武器的耗电决定它用哪一列**（耗电越高、ATK 与随从 HP 越高）。'
+            '表中每格为「**耗电 / 基础 ATK / 随从 HP**」；'
+            '**一件武器的耗电决定它用哪一列**（耗电越高、基础 ATK 越高，但**随从 HP 反而越低**）。'
             '耗电只由**星级**决定（同一星级的所有材质相同）。',
         'Weapons come in **7 categories** — saws / chainsaws / drills / lasers / rockets / double rockets / '
             'stingers — and attack either **melee** or **ranged** (each has its own skill line). Every tier has 3 '
-            'combinations, written "**drain / base ATK / minion HP**" (the minion HP values run small / medium / '
-            'large); **a weapon\'s drain decides which column it uses** (the higher the drain, the higher the ATK and '
-            'minion HP). The drain depends on the **star** only (all materials of the same star share it).',
+            'combinations, written "**drain / base ATK / minion HP**"; **a weapon\'s drain decides which column it '
+            'uses** (the higher the drain, the higher the base ATK — but the **lower the minion HP**). The drain '
+            'depends on the **star** only (all materials of the same star share it).',
       ),
       GuideBlock.text(
         '武器也有一张「**HP/ATK 倍数表**」：每件武器自带一个固定的 HP/ATK 倍数（与段位、材质、星级、列都无关）；'
@@ -2662,6 +2821,8 @@ const List<GuideChapter> kGuideChapters = <GuideChapter>[
             <String>['急射小机枪', '1.0000', '—', '—', '—', '无'],
             <String>['土豆大炮', '1.0000', '—', '—', '—', '无'],
             <String>['旋转电锯', '1.2000', '—', '—', '—', '无'],
+            <String>['直升无人机', '0.6400', '—', '—', '—', '无'],
+            <String>['直升无人机（随从）', '1.0000', '—', '—', '—', '无'],
           ],
           rowsEn: <List<String>>[
             <String>['Saw', '0.3300', '0.3630', '0.3960', '0.4290', '+ 30%'],
@@ -2702,6 +2863,8 @@ const List<GuideChapter> kGuideChapters = <GuideChapter>[
             <String>['Rapid gun', '1.0000', '—', '—', '—', 'none'],
             <String>['Potato cannon', '1.0000', '—', '—', '—', 'none'],
             <String>['Tilted chainsaw', '1.2000', '—', '—', '—', 'none'],
+            <String>['Copter Drone', '0.6400', '—', '—', '—', 'none'],
+            <String>['Copter Drone (minion)', '1.0000', '—', '—', '—', 'none'],
           ],
         ),
       ),
@@ -2729,6 +2892,14 @@ const List<GuideChapter> kGuideChapters = <GuideChapter>[
           'HP/ATK 倍数的来源未知 —— 配置里没有这张表（与车身的 HP/ATK 倍数一样，写在游戏代码里），只能逐件实测',
           'Where the HP/ATK multiplier comes from is unknown — the config has no such table (like the body\'s one, it '
               'lives in the game code), so it has to be measured per weapon',
+        ),
+        GuideBullet(
+          '**随从武器（无人机）**：分两行 —— 武器本体（直升无人机）**0.6400**，'
+              '它的**随从（无人机）是 1.0000**，也就是随从 HP 直接取表值、**不乘任何倍数、不吃任何加成**'
+              '（12 段电力 7 → 表值 690，显示 690）',
+          '**Minion weapons (drones)** take two rows: the weapon itself (Copter Drone) = **0.6400**, and its '
+              '**minion = 1.0000**, i.e. the minion HP is taken straight from the table — **no multiplier, no bonus '
+              'at all** (tier 12 / drain 7 -> table 690, shown 690)',
         ),
       ]),
       GuideBlock.table(
@@ -2827,16 +2998,19 @@ const List<GuideChapter> kGuideChapters = <GuideChapter>[
           ],
         ),
       ),
-      // ---------- 6. 车轮：HP 与计算 ----------
-      GuideBlock.heading('车轮：HP 与计算', 'Wheels: HP and the HP formula'),
+      // ---------- 6. 车轮：HP、碾压 ATK 与计算 ----------
+      GuideBlock.heading(
+        '车轮：HP、碾压 ATK 与计算',
+        'Wheels: HP, crushing ATK and the formulas',
+      ),
       GuideBlock.text(
-        '车轮提供 HP，治疗类配件提供治疗量。车轮的档位就是它的**尺寸档**（**小 / 中 / 大**）；'
+        '车轮提供 HP（治疗类配件的治疗量见第 7 节）。车轮的档位就是它的**尺寸档**（**小 / 中 / 大**）；'
             '**原档为「小」的轮子可以读到「小 / 中 / 大」，原档为「中」的可以读到「中 / 大」，'
             '原档为「大」的只有「大」**，所以判断时看实例的读数、不看名字。',
-        'Wheels give HP, and healing gadgets give a heal amount. A wheel\'s tier is simply its **size class** '
-            '(**small / medium / large**); **a wheel whose own class is "small" can read small / medium / large, one '
-            'whose own class is "medium" reads medium / large, and a "large" one reads large only** — judge by the '
-            'reading, not by the name.',
+        'Wheels give HP (the heal amount of healing gadgets is in section 7). A wheel\'s tier is simply its **size '
+            'class** (**small / medium / large**); **a wheel whose own class is "small" can read small / medium / '
+            'large, one whose own class is "medium" reads medium / large, and a "large" one reads large only** — '
+            'judge by the reading, not by the name.',
       ),
       GuideBlock.table(
         GuideTable(
@@ -2891,17 +3065,16 @@ const List<GuideChapter> kGuideChapters = <GuideChapter>[
             'x1.00 ("none").',
       ),
       GuideBlock.text(
-        '**基础值表**（基础车轮 HP 的 3 个数值 ＝ 小 / 中 / 大；基础治疗量在最后一列）：',
-        '**Base values** (the 3 base wheel HP values = small / medium / large; base heal is the last column):',
+        '**基础值表**（基础车轮 HP 的 3 个数值 ＝ 小 / 中 / 大）：',
+        '**Base values** (the 3 base wheel HP values = small / medium / large):',
       ),
       GuideBlock.table(
         GuideTable(
-          headZh: <String>['档位', '部件材质 / 星级', '基础车轮 HP（3 种数值）', '基础治疗量'],
+          headZh: <String>['档位', '部件材质 / 星级', '基础车轮 HP（3 种数值）'],
           headEn: <String>[
             'Tier',
             'Material / star',
             'Base wheel HP (3 values)',
-            'Base heal',
           ],
           rowsZh: _champWheelRowsZh,
           rowsEn: _champWheelRowsEn,
@@ -2956,30 +3129,37 @@ const List<GuideChapter> kGuideChapters = <GuideChapter>[
         '与车身不同，车轮**不乘 0.6**：1 级读数就等于基础车轮 HP ×（1 ＋ 技能）。',
         'Unlike bodies, wheels **are not multiplied by 0.6**: the level-1 reading is just base wheel HP x (1 + skill).',
       ),
+      GuideBlock.text(
+        '**车轮的碾压 ATK**（轮子撞人时造成的伤害）用**同一档、同一尺寸列**的基础值算，系数固定 0.4，'
+            '与 HP 的算式同形：',
+        '**A wheel\'s crushing ATK** (the damage it deals when ramming) uses the base value of the **same tier and the '
+            'same size column**, with a fixed 0.4 factor — the same shape as the HP formula:',
+      ),
+      GuideBlock.text(
+        '**车轮碾压 ATK ＝ 向上取整（基础车轮 HP × 0.4）＋ 最终每级加成 ×（等级 － 1）**'
+            '（第一项也等于同一格的「基础武器伤害」÷ 5；列同样是小 / 中 / 大）',
+        '**Wheel crushing ATK = round-up( base wheel HP x 0.4 ) + final per-level bonus x (level - 1)** '
+            '(the first term also equals the "base weapon damage" of the same cell / 5; the column is small / medium / '
+            'large as well)',
+      ),
+      GuideBlock.tip(
+        '例：金 3 档（段 18，基础车轮 HP 2920 / 3408 / 3895）1 级碾压 ATK = **1169 / 1364 / 1559**（实测）；'
+            '每级加成见第 3 节「车轮碾压 ATK」一行（木质 0.8 / 金属 4 / 军用 **20** / 黄金 100 / 碳钢 400）——'
+            '也就是 11–15 段每升 1 级 **ATK +20**（同段车轮 HP 每级 **+50**）。'
+            '碾压 ATK 与 HP 一样有「撞车规律」（段 18 小 = 段 17 大 = 1169），且**不吃车轮类别 HP 技能**；'
+            '与武器一样有「恰好整数时 +1」的现象（0.4 的 float32 表示略大于 0.4）。',
+        'Example: tier 18 (base wheel HP 2920 / 3408 / 3895) reads crushing ATK **1169 / 1364 / 1559** at level 1 '
+            '(measured); its per-level bonus is the new "wheel crushing ATK" row of section 3 (wood 0.8 / metal 4 / '
+            'military **20** / gold 100 / carbon 400) — i.e. **+20 ATK** per level in tiers 11-15 (with **+50 HP** for '
+            'the wheel itself). The crushing ATK follows the same collision rule as HP (tier 18 small = tier 17 large = '
+            '1169), **ignores the wheel family HP skill**, and shows the "exactly integral -> +1" effect like weapons.',
+      ),
       GuideBlock.tip(
         '车轮的**中档值是每个档位唯一的**（不会与相邻档撞车），拿来对照最安全；'
-            '小档与大档则容易撞车（小档 ＝ 上一档的大档）。车轮也有碾压 ATK，但那张表还没定位。',
+            '小档与大档则容易撞车（小档 ＝ 上一档的大档）；碾压 ATK 也有同样的撞车规律。',
         'The **medium value is unique within its tier** (it never collides with a neighbouring tier), so it is the '
             'safest one to compare with; the small and large values do collide (small of one tier = large of the '
-            'previous one). Wheels also have crushing ATK, but that table has not been located yet.',
-      ),
-      GuideBlock.text(
-        '**治疗量**（治疗类配件）的算式与车轮同形，只是多一个 ×2 的系数：',
-        '**Heal amount** (healing gadgets) uses the same shape as the wheel, with an extra x2 factor:',
-      ),
-      GuideBlock.text(
-        '**治疗量 ＝ 向上取整（基础治疗量 × 2 ×（1 ＋ 配件技能加成））'
-            '＋ 最终每级加成 ×（等级 － 1）**',
-        '**Heal amount = round-up( base heal x 2 x (1 + gadget skill) ) '
-            '+ final per-level bonus x (level - 1)**',
-      ),
-      GuideBlock.tip(
-        '表中「基础治疗量」≈ 1.5 × 基础车轮 HP 的中档（逐档有 ±1 的取整差）；'
-            '第 3 节「最终每级加成」表「治疗量」一行 ＝ 木质 6 / 金属 30 / 军用 150 / 黄金 750 / 碳钢 3000'
-            '（＝ 原始值 3 / 15 / 75 / 375 / 1500 × 2）。',
-        'The "base heal" column ≈ 1.5 x the medium base wheel HP (with a ±1 rounding difference per tier); the "heal '
-            'amount" row of the final per-level bonus table in section 3 = wood 6 / metal 30 / military 150 / gold 750 / '
-            'carbon 3000 (= the raw 3 / 15 / 75 / 375 / 1500 times 2).',
+            'previous one), and the crushing ATK follows the same collision rule.',
       ),
       // ---------- 7. 配件：数值档、耗电与 HP 计算 ----------
       GuideBlock.heading(
@@ -3160,14 +3340,14 @@ const List<GuideChapter> kGuideChapters = <GuideChapter>[
             '还有**组合 2**（低组耗电 ＋ 高组 HP），其余配件只有组合 1，组合 2 的两列填「—」。'
             '**「HP 技能」一列**标明该配件能不能点到 +45%，**「技能」与「解锁条件」两列**给出对应的类别技能与解锁段位：'
             '只有叉车（调整铲斗 · 段位 6）· 反弹器（调整反弹器 · 段位 18）· 推进器（调整推进器 · 段位 0）· '
-            '反推器（调整反推器 · 段位 21）这 4 种有这条技能线，其余 8 种没有（读数就是基础车轮 HP）。',
+            '反推器（调整反推器 · 段位 21）这 4 种有这条技能线，其余 8 种没有（读数就是基础配件 HP）。',
         '**Combo 1 is the standard form**; only the 4 gadgets with a **high drain plus a low base HP** (first-aid kit '
             '/ deep freeze / lift / forklift) also come as **combo 2** (low drain plus high base HP); the other 8 only '
             'exist as combo 1, with "—" in the two combo 2 columns. The **"HP skill" column** marks whether the '
             'gadget can reach +45%, and the **"Skill" / "Unlocks at" columns** give the matching category skill and '
             'stage: only the forklift (Tweaked Forklifts, stage 6), bouncer (Tweaked Repulses, stage 18), thruster '
             '(Tweaked Boosters, stage 0) and repulser (Tweaked Backpedals, stage 21) have such a skill line — the '
-            'other 8 gadgets have none (their reading is just the base wheel HP).',
+            'other 8 gadgets have none (their reading is just the base gadget HP).',
       ),
       GuideBlock.table(
         GuideTable(
@@ -3184,17 +3364,20 @@ const List<GuideChapter> kGuideChapters = <GuideChapter>[
         ),
       ),
       GuideBlock.text(
-        '**基础值表**：配件 HP 用的就是**同段同档的基础车轮 HP**（下表 ＝ 第 6 节「基础车轮 HP」那一列）：',
-        '**Base values**: gadget HP uses the **base wheel HP of the same tier** (the table below is the "base wheel '
-            'HP" column of section 6):',
+        '**基础值表**：配件 HP 用的就是**同段同档的基础配件 HP**（下表第一列 ＝ 第 6 节车轮表的「基础车轮 HP」那一列，配件与同档车轮同值）；'
+            '治疗类配件的**治疗量**也在同一张表里（最后一列）：',
+        '**Base values**: gadget HP uses the **base gadget HP of the same tier** (the first column below is the "base '
+            'wheel HP" column of the section-6 wheel table — a gadget has the same value as that tier\'s wheel); the '
+            '**heal amount** of healing gadgets is in the same table (last column):',
       ),
       GuideBlock.table(
         GuideTable(
-          headZh: <String>['档位', '部件材质 / 星级', '基础车轮 HP（3 种数值）'],
+          headZh: <String>['档位', '部件材质 / 星级', '基础配件 HP（3 种数值）', '基础治疗量'],
           headEn: <String>[
             'Tier',
             'Material / star',
-            'Base wheel HP (3 values)',
+            'Base gadget HP (3 values)',
+            'Base heal',
           ],
           rowsZh: _champWheelBaseRowsZh,
           rowsEn: _champWheelBaseRowsEn,
@@ -3203,12 +3386,12 @@ const List<GuideChapter> kGuideChapters = <GuideChapter>[
       GuideBlock.text(
         '**配件 HP 的算式**（与车轮同形，只是技能换成「配件 HP 加成」）：',
         '**The gadget HP formula** (same shape as the wheel, with the "gadget HP bonus" skill instead; the base value '
-            'is the **base wheel HP** of the same tier):',
+            'is the **base gadget HP** of the same tier):',
       ),
       GuideBlock.text(
-        '**配件 HP ＝ 向上取整（基础车轮 HP ×（1 ＋ 配件 HP 加成））'
+        '**配件 HP ＝ 向上取整（基础配件 HP ×（1 ＋ 配件 HP 加成））'
             '＋ 最终每级加成 ×（等级 － 1）**',
-        '**Gadget HP = round-up( base wheel HP x (1 + gadget HP bonus) ) '
+        '**Gadget HP = round-up( base gadget HP x (1 + gadget HP bonus) ) '
             '+ final per-level bonus x (level - 1)**',
       ),
       GuideBlock.table(
@@ -3217,8 +3400,8 @@ const List<GuideChapter> kGuideChapters = <GuideChapter>[
           headEn: <String>['Term', 'Value'],
           rowsZh: <List<String>>[
             <String>[
-              '基础车轮 HP',
-              '第 6 节表「基础车轮 HP」一列（配件与该档车轮同值）；3 个数值 ＝ 低组 / 中组 / 高组',
+              '基础配件 HP',
+              '上表「基础配件 HP」一列（＝ 同段同档车轮的数值）；3 个数值 ＝ 低组 / 中组 / 高组',
             ],
             <String>[
               '配件 HP 加成',
@@ -3233,8 +3416,8 @@ const List<GuideChapter> kGuideChapters = <GuideChapter>[
           ],
           rowsEn: <List<String>>[
             <String>[
-              'Base wheel HP',
-              'The "base wheel HP" column of section 6 (a gadget has the same value as that tier\'s wheel); 3 values = small / medium / large',
+              'Base gadget HP',
+              'The "base gadget HP" column above (= the value of that tier\'s wheel); 3 values = low / mid / high group',
             ],
             <String>[
               'Gadget HP bonus',
@@ -3262,9 +3445,9 @@ const List<GuideChapter> kGuideChapters = <GuideChapter>[
               '1.45 = 3024)',
         ),
         GuideBullet(
-          '治疗类配件的**治疗量**见第 6 节的表（≈ 1.5 × 车轮中档，逐档有 ±1 的取整差）',
-          'The heal amount of healing gadgets is in the table of section 6 (≈ 1.5 x the medium wheel value, with a '
-              '±1 rounding difference per tier)',
+          '治疗类配件（急救套件 / 升降机）的**治疗量**也用同一张基础值表（最后一列），公式见下方',
+          'The **heal amount** of healing gadgets (autoheal / lift) uses that same base value table (last column); see '
+              'its formula below',
         ),
         GuideBullet(
           '**配件 HP 与同段同档的车轮 HP 逐值相等**，配件种类只决定它落在哪一档',
@@ -3272,8 +3455,110 @@ const List<GuideChapter> kGuideChapters = <GuideChapter>[
               'class it falls into',
         ),
       ]),
-      // ---------- 8. 升级与融合 ----------
-      GuideBlock.heading('升级与融合', 'Upgrading and fusion'),
+      GuideBlock.text(
+        '**治疗量（治疗类配件）的算式**用**该配件所在组**的基础配件 HP（不是表里那列参考值）：',
+        '**The heal-amount formula** (healing gadgets) uses the **base gadget HP of that gadget\'s own group** (not the '
+            'reference column of the table):',
+      ),
+      GuideBlock.text(
+        '**治疗量 ＝ 向上取整（3 × 基础配件 HP（该组）×（1 ＋ 配件技能加成））'
+            '＋ 最终每级加成 ×（等级 － 1）**',
+        '**Heal amount = round-up( 3 x base gadget HP (that group) x (1 + gadget skill) ) '
+            '+ final per-level bonus x (level - 1)**',
+      ),
+      GuideBlock.tip(
+        '实测：铁 2 星急救套件（低组，基础配件 HP **95**）→ 1 级 **285**（＝ 3 × 95）、3 级 **345**（每级 **+30** ＝ 2 × 15）。'
+            '表里「基础治疗量」那列是配置里的**中组**参考值（≈ 1.5 × 中组车轮 HP，逐档 ±1），直接 ×2 会偏大'
+            '（段 7 会得 346，实测是 285）；「最终每级加成」见第 3 节「治疗量」一行 ＝ 木 6 / 金 30 / 军 150 / 黄 750 / 碳 3000。'
+            '只有**急救套件与升降机**是治疗类配件。',
+        'Measured: metal 2-star autoheal (low group, base gadget HP **95**) -> level 1 **285** (= 3 x 95), level 3 '
+            '**345** (**+30** per level = 2 x 15). The "base heal" column of the table is the config\'s **medium-group** '
+            'reference (≈ 1.5 x medium wheel HP, ±1 per tier) and doubling it overshoots (tier 7 would give 346, while '
+            'the reading is 285). The per-level bonus is the "heal amount" row of section 3 = wood 6 / metal 30 / '
+            'military 150 / gold 750 / carbon 3000. Only the **autoheal and the lift** are healing gadgets.',
+      ),
+      // ---------- 8. 工具箱 ----------
+      GuideBlock.heading('工具箱：加成与数值', 'Toolboxes: bonuses and values'),
+      GuideBlock.text(
+        '**工具箱不是融合材料，而是「融进部件」的加成道具**：游戏内明确提示「工具箱不能融合任何部件」，'
+            '方向刚好相反——把工具箱拖到部件上，它的加成会**永久加到那个部件上**，而且可以叠多个。'
+            '工具箱同样有 **25 档**（与部件共用「材料 + 星级」那套档位）。',
+        '**A toolbox is not fusion material but a booster that is fused *into* a part**: the game says "you can\'t '
+            'fuse anything onto toolboxes" — it works the other way round. Drag a toolbox onto a part and its bonus '
+            'is **permanently added to that part**, and several of them can stack. Toolboxes also come in the same '
+            '**25 tiers** (material + star) as parts.',
+      ),
+      GuideBlock.table(
+        GuideTable(
+          headZh: <String>['工具箱', '只能融合到', '提供的属性'],
+          headEn: <String>[
+            'Toolbox',
+            'Can only be fused into',
+            'Stat it grants',
+          ],
+          rowsZh: <List<String>>[
+            <String>['生命值工具箱', '车身 / 车轮 / 配件', '生命值（绝对值）'],
+            <String>['攻击力工具箱', '武器', '攻击力（绝对值）'],
+            <String>['电力工具箱', '车身', '电力 +1'],
+            <String>['魔法工具箱', '任何车身', '魔法加成 +10%（有上限）'],
+            <String>['终极工具箱', '终极部件', '生命值 / 攻击 / 强酸伤害 / 干扰 / 额外武器栏位（限时，可堆叠）'],
+          ],
+          rowsEn: <List<String>>[
+            <String>[
+              'Health toolbox',
+              'body / wheel / gadget',
+              'health (flat)',
+            ],
+            <String>['Attack toolbox', 'weapon', 'attack (flat)'],
+            <String>['Power toolbox', 'body', 'power +1'],
+            <String>['Magic toolbox', 'any body', 'magic bonus +10% (capped)'],
+            <String>[
+              'Ultimate toolbox',
+              'ultimate parts',
+              'health / attack / acid damage / jamming / an extra weapon slot (timed, stackable)',
+            ],
+          ],
+        ),
+      ),
+      GuideBlock.text(
+        '**加成 ＝ 向下取整（表中数值 ×（1 ＋ 加强工具箱技能））**。技能「加强工具箱」有生命值 / 攻击力 / 电力三条：'
+            '前两条各 +15% / +30% / +45%（段位 6 / 段位 9 解锁，各 1 / 2 / 3 点），电力那条是威名 4 解锁、'
+            '花 4 点换 **+1 电力**。',
+        '**Bonus = round-down( table value x (1 + the Better Toolboxes skill) )**. That skill comes in health / attack '
+            '/ power versions: the first two give +15% / +30% / +45% (unlocked at stage 6 / stage 9, costing 1 / 2 / 3 '
+            'points) and the power one is unlocked at prestige 4, costing 4 points for **+1 power**.',
+      ),
+      GuideBlock.table(
+        GuideTable(
+          headZh: <String>[
+            '档位',
+            '部件材质 / 星级',
+            '融合基础花费',
+            '出售价',
+            '生命值工具箱 +HP',
+            '攻击力工具箱 +ATK',
+          ],
+          headEn: <String>[
+            'Tier',
+            'Material / star',
+            'Base fuse cost',
+            'Sell price',
+            'Health toolbox +HP',
+            'Attack toolbox +ATK',
+          ],
+          rowsZh: _champToolboxRowsZh,
+          rowsEn: _champToolboxRowsEn,
+        ),
+      ),
+      GuideBlock.tip(
+        '两条容易踩的规则：① 工具箱**不能用于下注**；② 魔法工具箱给 +10% 魔法加成且**有上限**，到顶后不能再融。'
+            '工具箱自身的**融合花费与回收**规则在下一节「融合」里。',
+        'Two rules worth remembering: (1) toolboxes **cannot be used for betting**; (2) the magic toolbox gives +10% '
+            'magic bonus and is **capped**, so you cannot keep fusing once it is maxed. The toolbox\'s own **fuse cost '
+            'and refund** rules are in the next section ("Fusion").',
+      ),
+      // ---------- 9. 升级与融合 ----------
+      GuideBlock.heading('融合：经验、花费与出售', 'Fusion: XP, cost and selling'),
       GuideBlock.text(
         '升级通过**融合**完成：把其他部件融合进目标部件以换取经验。**不要求材质相同**，'
             '但不同材质之间有一个固定的兑换比例，跨材质融合的收益差别很大。',
@@ -3281,69 +3566,199 @@ const List<GuideChapter> kGuideChapters = <GuideChapter>[
             '**The materials do not have to match**, but different materials have a fixed exchange rate, so the '
             'result varies a lot.',
       ),
-      GuideBlock.text(
-        '完整公式（适用于任意材质、任意星级、任意等级）：',
-        'The full formula (valid for any material, star and level):',
+      GuideBlock.tip(
+        '**融合经验不计工具箱**：工具箱既不给经验、也不出现在任何经验算式里；'
+            '带工具箱的部件**照样可以当材料融合**，但工具箱**不继承**——加成随部件一起消失，不返还、不转移。'
+            '（工具箱自己的花费与回收规则见本节末尾。）',
+        '**Fusion XP never counts toolboxes**: a toolbox gives no XP and appears in no XP formula. A part that carries '
+            'toolboxes **can still be used as material**, but the toolboxes are **not inherited** — their bonuses '
+            'vanish with the part, with no refund and no transfer. (The toolbox\'s own cost and refund rules are at '
+            'the end of this section.)',
       ),
       GuideBlock.text(
-        '**被融合部件已投入经验 ＝ Σ（历次融进该部件的部件所贡献的经验）**'
-            '（＝ 该部件从 1 级升到当前等级所消耗的经验，按等级与进度条换算）：',
-        '**XP already invested in the fused part = the sum of the XP contributed by every part ever fused into it** '
-            '(= the XP that part spent going from level 1 to its current level, read off its level and its progress '
-            'bar):',
+        '**融合的本质，就是把材料换算成一个价值加到目标身上。**部件身上可以区分出**三个价值**，'
+            '它们的两个输入都是**固有价值**与 **Σ 融合获得经验**：',
+        '**Fusion boils down to converting the material into a value and adding it to the target.** A part carries '
+            '**three values**, and all of them are built from the same two inputs, the **intrinsic value** and the '
+            '**XP already invested**:',
+      ),
+      GuideBlock.table(
+        GuideTable(
+          headZh: <String>['价值', '定义', '用在哪里'],
+          headEn: <String>['Value', 'Definition', 'Used for'],
+          rowsZh: <List<String>>[
+            <String>[
+              '**部件综合价值**',
+              '固有价值 ＋ Σ 融合获得经验',
+              '部件在经验阶梯上的坐标；**融合会直接把它抬高，抬上去就固定**；等级、进度与金币价值都看它',
+            ],
+            <String>[
+              '**部件经验价值**',
+              '固有价值 ＋ 0.7 × Σ 融合获得经验',
+              '它当材料被融合时贡献多少经验的基础值（历次经验只按 70% 计入）',
+            ],
+            <String>['**部件金币价值**', '把部件综合价值当坐标去查金币阶梯（本节后面讲）', '融合花费、出售价'],
+          ],
+          rowsEn: <List<String>>[
+            <String>[
+              '**Composite value**',
+              'intrinsic value + Σ XP gained',
+              'the part\'s coordinate on the XP ladder; **fusing raises it directly, and once raised it is fixed**; '
+                  'it drives the level, the progress bar and the coin value',
+            ],
+            <String>[
+              '**XP value**',
+              'intrinsic value + 0.7 x Σ XP gained',
+              'the base for the XP it contributes as a material (past XP only counts at 70%)',
+            ],
+            <String>[
+              '**Coin value**',
+              'the coin ladder read at the composite value (covered later in this section)',
+              'fusion cost, sale price',
+            ],
+          ],
+        ),
       ),
       GuideBlock.text(
-        '**融合获得经验（基础值）＝（1 ＋ 融合技能加成）× C（品质系数）×'
-            '（0.7 × 被融合部件已投入经验 ＋ 固有价值）× k（被融合部件材质）÷ k（目标部件材质）**',
-        '**XP gained (base value) = (1 + fusion skill) x C (quality factor) x '
-            '(0.7 x XP already invested + intrinsic value) x k(fused part material) ÷ k(target material)**',
+        '**固有价值表**（绝对经验点；按部件的**材料 × 星级**取值。'
+            '**1 星一行就是各材质的 k**，所以不用再单独乘 k）：',
+        '**Intrinsic value table** (absolute XP, by the part\'s **material x star**. The **1-star row is itself the k '
+            'of each material**, so there is no separate k to multiply):',
+      ),
+      GuideBlock.table(
+        GuideTable(
+          headZh: <String>['星级', '木质', '金属', '军用', '黄金', '碳钢'],
+          headEn: <String>[
+            'Star',
+            'Wood',
+            'Metal',
+            'Military',
+            'Gold',
+            'Carbon',
+          ],
+          rowsZh: <List<String>>[
+            <String>['1 星', '1', '13', '144', '1597', '17711'],
+            <String>['2 星', '2', '21', '233', '2584', '28657'],
+            <String>['3 星', '3', '34', '377', '4181', '46368'],
+            <String>['4 星', '5', '55', '610', '6765', '75025'],
+            <String>['5 星', '8', '89', '987', '10946', '121393'],
+          ],
+          rowsEn: <List<String>>[
+            <String>['1 star', '1', '13', '144', '1597', '17711'],
+            <String>['2 stars', '2', '21', '233', '2584', '28657'],
+            <String>['3 stars', '3', '34', '377', '4181', '46368'],
+            <String>['4 stars', '5', '55', '610', '6765', '75025'],
+            <String>['5 stars', '8', '89', '987', '10946', '121393'],
+          ],
+        ),
       ),
       GuideBlock.text(
-        '算出的**基础值**可直接与下面「累计到本级」表比较（那张表就是基础经验）。',
-        'The resulting **base value** compares directly with the "cumulative" table below (that table is in base XP).',
+        '**三个公式其实是一套。**记 **Σ 融合获得经验** 为「历次喂进这个部件的经验之和」'
+            '（也就是它的**已投入经验**），那么：',
+        '**The three formulas are really one set.** Write **Σ XP gained** for "the XP that every part ever fused '
+            'into it contributed" (that is, its **XP already invested**); then:',
+      ),
+      GuideBlock.text(
+        '**部件综合价值 ＝ 固有价值 ＋ Σ 融合获得经验**　　（等级、进度与金币价值看它）',
+        '**Composite value = intrinsic value + Σ XP gained**　　(drives the level, the progress bar and the coin '
+            'value)',
+      ),
+      GuideBlock.text(
+        '**部件经验价值 ＝ 固有价值 ＋ 0.7 × Σ 融合获得经验**　　（它当材料时贡献多少经验看它）',
+        '**XP value = intrinsic value + 0.7 x Σ XP gained**　　(drives how much XP it contributes as a material)',
+      ),
+      GuideBlock.text(
+        '**融合获得经验 ＝ 向上取整（（1 ＋ 本次融合时的融合经验技能加成）× C（品质系数）×'
+            '被融合部件的部件经验价值）**',
+        '**XP gained = round-up( (1 + the fusion-XP skill bonus at the moment of fusing) x C (quality factor) x '
+            'XP value of the fused part )**',
+      ),
+      GuideBlock.text(
+        '**每融合一次，就是两个价值各加一截**（Δ ＝ 本次融合获得经验）：'
+            '**综合价值 ← 综合价值 ＋ Δ**、**经验价值 ← 经验价值 ＋ 0.7 Δ**。加进去就固定，之后改技能档位也不回算。'
+            '两个价值互为线性关系：**经验价值 ＝ 0.7 × 综合价值 ＋ 0.3 × 固有价值**；'
+            '**已投入经验 ＝ 综合价值 － 固有价值**。',
+        '**Every fusion adds one step to both values** (Δ = the XP gained this time): '
+            '**composite ← composite + Δ** and **XP value ← XP value + 0.7 Δ**. Once added it is fixed — changing the '
+            'skill later never re-runs it. The two are linearly related: **XP value = 0.7 x composite value + 0.3 x '
+            'intrinsic value**, and **XP already invested = composite value - intrinsic value**.',
+      ),
+      GuideBlock.text(
+        '**技能加成按「本次融合当时」的档位取**（专业机械师 1 / 2 / 3 级 ＝ ＋10% / ＋20% / ＋30%），'
+            '加出来的经验**立刻并入目标的部件综合价值并固定**。之后再把技能升满，'
+            '**已经吃进去的经验不会回算**；同一个部件在不同时期喂给同一个目标，拿到的经验也不一样。'
+            '所以要用「先抬高、再固定」的**部件综合价值**来记录，而不是拿当前技能去重算历史。',
+        '**The bonus is whatever the fusion-XP skill is at the moment of fusing** (Pro Mechanic level 1 / 2 / 3 = '
+            '+10% / +20% / +30%), and the XP it produces is **folded into the target\'s composite value right away and '
+            'then stays fixed**. Levelling the skill up later does **not** re-run the past, and the same material fed '
+            'at different times yields different amounts. That is why the **composite value** — raised first, then '
+            'read — is the thing to track, instead of recomputing history with the current skill.',
+      ),
+      GuideBlock.text(
+        '这几个数都按**绝对经验点**计算：**Σ 融合获得经验**从被融合部件的等级与进度条反推，'
+            '**固有价值**按被融合部件的**材料 × 星级**查表。算出的经验**直接加进目标的部件综合价值**'
+            '（也就是目标身上那个经验计数），因而同时抬高它的等级/进度与金币价值。',
+        'All these figures are in **absolute XP**: **XP already invested** is read off the fused part\'s level and '
+            'progress bar, and the **intrinsic value** comes from the table indexed by the fused part\'s '
+            '**material x star**. The result is **added straight into the target\'s composite value** — the XP counter '
+            'it carries — which raises its level/progress and its coin value at the same time.',
+      ),
+      GuideBlock.text(
+        '换句话说：**一次融合能拿到多少经验，只由被融合的那个部件（材质、星级、已投入经验、品质）'
+            '和「本次融合当时」的技能档位决定**，与目标是哪个部件、什么材质、什么星级完全无关。',
+        'In other words, **how much XP a fusion gives depends only on the part being fused** (its material, star, '
+            'invested XP and quality) **and on the skill level at that moment** — never on what the target is, its '
+            'material or its star.',
       ),
       GuideBlock.table(
         GuideTable(
           headZh: <String>['公式中的项', '取值'],
           headEn: <String>['Term', 'Value'],
           rowsZh: <List<String>>[
+            <String>['部件经验价值', '＝ 固有价值 ＋ 0.7 × Σ 融合获得经验（见上面的式子）'],
+            <String>['固有价值', '按被融合部件的**材料 × 星级**查上表（**已含材质差异，不需要再乘 k**）'],
             <String>[
-              '被融合部件已投入经验',
-              'Σ 历次融进该部件的部件所贡献的经验（＝ 它升级时已消耗的经验）；按等级与进度条换算，'
-                  '取「累计到本级」表的**基础数字**，**不要**再乘 k',
+              'Σ 融合获得经验',
+              '就是被融合部件的**已投入经验**＝ 它的部件综合价值 － 固有价值；'
+                  '按等级与进度条反推（见下面），是**绝对经验点**',
             ],
-            <String>['0.7', '固定回收比例'],
-            <String>['固有价值', '只看星级：1 星 1、2 星 1.6、3 星 2.6、4 星 4.2、5 星 6.8'],
+            <String>['0.7', '固定回收比例：历次经验只按 70% 计入**部件经验价值**'],
             <String>[
               'C（品质系数）',
               '普通部件 1、魔法部件 2、传奇部件 4（同星级同材质的普通件正好差 2 倍 / 4 倍）',
             ],
-            <String>['融合技能加成', '满级 0.3（威名 5 解锁）；未学习 0'],
-            <String>['k（材质）', '木质 1、金属 13、军用 144、黄金 1597、碳钢 17711'],
+            <String>[
+              '融合经验技能（专业机械师）',
+              '按**本次融合当时**的档位取：1 / 2 / 3 级 ＝ ＋10% / ＋20% / ＋30%（威名 5 解锁）；未学习 0',
+            ],
           ],
           rowsEn: <List<String>>[
             <String>[
-              'XP already invested',
-              'The XP contributed by every part ever fused into it (= the XP it spent leveling up); read it off the '
-                  'level and the progress bar using the **base** number of the "cumulative" table — do not multiply '
-                  'it by k',
+              'XP value',
+              '= intrinsic value + 0.7 x Σ XP gained (see the expression above)',
             ],
-            <String>['0.7', 'A fixed recovery ratio'],
             <String>[
               'Intrinsic value',
-              'By star only: 1★ 1, 2★ 1.6, 3★ 2.6, 4★ 4.2, 5★ 6.8',
+              'Found by the fused part\'s **material x star** in the table above (**material is already accounted '
+                  'for — do not multiply by k**)',
+            ],
+            <String>[
+              'Σ XP gained',
+              'The fused part\'s **XP already invested** = its composite value - intrinsic value; read back off its '
+                  'level and progress bar (below), in **absolute XP**',
+            ],
+            <String>[
+              '0.7',
+              'A fixed ratio: past XP only counts at 70% towards the **XP value**',
             ],
             <String>[
               'C (quality factor)',
               'Common 1, magic 2, legendary 4 (exactly 2x / 4x a common part of the same star and material)',
             ],
             <String>[
-              'Fusion skill',
-              '0.3 at max (unlocked at prestige 5); 0 if not learned',
-            ],
-            <String>[
-              'k(material)',
-              'Wood 1, Metal 13, Military 144, Gold 1597, Carbon 17711',
+              'Fusion-XP skill (Pro Mechanic)',
+              'Taken **at the moment of fusing**: levels 1 / 2 / 3 = +10% / +20% / +30% (unlocked at prestige 5); '
+                  '0 if not learned',
             ],
           ],
         ),
@@ -3361,32 +3776,702 @@ const List<GuideChapter> kGuideChapters = <GuideChapter>[
         ),
       ),
       GuideBlock.text(
-        '表中为**基础经验**，实际数值 ＝ 表中数字 × k（目标部件材质）。木质 k ＝ 1，木质部件可直接按表使用。',
-        'The table gives **base XP**; the real cost is the value x k (the target\'s material). Wood has k = 1, so for '
-            'wood the table can be used as is.',
+        '表中为**基础经验**，实际数值 ＝ 表中数字 × k（**目标**部件的材质；k 见表里「1 星」一行）。'
+            '木质 k ＝ 1，可直接按表使用；用绝对经验对照时，把表中的数乘上 k 即可。',
+        'The table gives **base XP**; the real cost is the value x k (the **target**\'s material; k is the 1-star row '
+            'of the table above). Wood has k = 1, so for wood the table can be used as is; multiply by k to compare '
+            'with absolute XP.',
+      ),
+      GuideBlock.text(
+        '**升到第 L ＋ 1 级需要（L ＋ 1）× k**（1 → 2 级要 2k，2 → 3 级要 3k，依此类推）；'
+            '所以「累计到本级」＝ k ×（L(L＋1)/2 － 1）。'
+            '**最高等级由星级决定**（见第 2 节）：1 星 6 级、2 星 11 级、3 星 16 级、4 星 21 级、5 星 26 级。',
+        '**Going from level L to L+1 costs (L+1) x k** (1 -> 2 costs 2k, 2 -> 3 costs 3k, and so on), so the '
+            '"cumulative" column is k x (L(L+1)/2 - 1). **The top level is set by the star** (see section 2): 1 star 6, '
+            '2 stars 11, 3 stars 16, 4 stars 21, 5 stars 26.',
+      ),
+      GuideBlock.text(
+        '**最高那一级没有自己的经验段**：它**就是「上一级的 100%」，进度永远显示 0%**。'
+            '5 星：26 级 ＝ 25 级 100%；4 星：21 级 ＝ 20 级 100%；3 星：16 级 ＝ 15 级 100%；'
+            '1 星：6 级 ＝ 5 级 100%（2 星同理：11 级 ＝ 10 级 100%）。'
+            '所以**部件的经验上限 ＝ 「累计到最高等级」那个数**（例如军用 3 星 ＝ 135 × 144 ＝ 19440，'
+            '即 16 级 ＝ 15 级 100%），到顶之后就不再涨经验了。'
+            '注意 25 → 26 级只有 **10k**（游戏原始表在最后一级收窄了，不是规律里应有的 26k）。',
+        '**The top level has no bracket of its own**: it **equals the previous level at 100%, and its progress always '
+            'reads 0%**. 5 stars: level 26 = level 25 at 100%; 4 stars: 21 = 20 at 100%; 3 stars: 16 = 15 at 100%; '
+            '1 star: 6 = 5 at 100% (2 stars likewise: 11 = 10 at 100%). So **a part\'s XP cap is the "cumulative" '
+            'figure of the top level** (e.g. military 3 stars = 135 x 144 = 19440, i.e. level 16 = level 15 at 100%), '
+            'and nothing grows past it. Note that level 25 -> 26 costs only **10k** (the game\'s own table narrows at '
+            'the last level instead of the 26k the pattern would suggest).',
+      ),
+      GuideBlock.text(
+        '**反过来，从界面上的等级与进度反推已投入经验**（上面几个式子都要用它）：'
+            '**已投入经验 ＝ k ×（L(L＋1)/2 － 1）＋ 进度 ×（L ＋ 1）× k**（L ＝ 显示等级，k ＝ 该部件材质的 k）；'
+            '再加上固有价值就是**部件综合价值**。',
+        '**Reading XP invested back out of the level and progress bar** (every expression above uses it): '
+            '**XP invested = k x (L(L+1)/2 - 1) + progress x (L + 1) x k** (L = the displayed level, k = the k of the '
+            'part\'s material); add the intrinsic value and you have the **composite value**.',
       ),
       GuideBlock.bullets(<GuideBullet>[
         GuideBullet(
-          '用**已升级过的部件**作融合材料更划算：它能回收 70% 的已投入经验，另加固有价值',
+          '用**已升级过的部件**作融合材料更划算：它能按 70% 把历次经验计入经验价值，另加固有价值',
           'Fusing an **already-leveled part** is more efficient: it returns 70% of its invested XP plus its intrinsic value',
         ),
         GuideBullet(
-          '用低材质部件融合高材质目标收益极低：金属 → 军用只剩 13 ÷ 144 ≈ 9%',
-          'Fusing a low-material part into a higher-material target is very inefficient: metal → military keeps only 13 ÷ 144 ≈ 9%',
+          '用低材质部件融合高材质目标收益极低：金属 1 星固有价值 13、军用 1 星 144，只剩 13 ÷ 144 ≈ 9%',
+          'Fusing a low-material part into a higher-material target is very inefficient: metal 1-star has an '
+              'intrinsic value of 13 against 144 for military 1-star, keeping only 13 ÷ 144 ≈ 9%',
         ),
         GuideBullet(
           '被融合部件的材质、星级、等级均不受限制；目标部件自身是否为魔法 / 传奇不影响获得经验',
           'The fused part may be of any material, star and level; whether the target itself is magic / legendary does not change the XP gained',
         ),
         GuideBullet(
-          '**魔法 / 传奇部件当材料**时按 C ＝ 2 / 4 倍贡献 —— 就是同星同材质普通件的 **2 倍 / 4 倍**；'
-              '目标部件的材质照常按 k 比值换算（换成碳钢目标不会额外放大）',
+          '**魔法 / 传奇部件当材料**时按 C ＝ 2 / 4 倍贡献 —— 就是同星同材质普通件的 **2 倍 / 4 倍**',
           'A **magic / legendary part used as material** contributes C = 2 / 4 times as much — exactly **2x / 4x** a '
-              'common part of the same star and material; the target\'s material is still handled by the usual k ratio '
-              '(a carbon target does not magnify it further)',
+              'common part of the same star and material',
+        ),
+        GuideBullet(
+          '**一次只能融合一个材料**，所以不存在叠加求和的问题',
+          '**Only one material can be fused at a time**, so there is no summing to worry about',
         ),
       ]),
-      // ---------- 9. 技能一览 ----------
+      GuideBlock.text(
+        '**融合要花金币，部件也能卖金币** —— 这两件事看的是**部件金币价值**，'
+            '也就是把上面算出来的**部件综合价值**当坐标去查金币阶梯。'
+            '游戏的配置里并排放着**两条 34 级阶梯**，**同一位置的条目一一对应**：',
+        '**Fusing costs coins and parts can be sold for coins** — both look at the **coin value**, which is the '
+            '**composite value** from above used as a coordinate on the coin ladder. The game config holds **two '
+            'parallel 34-step ladders** whose entries line up one to one:',
+      ),
+      GuideBlock.bullets(<GuideBullet>[
+        GuideBullet(
+          '**经验阶梯**（部件的经验与等级）：1、2、3、5、8、13 … 9227465',
+          'The **XP ladder** (a part\'s XP and level): 1, 2, 3, 5, 8, 13 ... 9227465',
+        ),
+        GuideBullet(
+          '**金币阶梯**（部件的价值）：469、750、1125、1688 … 102375',
+          'The **coin ladder** (a part\'s value): 469, 750, 1125, 1688 ... 102375',
+        ),
+      ]),
+      GuideBlock.text(
+        '**部件综合价值 ＝ 固有价值 ＋ Σ 融合获得经验** —— 它就是部件在经验阶梯上的坐标，'
+            '也是部件的「成长量」（融合就是在抬高它）。',
+        '**Composite value = intrinsic value + Σ XP gained** — the part\'s coordinate on the XP ladder and its total '
+            'growth (fusing is what raises it).',
+      ),
+      GuideBlock.text(
+        '**部件金币价值 ＝ 把部件综合价值当坐标，去查金币阶梯**。坐标落在第 N 格与第 N＋1 格之间时：',
+        '**Coin value = the coin ladder read at the composite value.** When the coordinate falls between rung N and '
+            'rung N+1:',
+      ),
+      GuideBlock.text(
+        '**部件金币价值 ＝ 金币阶梯第 N 格 ＋（部件综合价值 － 经验阶梯第 N 格）÷'
+            '（经验阶梯第 N＋1 格 － 经验阶梯第 N 格）×（金币阶梯第 N＋1 格 － 金币阶梯第 N 格）**',
+        '**Coin value = coin ladder rung N + (composite value - XP ladder rung N) / '
+            '(XP ladder rung N+1 - XP ladder rung N) x (coin ladder rung N+1 - coin ladder rung N)**',
+      ),
+      GuideBlock.text(
+        '注意**别把三个价值混用**：**部件经验价值**（固有价值 ＋ **0.7 ×** Σ 融合获得经验）只管**经验**；'
+            '**部件综合价值**（固有价值 ＋ Σ 融合获得经验）是坐标；**部件金币价值**才是钱。'
+            '三者只在**一件也没喂过**（Σ ＝ 0，即 1 级 0%）时全部相等。',
+        'Do not mix the three values up: the **XP value** (intrinsic value + **0.7 x** Σ XP gained) only drives '
+            '**XP**, the **composite value** (intrinsic value + Σ XP gained) is the coordinate, and the **coin value** '
+            'is the money. All three coincide only when **nothing has been fused in** (Σ = 0, i.e. level 1 / 0%).',
+      ),
+      GuideBlock.text(
+        '两个用钱的场合都从它出发：',
+        'Both places where money changes hands start from it:',
+      ),
+      GuideBlock.table(
+        GuideTable(
+          headZh: <String>['用途', '公式'],
+          headEn: <String>['What', 'Formula'],
+          rowsZh: <List<String>>[
+            <String>['融合花费', '**取整（部件金币价值 ×（1 － 专业交易商））**'],
+            <String>['出售部件', '**取整（融合花费 × 0.5 × 品质系数 ×（1 ＋ 商人））**'],
+          ],
+          rowsEn: <List<String>>[
+            <String>[
+              'Fusion cost',
+              '**round( coin value x (1 - Pro Dealer) )**',
+            ],
+            <String>[
+              'Selling a part',
+              '**round( fusion cost x 0.5 x quality factor x (1 + Merchant) )**',
+            ],
+          ],
+        ),
+      ),
+      GuideBlock.bullets(<GuideBullet>[
+        GuideBullet(
+          '**品质系数**：普通 1、魔法 2、传奇 4 —— 也就是说**品质不影响融合花费**，只影响卖价',
+          '**Quality factor**: common 1, magic 2, legendary 4 — so **quality never changes the fusion cost**, only '
+              'the sale price',
+        ),
+        GuideBullet(
+          '**出售价是按「打过折」的价值算的**：专业交易商把花费压到 0.7 倍，卖价也跟着只剩 0.7 倍',
+          '**The sale price is computed from the discounted value**: Pro Dealer cuts the cost to 0.7x, and the sale '
+              'price drops to 0.7x with it',
+        ),
+        GuideBullet(
+          '**融合花费先乘折扣、最后才取整**；出售价用的是**取整之后**的融合花费',
+          'The **fusion cost applies the discount first and rounds last**; the sale price uses the **already rounded** '
+              'fusion cost',
+        ),
+        GuideBullet(
+          '**一次只能融合一个材料**，所以花费就是「目标部件在这一刻的**部件金币价值**」，不涉及求和',
+          '**Only one material per fusion**, so the cost is simply the target\'s **coin value** at that moment — '
+              'nothing to sum up',
+        ),
+        GuideBullet(
+          '部件会**随等级涨钱**：等级越高价值越大，所以「升完再卖」通常比「直接卖」划算',
+          'A part is **worth more as it levels up**, so selling after leveling usually beats selling straight away',
+        ),
+      ]),
+      GuideBlock.text(
+        '**25 档 1 级部件的价值与价格**。1 级 0% 时「固有价值 ＋ Σ 融合获得经验」恰好等于该档位的固有价值，'
+            '所以**下表第 N 行的「部件金币价值」就是金币阶梯第 N 格的读数**'
+            '（军用 3 星 ＝ 15188 就是金币阶梯第 13 格）。'
+            '下表按「专业交易商、商人都是满级」计算；没点技能时：融合花费 ＝ 金币价值，出售 ＝ 金币价值 × 0.5 × 品质系数。',
+        '**Value and prices of a level-1 part in each of the 25 tiers.** At level 1 / 0% the sum "intrinsic value + '
+            'Σ XP gained" equals the tier intrinsic value itself, so the **"Coin value" column of row N below is '
+            'simply rung N of the coin ladder** (military 3 stars = 15188 = rung 13). The table assumes Pro Dealer and '
+            'Merchant are maxed; with no skills the fusion cost equals the coin value and the sale is coin value x '
+            '0.5 x quality factor.',
+      ),
+      GuideBlock.table(
+        GuideTable(
+          headZh: <String>['档位', '部件材质 / 星级', '部件金币价值', '融合花费', '出售（普通）'],
+          headEn: <String>[
+            'Tier',
+            'Material / star',
+            'Coin value',
+            'Fusion cost',
+            'Sale (common)',
+          ],
+          rowsZh: _champValueRowsZh,
+          rowsEn: _champValueRowsEn,
+        ),
+      ),
+      GuideBlock.text(
+        '**完整算一遍**。输入只有五项：目标部件 **13 段（＝ 军用 3 星）**、材料部件 **11 段（＝ 军用 1 星、1 级 0%）**；'
+            '两个部件都是**普通**品质、技能全是满级（专业交易商 −30%、专业机械师 ＋30%、商人 ＋30%）。'
+            '下面每一步用到的数，都来自本节上面那几张表。',
+        '**A full walk-through.** There are only five inputs: the target is a **tier-13 part (= military 3 stars)** and '
+            'the material is a **tier-11 part (= military 1 star, level 1 / 0%)**; both are **common** and every skill '
+            'is maxed (Pro Dealer -30%, Pro Mechanic +30%, Merchant +30%). Every number used below comes from one of '
+            'the tables above.',
+      ),
+      GuideBlock.text(
+        '**第 1 轮**：把 11 段喂进 13 段。',
+        '**Round 1**: fuse the tier-11 part into the tier-13 part.',
+      ),
+      GuideBlock.table(
+        GuideTable(
+          headZh: <String>['步骤', '算式', '结果'],
+          headEn: <String>['Step', 'Working', 'Result'],
+          rowsZh: <List<String>>[
+            <String>['1. 材料固有价值', '固有价值表：1 星 · 军用', '144'],
+            <String>['2. Σ 融合获得经验（材料）', '材料是 1 级 0%，没喂过任何东西', '0'],
+            <String>['3. 部件经验价值（材料）', '固有价值 144 ＋ 0.7 × 0', '144'],
+            <String>[
+              '4. 融合获得经验',
+              '向上取整（（1 ＋ 0.30）× 1 × 144）＝ 向上取整（1.30 × 144）＝ 向上取整（187.2）',
+              '188',
+            ],
+            <String>['5. 目标综合价值', '固有价值 377 ＋ Σ（0 ＋ 188）＝ 377 ＋ 188', '565'],
+            <String>[
+              '6. 目标进度',
+              '已投入经验 ＝ 565 － 377 ＝ 188；1 级上界 ＝ 升级经验表 1 级行（2）× k（144）＝ 288；'
+                  '188 ÷ 288 ＝ 0.6528',
+              '1 级 65%',
+            ],
+            <String>[
+              '7. 目标的经验价值',
+              '0.7 × 565 ＋ 0.3 × 377 ＝ 395.5 ＋ 113.1（验证线性关系）',
+              '508.6',
+            ],
+            <String>[
+              '8. 插值比例',
+              '（565 － 377）÷（610 － 377）＝ 188 ÷ 233（610 ＝ 固有价值表 4 星 · 军用）',
+              '0.80687',
+            ],
+            <String>[
+              '9. 两端价值',
+              '部件金币价值表第 13 行（军用 3 星）＝ 15188、第 14 行（军用 4 星）＝ 17625；'
+                  '差 ＝ 17625 － 15188 ＝ 2437',
+              '15188 / 2437',
+            ],
+            <String>[
+              '10. 部件金币价值',
+              '15188 ＋（188 ÷ 233）× 2437 ＝ 15188 ＋ 458156 ÷ 233 ＝ 15188 ＋ 1966.33476',
+              '17154.33476',
+            ],
+            <String>[
+              '11. 融合花费',
+              '取整（17154.33476 ×（1 － 0.30））＝ 取整（17154.33476 × 0.70）＝ 取整（12008.0343）',
+              '12008',
+            ],
+            <String>[
+              '12. 出售价（普通）',
+              '取整（12008 × 0.5 × 1 ×（1 ＋ 0.30））＝ 取整（12008 × 0.65）＝ 取整（7805.2）',
+              '7805',
+            ],
+            <String>[
+              '13. 对照：目标仍是 1 级 0% 时',
+              '取整（15188 × 0.70）＝ 取整（10631.6）＝ 10632；取整（10632 × 0.65）＝ 取整（6910.8）',
+              '10632 / 6911',
+            ],
+            <String>[
+              '14. 同一件的魔法 / 传奇卖价',
+              '取整（10632 × 0.5 × 2 × 1.30）＝ 取整（13821.6）；'
+                  '取整（10632 × 0.5 × 4 × 1.30）＝ 取整（27643.2）',
+              '13822 / 27643',
+            ],
+          ],
+          rowsEn: <List<String>>[
+            <String>[
+              '1. Intrinsic value of the material',
+              'Intrinsic value table: 1 star / military',
+              '144',
+            ],
+            <String>[
+              '2. Σ 融合获得经验（材料）',
+              'The material is level 1 / 0% — nothing was ever fused into it',
+              '0',
+            ],
+            <String>[
+              '3. XP value (material)',
+              'intrinsic value 144 + 0.7 x 0',
+              '144',
+            ],
+            <String>[
+              '4. XP gained',
+              'round-up( (1 + 0.30) x 1 x 144 ) = round-up( 1.30 x 144 ) = round-up( 187.2 )',
+              '188',
+            ],
+            <String>[
+              '5. Composite value of the target',
+              'intrinsic value 377 + Σ (0 + 188) = 377 + 188',
+              '565',
+            ],
+            <String>[
+              '6. Progress of the target',
+              'XP invested = 565 - 377 = 188; top of level 1 = row 1 of the XP table (2) x k (144) = 288; '
+                  '188 / 288 = 0.6528',
+              'level 1, 65%',
+            ],
+            <String>[
+              '7. XP value of the target',
+              '0.7 x 565 + 0.3 x 377 = 395.5 + 113.1 (checks the linear relation)',
+              '508.6',
+            ],
+            <String>[
+              '8. Interpolation ratio',
+              '(565 - 377) / (610 - 377) = 188 / 233 (610 = intrinsic value, 4 stars / military)',
+              '0.80687',
+            ],
+            <String>[
+              '9. Values at both rungs',
+              'Coin value table row 13 (military 3 stars) = 15188, row 14 (military 4 stars) = 17625; '
+                  'difference = 17625 - 15188 = 2437',
+              '15188 / 2437',
+            ],
+            <String>[
+              '10. Coin value',
+              '15188 + (188 / 233) x 2437 = 15188 + 458156 / 233 = 15188 + 1966.33476',
+              '17154.33476',
+            ],
+            <String>[
+              '11. Fusion cost',
+              'round( 17154.33476 x (1 - 0.30) ) = round( 17154.33476 x 0.70 ) = round( 12008.0343 )',
+              '12008',
+            ],
+            <String>[
+              '12. Sale price (common)',
+              'round( 12008 x 0.5 x 1 x (1 + 0.30) ) = round( 12008 x 0.65 ) = round( 7805.2 )',
+              '7805',
+            ],
+            <String>[
+              '13. Control: target still at level 1 / 0%',
+              'round( 15188 x 0.70 ) = round( 10631.6 ) = 10632; round( 10632 x 0.65 ) = round( 6910.8 )',
+              '10632 / 6911',
+            ],
+            <String>[
+              '14. Same part sold as magic / legendary',
+              'round( 10632 x 0.5 x 2 x 1.30 ) = round( 13821.6 ); '
+                  'round( 10632 x 0.5 x 4 x 1.30 ) = round( 27643.2 )',
+              '13822 / 27643',
+            ],
+          ],
+        ),
+      ),
+      GuideBlock.text(
+        '**第 2 轮**：把刚刚变成「1 级 65%」的那个 13 段当作材料，喂给**另一个** 13 段（1 级 0%）。'
+            '这一轮才能看出「部件经验价值」里 **0.7 × Σ 融合获得经验** 那一项的作用。',
+        '**Round 2**: use the tier-13 part that just became level 1 / 65% as the material and fuse it into '
+            '**another** tier-13 part (level 1 / 0%). Only this round exercises the **0.7 x Σ XP gained** term inside '
+            'the XP value.',
+      ),
+      GuideBlock.table(
+        GuideTable(
+          headZh: <String>['步骤', '算式', '结果'],
+          headEn: <String>['Step', 'Working', 'Result'],
+          rowsZh: <List<String>>[
+            <String>['1. 材料固有价值', '固有价值表：3 星 · 军用', '377'],
+            <String>['2. Σ 融合获得经验（材料）', '就是第 1 轮第 4 步的结果', '188'],
+            <String>[
+              '3. 部件经验价值（材料）',
+              '固有价值 377 ＋ 0.7 × 188 ＝ 377 ＋ 131.6',
+              '508.6',
+            ],
+            <String>[
+              '4. 融合获得经验',
+              '向上取整（（1 ＋ 0.30）× 1 × 508.6）＝ 向上取整（1.30 × 508.6）＝ 向上取整（661.18）',
+              '662',
+            ],
+            <String>['5. 目标综合价值', '固有价值 377 ＋ Σ（0 ＋ 662）＝ 377 ＋ 662', '1039'],
+            <String>[
+              '6. 目标等级 / 进度',
+              '已投入经验 ＝ 1039 － 377 ＝ 662；累计到 2 级 ＝ 144 ×（2 × 3 ÷ 2 － 1）＝ 288、'
+                  '到 3 级 ＝ 144 ×（3 × 4 ÷ 2 － 1）＝ 720；662 落在 [288, 720) ⇒ 2 级；'
+                  '（662 － 288）÷（720 － 288）＝ 374 ÷ 432 ＝ 0.8657',
+              '2 级 87%',
+            ],
+            <String>[
+              '7. 目标的经验价值',
+              '0.7 × 1039 ＋ 0.3 × 377 ＝ 727.3 ＋ 113.1（验证线性关系）',
+              '840.4',
+            ],
+            <String>[
+              '8. 插值比例',
+              '（1039 － 987）÷（1597 － 987）＝ 52 ÷ 610（987 ＝ 固有价值表 5 星 · 军用，'
+                  '1597 ＝ 1 星 · 黄金）',
+              '0.08525',
+            ],
+            <String>[
+              '9. 两端价值',
+              '部件金币价值表第 15 行（军用 5 星）＝ 20250、第 16 行（黄金 1 星）＝ 23063；'
+                  '差 ＝ 23063 － 20250 ＝ 2813',
+              '20250 / 2813',
+            ],
+            <String>[
+              '10. 部件金币价值',
+              '20250 ＋（52 ÷ 610）× 2813 ＝ 20250 ＋ 146276 ÷ 610 ＝ 20250 ＋ 239.79672',
+              '20489.79672',
+            ],
+            <String>[
+              '11. 融合花费',
+              '取整（20489.79672 × 0.70）＝ 取整（14342.85770）',
+              '14343',
+            ],
+            <String>[
+              '12. 出售价（普通）',
+              '取整（14343 × 0.5 × 1 × 1.30）＝ 取整（14343 × 0.65）＝ 取整（9322.95）',
+              '9323',
+            ],
+          ],
+          rowsEn: <List<String>>[
+            <String>[
+              '1. Intrinsic value of the material',
+              'Intrinsic value table: 3 stars / military',
+              '377',
+            ],
+            <String>[
+              '2. Σ XP gained (material)',
+              'The result of step 4 in round 1',
+              '188',
+            ],
+            <String>[
+              '3. XP value (material)',
+              'intrinsic value 377 + 0.7 x 188 = 377 + 131.6',
+              '508.6',
+            ],
+            <String>[
+              '4. XP gained',
+              'round-up( (1 + 0.30) x 1 x 508.6 ) = round-up( 1.30 x 508.6 ) = round-up( 661.18 )',
+              '662',
+            ],
+            <String>[
+              '5. Composite value of the target',
+              'intrinsic value 377 + Σ (0 + 662) = 377 + 662',
+              '1039',
+            ],
+            <String>[
+              '6. Level / progress of the target',
+              'XP invested = 1039 - 377 = 662; cumulative to level 2 = 144 x (2 x 3 / 2 - 1) = 288, to level 3 = '
+                  '144 x (3 x 4 / 2 - 1) = 720; 662 falls in [288, 720) so level 2; '
+                  '(662 - 288) / (720 - 288) = 374 / 432 = 0.8657',
+              'level 2, 87%',
+            ],
+            <String>[
+              '7. XP value of the target',
+              '0.7 x 1039 + 0.3 x 377 = 727.3 + 113.1 (checks the linear relation)',
+              '840.4',
+            ],
+            <String>[
+              '8. Interpolation ratio',
+              '(1039 - 987) / (1597 - 987) = 52 / 610 (987 = intrinsic value, 5 stars / military; '
+                  '1597 = 1 star / gold)',
+              '0.08525',
+            ],
+            <String>[
+              '9. Values at both rungs',
+              'Coin value table row 15 (military 5 stars) = 20250, row 16 (gold 1 star) = 23063; '
+                  'difference = 23063 - 20250 = 2813',
+              '20250 / 2813',
+            ],
+            <String>[
+              '10. Coin value',
+              '20250 + (52 / 610) x 2813 = 20250 + 146276 / 610 = 20250 + 239.79672',
+              '20489.79672',
+            ],
+            <String>[
+              '11. Fusion cost',
+              'round( 20489.79672 x 0.70 ) = round( 14342.85770 )',
+              '14343',
+            ],
+            <String>[
+              '12. Sale price (common)',
+              'round( 14343 x 0.5 x 1 x 1.30 ) = round( 14343 x 0.65 ) = round( 9322.95 )',
+              '9323',
+            ],
+          ],
+        ),
+      ),
+      GuideBlock.text(
+        '**第 3 轮**：同一个 13 段（1 级 0%），但**中途把技能升了级** —— 先按专业机械师 2 级（＋20%）'
+            '融合一次，再把技能升到 3 级（＋30%）融合第二次。两次喂的是**同一个 11 段**（军用 1 星、1 级 0%）。',
+        '**Round 3**: the same tier-13 part (level 1 / 0%), but with the **skill upgraded in between** — first a fusion '
+            'at Pro Mechanic level 2 (+20%), then the skill is raised to level 3 (+30%) and a second fusion happens. '
+            'Both times the material is the **same tier-11 part** (military 1 star, level 1 / 0%).',
+      ),
+      GuideBlock.table(
+        GuideTable(
+          headZh: <String>['步骤', '算式', '结果'],
+          headEn: <String>['Step', 'Working', 'Result'],
+          rowsZh: <List<String>>[
+            <String>['1. 部件经验价值（材料）', '固有价值 144 ＋ 0.7 × Σ 0（两次喂的同一个部件）', '144'],
+            <String>[
+              '2. 第 1 次融合：技能 ＋20%',
+              '向上取整（（1 ＋ 0.20）× 1 × 144）＝ 向上取整（172.8）',
+              '173',
+            ],
+            <String>['3. 目标综合价值', '固有价值 377 ＋ 173', '550'],
+            <String>[
+              '4. 目标进度',
+              '已投入经验 ＝ 550 － 377 ＝ 173；173 ÷ 288 ＝ 0.6007',
+              '1 级 60%',
+            ],
+            <String>[
+              '5. 第 2 次融合：技能已升到 ＋30%',
+              '向上取整（（1 ＋ 0.30）× 1 × 144）＝ 向上取整（187.2）',
+              '188',
+            ],
+            <String>['6. 目标综合价值', '550 ＋ 188（**第 1 次的 173 已经固定，不回算**）', '738'],
+            <String>[
+              '7. 新等级 / 进度',
+              '已投入经验 ＝ 738 － 377 ＝ 361；累计到 2 级 ＝ 144 ×（2 × 3 ÷ 2 － 1）＝ 288、'
+                  '到 3 级 ＝ 144 ×（3 × 4 ÷ 2 － 1）＝ 720；361 落在 [288, 720) ⇒ 2 级；'
+                  '（361 － 288）÷（720 － 288）＝ 73 ÷ 432 ＝ 0.1690',
+              '2 级 17%',
+            ],
+            <String>[
+              '8. 插值比例',
+              '（738 － 610）÷（987 － 610）＝ 128 ÷ 377（610 / 987 ＝ 固有价值表 4 星 / 5 星 · 军用）',
+              '0.33952',
+            ],
+            <String>[
+              '9. 两端价值',
+              '部件金币价值表第 14 行（军用 4 星）＝ 17625、第 15 行（军用 5 星）＝ 20250；'
+                  '差 ＝ 20250 － 17625 ＝ 2625',
+              '17625 / 2625',
+            ],
+            <String>[
+              '10. 部件金币价值',
+              '17625 ＋（128 ÷ 377）× 2625 ＝ 17625 ＋ 336000 ÷ 377 ＝ 17625 ＋ 891.24668',
+              '18516.24668',
+            ],
+            <String>[
+              '11. 融合花费',
+              '取整（18516.24668 × 0.70）＝ 取整（12961.37268）',
+              '12961',
+            ],
+            <String>[
+              '12. 出售价（普通）',
+              '取整（12961 × 0.5 × 1 × 1.30）＝ 取整（12961 × 0.65）＝ 取整（8424.65）',
+              '8425',
+            ],
+          ],
+          rowsEn: <List<String>>[
+            <String>[
+              '1. XP value (material)',
+              'intrinsic value 144 + 0.7 x Σ 0 (both times the same part)',
+              '144',
+            ],
+            <String>[
+              '2. 1st fusion, skill +20%',
+              'round-up( (1 + 0.20) x 1 x 144 ) = round-up( 172.8 )',
+              '173',
+            ],
+            <String>[
+              '3. Composite value of the target',
+              'intrinsic value 377 + 173',
+              '550',
+            ],
+            <String>[
+              '4. Progress of the target',
+              'XP invested = 550 - 377 = 173; 173 / 288 = 0.6007',
+              'level 1, 60%',
+            ],
+            <String>[
+              '5. 2nd fusion, skill now +30%',
+              'round-up( (1 + 0.30) x 1 x 144 ) = round-up( 187.2 )',
+              '188',
+            ],
+            <String>[
+              '6. Composite value of the target',
+              '550 + 188 (**the 173 from the first fusion stays fixed — it is never recomputed**)',
+              '738',
+            ],
+            <String>[
+              '7. New level / progress',
+              'XP invested = 738 - 377 = 361; cumulative to level 2 = 144 x (2 x 3 / 2 - 1) = 288, to level 3 = '
+                  '144 x (3 x 4 / 2 - 1) = 720; 361 falls in [288, 720) so level 2; '
+                  '(361 - 288) / (720 - 288) = 73 / 432 = 0.1690',
+              'level 2, 17%',
+            ],
+            <String>[
+              '8. Interpolation ratio',
+              '(738 - 610) / (987 - 610) = 128 / 377 (610 / 987 = intrinsic value, 4 / 5 stars military)',
+              '0.33952',
+            ],
+            <String>[
+              '9. Values at both rungs',
+              'Coin value table row 14 (military 4 stars) = 17625, row 15 (military 5 stars) = 20250; '
+                  'difference = 20250 - 17625 = 2625',
+              '17625 / 2625',
+            ],
+            <String>[
+              '10. Coin value',
+              '17625 + (128 / 377) x 2625 = 17625 + 336000 / 377 = 17625 + 891.24668',
+              '18516.24668',
+            ],
+            <String>[
+              '11. Fusion cost',
+              'round( 18516.24668 x 0.70 ) = round( 12961.37268 )',
+              '12961',
+            ],
+            <String>[
+              '12. Sale price (common)',
+              'round( 12961 x 0.5 x 1 x 1.30 ) = round( 12961 x 0.65 ) = round( 8424.65 )',
+              '8425',
+            ],
+          ],
+        ),
+      ),
+      GuideBlock.tip(
+        '前两个算例的结果可以直接对照游戏：10632 / 6911 / 13822 / 27643（目标还是 1 级 0% 时）与 '
+            '12008 / 7805（喂完 11 段之后）都是实测值。'
+            '两个比值自己就能验证：花费 ÷ 金币价值 ≈ 0.70（专业交易商满级），出售 ÷ 花费 ≈ '
+            '普通 0.65 / 魔法 1.30 / 传奇 2.60（商人满级）。'
+            '第 3 轮则是技能档位的影响：**同一个 11 段，技能 ＋20% 时只给 173，＋30% 时给 188**。',
+        'The first two examples can be checked directly in game: 10632 / 6911 / 13822 / 27643 (while the target is '
+            'still at level 1 / 0%) and 12008 / 7805 (after fusing the tier-11 part) are all measured values. Two '
+            'ratios verify themselves: cost / coin value is about 0.70 (Pro Dealer maxed), and sale / cost is about '
+            '0.65 common / 1.30 magic / 2.60 legendary (Merchant maxed). Round 3 shows what the skill level does: '
+            '**the same tier-11 part is worth 173 at +20% and 188 at +30%**.',
+      ),
+      // ---------- 工具箱的融合花费（自成一节） ----------
+      GuideBlock.text(
+        '**工具箱的融合花费**与部件融合是两套算钱方式：花费 ＝ 表中的**融合基础花费 × 倍率**，'
+            '倍率看「这是该部件上的第几个工具箱」（第 1 个最便宜，之后逐次翻倍，'
+            '到第 7 个封顶——也就是最贵是首件的 **64 倍**）：',
+        '**A toolbox\'s fuse cost** is priced differently from a part fusion: cost = the **base fuse cost x '
+            'multiplier**, where the multiplier depends on *which* toolbox this is for that part (the 1st is the '
+            'cheapest, then it doubles each time and caps at the 7th — i.e. at most **64x** the first one):',
+      ),
+      GuideBlock.table(
+        GuideTable(
+          headZh: <String>['该部件上第几个', '倍率', '相对第 1 个'],
+          headEn: <String>['Which toolbox', 'Multiplier', 'Vs. the 1st'],
+          rowsZh: <List<String>>[
+            <String>['第 1 个', '× 8', '× 1'],
+            <String>['第 2 个', '× 16', '× 2'],
+            <String>['第 3 个', '× 32', '× 4'],
+            <String>['第 4 个', '× 64', '× 8'],
+            <String>['第 5 个', '× 128', '× 16'],
+            <String>['第 6 个', '× 256', '× 32'],
+            <String>['第 7 个及以后', '× 512（上限）', '× 64'],
+          ],
+          rowsEn: <List<String>>[
+            <String>['1st', 'x 8', 'x 1'],
+            <String>['2nd', 'x 16', 'x 2'],
+            <String>['3rd', 'x 32', 'x 4'],
+            <String>['4th', 'x 64', 'x 8'],
+            <String>['5th', 'x 128', 'x 16'],
+            <String>['6th', 'x 256', 'x 32'],
+            <String>['7th and later', 'x 512 (capped)', 'x 64'],
+          ],
+        ),
+      ),
+      GuideBlock.text(
+        '**出售工具箱 ＝ 第 8 节表里的「出售价」＝ 融合基础花费 × 8**：也就是说**卖掉它的钱，正好等于往空部件上'
+            '融合第 1 个它的花费**（首融零净金币成本，第 2 个起就要自己贴钱）。'
+            '如果工具箱已经**融进部件**，卖掉那个部件时它只能按 **50%** 折算：',
+        '**Selling a toolbox = the "sell price" column of section 8 = base fuse cost x 8**: the money you get equals '
+            'exactly what fusing the **1st** one onto an empty part costs (so the first fuse is gold-neutral, later ones '
+            'are not). Once a toolbox has been **fused into a part**, selling that part refunds only **50%** of it:',
+      ),
+      GuideBlock.text(
+        '**带工具箱部件的售价 ＝ 部件自身售价 ＋ Σ（每个已融合工具箱的售价 × 0.5）**'
+            '（即工具箱那部分**不计入经验**、只能回收一半金币）',
+        '**Price of a part with toolboxes = the part\'s own price + Σ (each fused toolbox\'s sell price x 0.5)** '
+            '(the toolbox part **adds no XP** and only half of its gold comes back)',
+      ),
+      GuideBlock.text(
+        '⚠ 那个 Σ 里的「每个工具箱的售价」**只按它自己那个档位算**（＝ 往空部件上融第 1 个它的花费），'
+            '**与它是这个部件上的第几个完全无关**：翻倍的是你**付出**的花费，不是它的身价。'
+            '回收的是「箱子的半价」，不是「你花钱的一半」——所以叠得越多、回收率越低：'
+            '第 1 个回收 50%、第 2 个 25%、第 3 个 12.5%…'
+            '拿一个「首融 1000 金币」的箱子（它的售价也是 1000）举例：',
+        '⚠ Each toolbox in that sum is priced **by its own tier only** (= what fusing it as the **1st** one onto an '
+            'empty part costs) and **never by which position it occupies on the part**: what doubles is your '
+            '*spending*, not its value. You get back half of the **box\'s** price, not half of what you paid — so '
+            'the refund rate falls as you stack: 50% for the 1st, 25% for the 2nd, 12.5% for the 3rd ... '
+            'Take a toolbox whose first-fuse price is 1000 coins (its sell price is 1000 as well):',
+      ),
+      GuideBlock.table(
+        GuideTable(
+          headZh: <String>['第几个箱子', '你付出的花费', '卖掉部件能回收', '回收 ÷ 花费'],
+          headEn: <String>[
+            'Which box',
+            'What you pay',
+            'Refund when selling',
+            'Refund / paid',
+          ],
+          rowsZh: <List<String>>[
+            <String>['第 1 个', '1,000（基础 × 8）', '500', '50%'],
+            <String>['第 2 个', '2,000（基础 × 16）', '500', '25%'],
+            <String>['第 3 个', '4,000（基础 × 32）', '500', '12.5%'],
+            <String>['合计（3 个）', '7,000', '1,500（＝ 500 × 3）', '约 21.4%'],
+          ],
+          rowsEn: <List<String>>[
+            <String>['1st', '1,000 (base x 8)', '500', '50%'],
+            <String>['2nd', '2,000 (base x 16)', '500', '25%'],
+            <String>['3rd', '4,000 (base x 32)', '500', '12.5%'],
+            <String>['Total (3)', '7,000', '1,500 (= 500 x 3)', 'about 21.4%'],
+          ],
+        ),
+      ),
+      GuideBlock.tip(
+        '一句话记法：**回收的是「箱子的半价」，不是「你花钱的一半」**。'
+            '所以往同一个部件上叠第 2、3 个箱子，多花的钱基本等于烧掉——只有想把一个部件吃满加成时才这么干。',
+        'One-liner: **you get back half of the box\'s price, not half of what you spent.** Stacking a 2nd or 3rd '
+            'toolbox therefore mostly burns the extra coins — only do it to max out a single part.',
+      ),
+      // ---------- 10. 技能一览 ----------
       GuideBlock.heading('技能一览与解锁条件', 'Skills and unlock conditions'),
       GuideBlock.text(
         '车身技能按**段位**（stage）或**威名**（prestige，转生次数）解锁：',
@@ -3462,12 +4547,23 @@ const List<GuideChapter> kGuideChapters = <GuideChapter>[
               '4 种配件（推进器 / 叉车 / 反弹器 / 反推器）各一条独立技能线（解锁段位见下表）；'
                   '实测点满 +45%，其余 8 种配件没有这条技能',
             ],
-            <String>['融合经验（威名 5）', '+10% / +20% / +30%', '—', '融合获得的经验'],
             <String>[
-              '融合折扣（威名 5）',
+              '专业机械师（威名 5）',
+              '+10% / +20% / +30%',
+              '2 / 3 / 4',
+              '融合获得的经验',
+            ],
+            <String>[
+              '专业交易商（威名 5）',
               '−10% / −20% / −30%',
-              '—',
-              '融合的花费（计算方式尚未确认）',
+              '2 / 3 / 4',
+              '融合的花费（同时会压低出售价，见第 8 节）',
+            ],
+            <String>[
+              '商人（段位 0）',
+              '+10% / +20% / +30%',
+              '1 / 2 / 3',
+              '出售部件获得的金币',
             ],
           ],
           rowsEn: <List<String>>[
@@ -3504,16 +4600,22 @@ const List<GuideChapter> kGuideChapters = <GuideChapter>[
                   'measured +45% when maxed, the other 8 gadgets have no such skill',
             ],
             <String>[
-              'Fusion XP (prestige 5)',
+              'Pro Mechanic (prestige 5)',
               '+10% / +20% / +30%',
-              '—',
+              '2 / 3 / 4',
               'XP gained from fusion',
             ],
             <String>[
-              'Fusion discount (prestige 5)',
+              'Pro Dealer (prestige 5)',
               '−10% / −20% / −30%',
-              '—',
-              'the cost of fusion (its formula is not confirmed)',
+              '2 / 3 / 4',
+              'the cost of fusion (it lowers the sale price too, see section 8)',
+            ],
+            <String>[
+              'Merchant (stage 0)',
+              '+10% / +20% / +30%',
+              '1 / 2 / 3',
+              'coins gained from selling parts',
             ],
           ],
         ),
