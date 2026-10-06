@@ -316,7 +316,8 @@ class _MyGarageScreenState extends State<MyGarageScreen> {
           ),
           const SizedBox(height: 10),
         ],
-        if (_isIntl) _buildShapeToolbar(v) else _buildRebuildButton(v),
+        // 工具栏：重新组车 +（国际服）显示编号 + 修改名称（两个服都有）
+        _buildSlotToolbar(v, withNumbers: _isIntl),
         const SizedBox(height: 12),
         if (_isIntl) ...[
           if (bodyShape != null) ...[
@@ -361,8 +362,61 @@ class _MyGarageScreenState extends State<MyGarageScreen> {
   }
 
   /// “重新组车”按钮：带着当前车位的车跳转到组车工具
-  Widget _buildRebuildButton(GarageVehicle v) {
-    return SizedBox(width: double.infinity, child: _rebuildButton(v));
+  Widget _buildSlotToolbar(GarageVehicle v, {required bool withNumbers}) {
+    return Row(
+      children: [
+        Expanded(child: _rebuildButton(v)),
+        if (withNumbers) ...[
+          const SizedBox(width: 8),
+          Expanded(child: _numbersButton()),
+        ],
+        const SizedBox(width: 8),
+        Expanded(child: _renameButton(v)),
+      ],
+    );
+  }
+
+  /// “显示 / 隐藏编号”按钮（只有国际服有车身形状数据）
+  Widget _numbersButton() {
+    return ElevatedButton.icon(
+      onPressed: () => setState(() => _showSlotNumbers = !_showSlotNumbers),
+      icon: Icon(
+        _showSlotNumbers ? Icons.numbers : Icons.numbers_outlined,
+        size: 18,
+      ),
+      label: Text(
+        _showSlotNumbers
+            ? _t('隐藏编号', 'Hide numbers')
+            : _t('显示编号', 'Show numbers'),
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: const TextStyle(fontSize: 14),
+      ),
+      style: ElevatedButton.styleFrom(
+        backgroundColor: Colors.blueGrey,
+        foregroundColor: Colors.white,
+        padding: const EdgeInsets.symmetric(vertical: 10),
+      ),
+    );
+  }
+
+  /// “修改名称”按钮（国服 / 国际服都显示）
+  Widget _renameButton(GarageVehicle v) {
+    return ElevatedButton.icon(
+      onPressed: () => _renameVehicle(v),
+      icon: const Icon(Icons.edit, size: 18),
+      label: Text(
+        _t('修改名称', 'Rename'),
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: const TextStyle(fontSize: 14),
+      ),
+      style: ElevatedButton.styleFrom(
+        backgroundColor: Colors.indigo,
+        foregroundColor: Colors.white,
+        padding: const EdgeInsets.symmetric(vertical: 10),
+      ),
+    );
   }
 
   /// “重新组车”按钮本体（可单独整行，也可与形状工具栏同排）
@@ -507,52 +561,6 @@ class _MyGarageScreenState extends State<MyGarageScreen> {
     return (
       centerOfGravity: Offset(sumX / totalWeight, sumY / totalWeight),
       totalWeight: totalWeight,
-    );
-  }
-
-  Widget _buildShapeToolbar(GarageVehicle v) {
-    return Row(
-      children: [
-        Expanded(child: _rebuildButton(v)),
-        const SizedBox(width: 8),
-        Expanded(
-          child: ElevatedButton.icon(
-            onPressed: () =>
-                setState(() => _showSlotNumbers = !_showSlotNumbers),
-            icon: Icon(
-              _showSlotNumbers ? Icons.numbers : Icons.numbers_outlined,
-              size: 18,
-            ),
-            label: Text(
-              _showSlotNumbers
-                  ? _t('隐藏编号', 'Hide numbers')
-                  : _t('显示编号', 'Show numbers'),
-              style: const TextStyle(fontSize: 14),
-            ),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.blueGrey,
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(vertical: 10),
-            ),
-          ),
-        ),
-        const SizedBox(width: 8),
-        Expanded(
-          child: ElevatedButton.icon(
-            onPressed: () => _renameVehicle(v),
-            icon: const Icon(Icons.edit, size: 18),
-            label: Text(
-              _t('修改名称', 'Rename'),
-              style: const TextStyle(fontSize: 14),
-            ),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.indigo,
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(vertical: 10),
-            ),
-          ),
-        ),
-      ],
     );
   }
 
