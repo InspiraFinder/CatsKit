@@ -7,8 +7,9 @@
 /// * **部件经验价值** = 固有价值 + 0.7 × Σ（历次融合获得的经验）
 /// * **融合获得经验** = ⌈(1 + 本次融合时的专业机械师) × 品质系数 × 被融合部件的经验价值⌉
 /// * **部件金币价值** = 把部件综合价值当坐标去查金币阶梯（线性插值）
-/// * **融合花费** = round(部件金币价值 × (1 − 专业交易商))
-/// * **出售价**   = round(融合花费 × 0.5 × 品质系数 × (1 + 商人))
+/// * **被融合需要** = round(**自己**的部件金币价值 × (1 − 专业交易商))
+///   —— 把这一件**当材料**喂掉要花的钱（融合时扣的就是**材料**这个数，与目标部件无关）
+/// * **出售价**   = round(自己的被融合需要 × 0.5 × 品质系数 × (1 + 商人))
 ///
 /// 所有取整都按游戏口径（`Math.round` / `Math.ceil`）；
 /// 为了不受浮点误差影响，内部一律用**整数**运算再取整。
@@ -306,7 +307,11 @@ double coinValueOf(int exp, int materialIdx, int star) {
 int _roundHalfUp(int numerator, int denominator) =>
     (2 * numerator + denominator) ~/ (2 * denominator);
 
-/// 融合花费 = round(部件金币价值 × (1 − 专业交易商))
+/// 这个部件自己的**被融合花费**（＝ 把**它当材料**喂给别的部件时要花多少金币）
+/// = round(部件金币价值 × (1 − 专业交易商))
+///
+/// ⚠ 与被喂的目标部件**无关**：游戏里 `upgrade_cost` 用的是**材料**这一侧的
+/// 档位 / 星级 / 已投入经验，所以融合时扣的是**材料**这个数。
 int fusionCostOf(int exp, int materialIdx, int star, int dealerLevel) {
   final coordinate = compositeValueOf(exp, materialIdx, star);
   final hit = _locate(coordinate);
@@ -318,7 +323,7 @@ int fusionCostOf(int exp, int materialIdx, int star, int dealerLevel) {
   return _roundHalfUp(scaled * keep, span * 100);
 }
 
-/// 出售价 = round(融合花费 × 0.5 × 品质系数 × (1 + 商人))
+/// 出售价 = round(自己的被融合花费 × 0.5 × 品质系数 × (1 + 商人))
 int sellPriceOf(
   int exp,
   int materialIdx,
@@ -545,6 +550,19 @@ class FusionPart {
   int get maxLevel => maxDisplayLevel(star);
   double get progress => progressOfExp(exp, materialIdx, star);
   int get toNextLevel => expToNextLevel(exp, materialIdx, star);
+
+  /// 本级经验条：本级已经积累了多少（＝ 已投入经验 － 累计到本级）
+  int get xpInLevel {
+    final k = materialFactor(materialIdx);
+    return exp - k * kCumulativeBase[level - 1];
+  }
+
+  /// 本级经验条：升到下一级需要多少（＝ 本级的条长；满级没有自己的经验段，返回 0）
+  int get levelExpSpan {
+    final k = materialFactor(materialIdx);
+    if (level >= maxDisplayLevel(star)) return 0;
+    return k * (kCumulativeBase[level] - kCumulativeBase[level - 1]);
+  }
 
   /// 满级上限（＝「累计到最高等级」）；满级部件的进度永远是 0%
   int get maxExp => maxExpOf(materialIdx, star);
