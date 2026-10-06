@@ -25,10 +25,11 @@ import 'season_stats_screen.dart';
 import 'balance_history_screen.dart';
 import 'max_stats_screen.dart';
 import 'mechanism_guide_screen.dart';
+import 'mini_slider.dart';
 import 'update_check_utils.dart';
 import 'life_sim/life_sim_screen.dart';
 
-const String appVersion = '2.3.0';
+const String appVersion = '2.3.1';
 
 /// 获取部件在当前语言下的显示名称
 String pn(PartData part, String? locale) {
@@ -253,23 +254,10 @@ class _MainScreenState extends State<MainScreen> {
     await prefs.setStringList(_boxNumbersKey, boxButtonNumbers);
   }
 
-  bool _showSnackBar = false; // 默认不显示提示
   String githubUpdateUrl = 'https://github.com/InspiraFinder/CatsKit/releases';
   String _mirrorUrl = '';
 
   String _t(String zh, String en) => _locale == 'zh' ? zh : en;
-
-  // 条件显示 SnackBar
-  void _showMessage(String zhMsg, String enMsg) {
-    if (_showSnackBar) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(_t(zhMsg, enMsg)),
-          duration: const Duration(milliseconds: 800),
-        ),
-      );
-    }
-  }
 
   // 统计出现次数
   Map<String, dynamic> _getStatistics() {
@@ -590,42 +578,18 @@ class _MainScreenState extends State<MainScreen> {
 
   void _clearMatchingNumbers(int buttonNumber) {
     String digit = buttonNumber.toString();
-    bool anyCleared = false;
     setState(() {
       for (int i = 0; i < boxButtonNumbers.length; i++) {
-        String old = boxButtonNumbers[i];
-        if (old.contains(digit)) {
-          boxButtonNumbers[i] = old.replaceAll(digit, '');
-          anyCleared = true;
-        }
+        boxButtonNumbers[i] = boxButtonNumbers[i].replaceAll(digit, '');
       }
     });
     _saveVehicleCheck();
-    if (anyCleared) {
-      _showMessage(
-        '已清除所有方框中的数字 $buttonNumber',
-        'Cleared all boxes containing number $buttonNumber',
-      );
-    } else {
-      _showMessage(
-        '没有找到包含数字 $buttonNumber 的方框',
-        'No boxes found containing number $buttonNumber',
-      );
-    }
   }
 
   void _toggleButton(int buttonNumber) {
     setState(() {
       selectedButton = (selectedButton == buttonNumber) ? 0 : buttonNumber;
     });
-    if (selectedButton == 0) {
-      _showMessage('已取消选择', 'Deselected');
-    } else {
-      _showMessage(
-        '已选择按钮 P$selectedButton，现在可以点击方框',
-        'Selected P$selectedButton, tap a box to add',
-      );
-    }
   }
 
   void _toggleClearMode() {
@@ -633,14 +597,6 @@ class _MainScreenState extends State<MainScreen> {
       isClearMode = !isClearMode;
       if (isClearMode) selectedButton = 0;
     });
-    if (isClearMode) {
-      _showMessage(
-        '清除模式已开启，点击方框清除数字，点击 P1-P6 清除所有对应的数字',
-        'Clear mode ON: tap box to clear, tap P1-P6 to clear matching numbers',
-      );
-    } else {
-      _showMessage('清除模式已关闭', 'Clear mode OFF');
-    }
   }
 
   void _clearAllNumbers() {
@@ -649,33 +605,16 @@ class _MainScreenState extends State<MainScreen> {
         boxButtonNumbers[i] = '';
     });
     _saveVehicleCheck();
-    _showMessage('已清除所有方框下方的数字', 'Cleared all numbers below boxes');
   }
 
   void _onGridBoxPressed(int boxIndex) {
     if (isClearMode) {
-      setState(() {
-        if (boxButtonNumbers[boxIndex].isNotEmpty) {
-          boxButtonNumbers[boxIndex] = '';
-          _showMessage(
-            '已清除方框 ${boxIndex + 1} 下方的数字',
-            'Cleared number of box ${boxIndex + 1}',
-          );
-        } else {
-          _showMessage(
-            '方框 ${boxIndex + 1} 下方本来就没有数字',
-            'Box ${boxIndex + 1} already has no number',
-          );
-        }
-      });
+      setState(() => boxButtonNumbers[boxIndex] = '');
       _saveVehicleCheck();
       return;
     }
 
-    if (selectedButton == 0) {
-      _showMessage('请先选择一个按钮（P1-P6）', 'Please select a button first (P1-P6)');
-      return;
-    }
+    if (selectedButton == 0) return;
 
     setState(() {
       String current = boxButtonNumbers[boxIndex];
@@ -684,10 +623,6 @@ class _MainScreenState extends State<MainScreen> {
           : selectedButton.toString();
     });
     _saveVehicleCheck();
-    _showMessage(
-      '已向方框 ${boxIndex + 1} 添加按钮 $selectedButton，当前: ${boxButtonNumbers[boxIndex]}',
-      'Added button $selectedButton to box ${boxIndex + 1}, now: ${boxButtonNumbers[boxIndex]}',
-    );
   }
 
   void _onImportPressed() {
@@ -712,7 +647,6 @@ class _MainScreenState extends State<MainScreen> {
         builder: (context) => SettingsScreen(
           currentLocale: _locale,
           currentServer: _server,
-          currentShowSnackBar: _showSnackBar,
           currentDarkMode: widget.darkMode,
           currentBgColor: widget.bgColor,
           currentBgStyle: widget.bgStyle,
@@ -725,7 +659,6 @@ class _MainScreenState extends State<MainScreen> {
       setState(() {
         _locale = result['locale'];
         _server = result['server'] ?? _server;
-        _showSnackBar = result['showSnackBar'];
         githubUpdateUrl = result['githubUpdateUrl'] ?? githubUpdateUrl;
         _mirrorUrl = result['mirrorUrl'] ?? _mirrorUrl;
       });
@@ -738,7 +671,6 @@ class _MainScreenState extends State<MainScreen> {
       if (result['bgStyle'] != null) {
         widget.onBgStyleChanged?.call(result['bgStyle'] as String);
       }
-      _showMessage('语言已切换', 'Language changed');
     }
   }
 }
@@ -1058,7 +990,6 @@ class _MainMenuScreenState extends State<MainMenuScreen> {
             SettingsScreen(
               currentLocale: _locale,
               currentServer: _server,
-              currentShowSnackBar: false,
               currentDarkMode: _darkMode,
               currentBgColor: _bgColor,
               currentBgStyle: _bgStyle,
@@ -3622,7 +3553,6 @@ class _PartDataScreen extends StatelessWidget {
 class SettingsScreen extends StatefulWidget {
   final String currentLocale;
   final String currentServer;
-  final bool currentShowSnackBar;
   final bool currentDarkMode;
 
   /// 当前自定义背景色（ARGB），null = 默认
@@ -3637,7 +3567,6 @@ class SettingsScreen extends StatefulWidget {
     super.key,
     required this.currentLocale,
     this.currentServer = 'cn',
-    required this.currentShowSnackBar,
     this.currentDarkMode = false,
     this.currentBgColor,
     this.currentBgStyle = 'pattern',
@@ -3652,7 +3581,6 @@ class SettingsScreen extends StatefulWidget {
 class _SettingsScreenState extends State<SettingsScreen> {
   late String locale;
   late String server;
-  late bool showSnackBar;
   late bool darkMode;
   int? bgColor; // 自定义背景色（ARGB），null = 默认
   String bgStyle = 'pattern'; // 'pattern' 图案水印 / 'solid' 纯色
@@ -3732,7 +3660,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
     if (server == 'cn') {
       locale = 'zh';
     }
-    showSnackBar = widget.currentShowSnackBar;
     darkMode = widget.currentDarkMode;
     bgColor = widget.currentBgColor;
     bgStyle = widget.currentBgStyle;
@@ -4913,11 +4840,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
         ),
         Expanded(
-          child: Slider(
-            value: value.toDouble(),
+          child: MiniSlider(
             min: 0,
             max: 255,
+            value: value.toDouble(),
             divisions: 255,
+            formatValue: (v) => '${v.round()}',
             onChanged: (v) => onChanged(v.round()),
           ),
         ),
@@ -4976,7 +4904,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
           Navigator.pop(context, {
             'locale': locale,
             'server': server,
-            'showSnackBar': showSnackBar,
             'darkMode': darkMode,
             'bgColor': bgColor,
             'bgStyle': bgStyle,
@@ -5069,20 +4996,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
             const Divider(),
             SwitchListTile(
-              title: Text(locale == 'zh' ? '显示操作提示' : 'Show operation hints'),
-              subtitle: Text(
-                locale == 'zh'
-                    ? '每次点击按钮时显示灰色提示条'
-                    : 'Show snackbar when clicking buttons',
-              ),
-              value: showSnackBar,
-              onChanged: (value) {
-                setState(() {
-                  showSnackBar = value;
-                });
-              },
-            ),
-            SwitchListTile(
               title: Text(locale == 'zh' ? '夜间模式' : 'Dark mode'),
               subtitle: Text(locale == 'zh' ? '使用深色主题' : 'Use dark theme'),
               value: darkMode,
@@ -5137,7 +5050,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   Navigator.pop(context, {
                     'locale': locale,
                     'server': server,
-                    'showSnackBar': showSnackBar,
                     'darkMode': darkMode,
                     'bgColor': bgColor,
                     'bgStyle': bgStyle,

@@ -353,37 +353,10 @@ int fusionXpGainOf({
 
 // ==================== 工具箱 ====================
 
-/// 部件所在的部位 —— 决定它能融哪种工具箱（游戏内限制）
-enum PartSlot { body, weapon, wheel, gadget }
-
-const List<String> kSlotZh = <String>['车身', '武器', '车轮', '配件'];
-const List<String> kSlotEn = <String>['Body', 'Weapon', 'Wheel', 'Gadget'];
-
-/// 工具箱类型（普通工具箱四种；终极工具箱不在本模块范围内）
-enum ToolboxKind { health, attack, power, magic }
-
-const List<String> kToolboxKindZh = <String>[
-  '生命值工具箱',
-  '攻击力工具箱',
-  '电力工具箱',
-  '魔法工具箱',
-];
-const List<String> kToolboxKindEn = <String>[
-  'Health toolbox',
-  'Attack toolbox',
-  'Power toolbox',
-  'Magic toolbox',
-];
-
-/// 该工具箱能不能融进这个部位（官方限制：生命值→车身/车轮/配件、攻击力→武器、
-/// 电力→车身、魔法→任意车身）
-bool toolboxFits(ToolboxKind kind, PartSlot slot) => switch (kind) {
-  ToolboxKind.health =>
-    slot == PartSlot.body || slot == PartSlot.wheel || slot == PartSlot.gadget,
-  ToolboxKind.attack => slot == PartSlot.weapon,
-  ToolboxKind.power => slot == PartSlot.body,
-  ToolboxKind.magic => slot == PartSlot.body,
-};
+// ---- 下面三张是「按类型加成」的配置口径数据 ----
+// 界面现在只统计工具箱的**数量**（不区分类型、也不算加成），所以这一段在 UI 里
+// 没有用到；保留是为了与配置 / 机制指南对齐，随时可以恢复「加成」显示：
+// 生命值/攻击力加成 × (1 + 加强工具箱技能) 向下取整；电力 +1；魔法 +10%（有上限）。
 
 /// 25 档工具箱加成：生命值工具箱 +HP（`toolboxBonuses.HEALTH`）
 const List<int> kToolboxHealthBonus = <int>[
@@ -510,39 +483,15 @@ int toolboxSkillPercent(int level) => switch (level) {
   _ => 0,
 };
 
-/// 工具箱提供的加成：
-/// 生命值 / 攻击力按「加强工具箱」技能加成后**向下取整**；电力 +1；魔法 +10%（有上限）
-int toolboxBonusOf(
-  ToolboxKind kind,
-  int materialIdx,
-  int star, {
-  int hpSkillLevel = 0,
-  int attackSkillLevel = 0,
-}) {
-  final i = tierIndex(materialIdx, star);
-  return switch (kind) {
-    ToolboxKind.health =>
-      kToolboxHealthBonus[i] * (100 + toolboxSkillPercent(hpSkillLevel)) ~/ 100,
-    ToolboxKind.attack =>
-      kToolboxAttackBonus[i] *
-          (100 + toolboxSkillPercent(attackSkillLevel)) ~/
-          100,
-    ToolboxKind.power => 1,
-    ToolboxKind.magic => 10,
-  };
-}
-
 /// 已经融进某个部件的一个工具箱
+///
+/// 只记「材质 + 星级」（决定融它花多少钱、卖掉能回收多少）；
+/// **不记类型**——界面只统计工具箱的数量（生命值 / 攻击力 / 电力 / 魔法不做区分）。
 class FusionToolbox {
-  ToolboxKind kind;
   int materialIdx;
   int star;
 
-  FusionToolbox({
-    required this.kind,
-    required this.materialIdx,
-    required this.star,
-  });
+  FusionToolbox({required this.materialIdx, required this.star});
 
   int get tier => tierNumber(materialIdx, star);
   int get baseCost => kToolboxBaseCost[tierIndex(materialIdx, star)];
@@ -555,22 +504,12 @@ class FusionToolbox {
   /// **不随「它是第几个」变化**：第 2 个虽然花了 2 倍的钱，回收仍然是这里的值。
   int get refund => sellPrice * kFusedToolboxSellPercent ~/ 100;
 
-  int bonus({int hpSkillLevel = 0, int attackSkillLevel = 0}) => toolboxBonusOf(
-    kind,
-    materialIdx,
-    star,
-    hpSkillLevel: hpSkillLevel,
-    attackSkillLevel: attackSkillLevel,
-  );
-
   Map<String, dynamic> toJson() => <String, dynamic>{
-    'k': kind.index,
     'm': materialIdx,
     's': star,
   };
 
   static FusionToolbox fromJson(Map<String, dynamic> json) => FusionToolbox(
-    kind: ToolboxKind.values[(json['k'] as num?)?.toInt() ?? 0],
     materialIdx: (json['m'] as num?)?.toInt() ?? 0,
     star: (json['s'] as num?)?.toInt() ?? 1,
   );
@@ -586,9 +525,6 @@ class FusionPart {
   int exp; // 已投入经验
   PartQuality quality;
 
-  /// 部件所在部位（决定能融哪种工具箱）
-  PartSlot slot;
-
   /// 已经融进去的工具箱（**加成不继承、卖掉只回收一半**）
   final List<FusionToolbox> toolboxes;
 
@@ -598,7 +534,6 @@ class FusionPart {
     required this.star,
     required this.exp,
     required this.quality,
-    this.slot = PartSlot.body,
     List<FusionToolbox>? toolboxes,
   }) : toolboxes = toolboxes ?? <FusionToolbox>[];
 
@@ -628,24 +563,6 @@ class FusionPart {
   /// 已融的工具箱个数（也就是下一个工具箱的 k）
   int get toolboxCount => toolboxes.length;
 
-  /// 该部件目前从工具箱拿到的生命值加成
-  int toolboxHealthBonus(int hpSkillLevel) => toolboxes
-      .where((t) => t.kind == ToolboxKind.health)
-      .fold(0, (s, t) => s + t.bonus(hpSkillLevel: hpSkillLevel));
-
-  /// 该部件目前从工具箱拿到的攻击力加成
-  int toolboxAttackBonus(int attackSkillLevel) => toolboxes
-      .where((t) => t.kind == ToolboxKind.attack)
-      .fold(0, (s, t) => s + t.bonus(attackSkillLevel: attackSkillLevel));
-
-  /// 电力工具箱个数（每个 +1 电力）
-  int get toolboxPowerBonus =>
-      toolboxes.where((t) => t.kind == ToolboxKind.power).length;
-
-  /// 魔法工具箱个数（每个 +10% 魔法加成）
-  int get toolboxMagicBonus =>
-      toolboxes.where((t) => t.kind == ToolboxKind.magic).length * 10;
-
   /// 卖掉这个部件时，已融工具箱能收回的金币（每个都按**它自己的售价 × 50%**，
   /// 与「第几个」无关：第 2 个花了 2 倍的钱，回收还是 1 份）
   int get toolboxRefund => toolboxes.fold(0, (s, t) => s + t.refund);
@@ -663,7 +580,6 @@ class FusionPart {
     's': star,
     'e': exp,
     'q': quality.index,
-    'sl': slot.index,
     if (toolboxes.isNotEmpty) 'tb': toolboxes.map((t) => t.toJson()).toList(),
   };
 
@@ -673,7 +589,6 @@ class FusionPart {
     star: (json['s'] as num?)?.toInt() ?? 1,
     exp: (json['e'] as num?)?.toInt() ?? 0,
     quality: PartQuality.values[(json['q'] as num?)?.toInt() ?? 0],
-    slot: PartSlot.values[(json['sl'] as num?)?.toInt() ?? 0],
     toolboxes: (json['tb'] as List<dynamic>?)
         ?.map(
           (e) => FusionToolbox.fromJson(Map<String, dynamic>.from(e as Map)),

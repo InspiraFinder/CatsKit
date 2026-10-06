@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'fusion_calc_data.dart';
+import 'mini_slider.dart';
 
 /// 熔铸计算：把锦标赛战车的部件加进来，随时看它的「金币价值 / 售价 / 融合花费」，
 /// 并在模块内直接做融合（材料从已添加的部件里挑）。
@@ -29,10 +30,6 @@ class _FusionCalcScreenState extends State<FusionCalcScreen> {
   int _dealerLevel = 0;
   int _mechanicLevel = 0;
   int _merchantLevel = 0;
-
-  /// 加强工具箱（生命值 / 攻击力）技能档位
-  int _hpToolboxLevel = 0;
-  int _atkToolboxLevel = 0;
 
   bool _loaded = false;
 
@@ -67,10 +64,6 @@ class _FusionCalcScreenState extends State<FusionCalcScreen> {
         _dealerLevel = int.tryParse(skills[0]) ?? 0;
         _mechanicLevel = int.tryParse(skills[1]) ?? 0;
         _merchantLevel = int.tryParse(skills[2]) ?? 0;
-        if (skills.length >= 5) {
-          _hpToolboxLevel = int.tryParse(skills[3]) ?? 0;
-          _atkToolboxLevel = int.tryParse(skills[4]) ?? 0;
-        }
       }
     } catch (_) {
       // 数据损坏时保持空列表即可
@@ -89,8 +82,6 @@ class _FusionCalcScreenState extends State<FusionCalcScreen> {
         '$_dealerLevel',
         '$_mechanicLevel',
         '$_merchantLevel',
-        '$_hpToolboxLevel',
-        '$_atkToolboxLevel',
       ]);
     } catch (_) {
       // 忽略写入失败
@@ -122,25 +113,6 @@ class _FusionCalcScreenState extends State<FusionCalcScreen> {
 
   String _partTitle(FusionPart p) =>
       '${p.tier} ${_t('段', 'tier')} · ${_material(p.materialIdx)} ${p.star} ${_t('星', 'star')}';
-
-  String _slotName(PartSlot s) => _isZh ? kSlotZh[s.index] : kSlotEn[s.index];
-
-  String _toolboxKindName(ToolboxKind k) =>
-      _isZh ? kToolboxKindZh[k.index] : kToolboxKindEn[k.index];
-
-  /// 一个已融工具箱在界面上显示的加成文本
-  String _toolboxBonusText(FusionToolbox t) {
-    final v = t.bonus(
-      hpSkillLevel: _hpToolboxLevel,
-      attackSkillLevel: _atkToolboxLevel,
-    );
-    return switch (t.kind) {
-      ToolboxKind.health => '+${_num(v)} HP',
-      ToolboxKind.attack => '+${_num(v)} ATK',
-      ToolboxKind.power => '+$v ${_t('电力', 'power')}',
-      ToolboxKind.magic => '+$v% ${_t('魔法加成', 'magic')}',
-    };
-  }
 
   String _levelText(FusionPart p) {
     if (p.isMaxLevel) return '${p.level} ${_t('级（满级）', '(max)')}';
@@ -178,7 +150,6 @@ class _FusionCalcScreenState extends State<FusionCalcScreen> {
             part.star = edited.star;
             part.exp = edited.exp;
             part.quality = edited.quality;
-            part.slot = edited.slot;
           });
           await _save();
         },
@@ -282,6 +253,10 @@ class _FusionCalcScreenState extends State<FusionCalcScreen> {
     );
   }
 
+  /// 融合一次（材料被吃掉）+ 存盘。
+  ///
+  /// 没有提示条：目标卡上会立即显示新的等级 / 经验 / 花费与出售价，
+  /// 材料卡则从列表里消失。
   Future<void> _performFusion({
     required FusionPart target,
     required FusionPart material,
@@ -293,53 +268,12 @@ class _FusionCalcScreenState extends State<FusionCalcScreen> {
       materialQuality: material.quality,
       mechanicLevel: _mechanicLevel,
     );
-    final cost = fusionCostOf(
-      target.exp,
-      target.materialIdx,
-      target.star,
-      _dealerLevel,
-    );
-    final beforeLevel = target.level;
-    final beforeExp = target.exp;
-
-    late int applied;
     setState(() {
       // 最高等级没有自己的经验段（它就是上一级的 100%），所以经验夹到满级上限
-      applied = target.addExp(gain);
+      target.addExp(gain);
       _parts.remove(material);
     });
     await _save();
-
-    if (!mounted) return;
-    final wasted = gain - applied;
-    final levelUp = target.level != beforeLevel;
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(
-        SnackBar(
-          duration: const Duration(seconds: 6),
-          content: Text(
-            _t(
-              '融合完成：获得 $applied 经验，花费 ${_num(cost)} 金币'
-                  '${levelUp ? '，升到 ${target.level} 级' : ''}'
-                  '${wasted > 0 ? '；已到满级，多出的 $wasted 经验作废' : ''}',
-              'Fused: +$applied XP, ${_num(cost)} coins'
-                  '${levelUp ? ', now level ${target.level}' : ''}'
-                  '${wasted > 0 ? '; maxed, $wasted XP wasted' : ''}',
-            ),
-          ),
-          action: SnackBarAction(
-            label: _t('撤销', 'Undo'),
-            onPressed: () async {
-              setState(() {
-                target.exp = beforeExp;
-                _parts.add(material);
-              });
-              await _save();
-            },
-          ),
-        ),
-      );
   }
 
   void _toast(String msg) {
@@ -355,8 +289,6 @@ class _FusionCalcScreenState extends State<FusionCalcScreen> {
       if (which == 0) _dealerLevel = level;
       if (which == 1) _mechanicLevel = level;
       if (which == 2) _merchantLevel = level;
-      if (which == 3) _hpToolboxLevel = level;
-      if (which == 4) _atkToolboxLevel = level;
     });
     await _save();
   }
@@ -501,24 +433,6 @@ class _FusionCalcScreenState extends State<FusionCalcScreen> {
               2,
               _merchantLevel,
             ),
-            _skillRow(
-              _t('加强工具箱 · 生命值（段位 6）', 'Better Toolboxes · Health (stage 6)'),
-              _t(
-                '+15% / +30% / +45%　提高生命值工具箱的加成（向下取整）',
-                '+15% / +30% / +45%  more HP per health toolbox (rounded down)',
-              ),
-              3,
-              _hpToolboxLevel,
-            ),
-            _skillRow(
-              _t('加强工具箱 · 攻击力（段位 9）', 'Better Toolboxes · Attack (stage 9)'),
-              _t(
-                '+15% / +30% / +45%　提高攻击力工具箱的加成（向下取整）',
-                '+15% / +30% / +45%  more ATK per attack toolbox (rounded down)',
-              ),
-              4,
-              _atkToolboxLevel,
-            ),
           ],
         ),
       ),
@@ -609,8 +523,6 @@ class _FusionCalcScreenState extends State<FusionCalcScreen> {
                     ),
                   ),
                 ),
-                _chip(_slotName(p.slot), theme.colorScheme.tertiary),
-                const SizedBox(width: 4),
                 _chip(
                   _quality(p.quality),
                   p.quality == PartQuality.common
@@ -748,7 +660,7 @@ class _FusionCalcScreenState extends State<FusionCalcScreen> {
     );
   }
 
-  /// 已融工具箱列表（每个带一个「移除」图标）
+  /// 已融工具箱列表（**只看数量**：每个只记材质 / 星级，用于算花费与回收）
   Widget _toolboxList(ThemeData theme, FusionPart p) {
     return Container(
       padding: const EdgeInsets.fromLTRB(10, 6, 4, 6),
@@ -798,8 +710,9 @@ class _FusionCalcScreenState extends State<FusionCalcScreen> {
       children: <Widget>[
         Expanded(
           child: Text(
-            '${_toolboxKindName(t.kind)} · ${_material(t.materialIdx)} ${t.star} 星'
-            '　→ ${_toolboxBonusText(t)}',
+            '${_t('第', 'no.')}${i + 1}${_t(' 个', '')}　'
+            '${_material(t.materialIdx)} ${t.star} ${_t('星', 'star')}'
+            '　→ ${_t('回收', 'refund')} ${_num(t.refund)}',
             style: const TextStyle(fontSize: 11.5),
           ),
         ),
@@ -818,57 +731,21 @@ class _FusionCalcScreenState extends State<FusionCalcScreen> {
     );
   }
 
-  /// 往部件上融一个工具箱（弹窗里可以连续融多个）
+  /// 往部件上融一个工具箱（弹窗里可以连续融多个）；没有提示条，卡片上的数量直接 +1
   Future<void> _fuseToolboxInto(FusionPart part) async {
-    final messenger = ScaffoldMessenger.of(context);
     await showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
       builder: (_) => _ToolboxSheet(
         isZh: _isZh,
         part: part,
-        hpSkillLevel: _hpToolboxLevel,
-        atkSkillLevel: _atkToolboxLevel,
-        onFuse: (kind, materialIdx, star) async {
-          final tb = FusionToolbox(
-            kind: kind,
-            materialIdx: materialIdx,
-            star: star,
+        onFuse: (materialIdx, star) async {
+          setState(
+            () => part.toolboxes.add(
+              FusionToolbox(materialIdx: materialIdx, star: star),
+            ),
           );
-          final cost = toolboxFuseCostOf(
-            materialIdx: materialIdx,
-            star: star,
-            alreadyFused: part.toolboxCount,
-          );
-          setState(() => part.toolboxes.add(tb));
-          final index = part.toolboxes.length - 1;
           await _save();
-          messenger
-            ..hideCurrentSnackBar()
-            ..showSnackBar(
-              SnackBar(
-                duration: const Duration(seconds: 6),
-                content: Text(
-                  _t(
-                    '已融进${_toolboxKindName(tb.kind)}（${_material(tb.materialIdx)} ${tb.star} 星）：'
-                        '${_toolboxBonusText(tb)}，花费 ${_num(cost)} 金币',
-                    'Fused a ${_toolboxKindName(tb.kind)} (${_material(tb.materialIdx)} ${tb.star}-star): '
-                        '${_toolboxBonusText(tb)}, ${_num(cost)} coins',
-                  ),
-                ),
-                action: SnackBarAction(
-                  label: _t('撤销', 'Undo'),
-                  onPressed: () async {
-                    setState(() {
-                      if (index < part.toolboxes.length) {
-                        part.toolboxes.removeAt(index);
-                      }
-                    });
-                    await _save();
-                  },
-                ),
-              ),
-            );
         },
       ),
     );
@@ -966,12 +843,13 @@ class _FusionCalcScreenState extends State<FusionCalcScreen> {
                 '· XP gained = ceil((1 + Pro Mechanic) x quality x material XP value), at the skill level of that moment',
               ),
               _t(
-                '· 一次只能融合一个材料，材料会被消耗（可用「撤销」找回）',
-                '· One material per fusion; it is consumed (use Undo to get it back)',
+                '· 一次只能融合一个材料，材料会被消耗',
+                '· One material per fusion; it is consumed',
               ),
               _t(
-                '· 融工具箱：加成 = 表中数值 × (1 + 加强工具箱技能)，向下取整；电力箱 +1、魔法箱 +10%（有上限）',
-                '· Toolbox bonus = table value x (1 + Better Toolboxes), rounded down; power +1, magic +10% (capped)',
+                '· 工具箱只统计**数量**：每个只记材质 / 星级（决定花多少钱、卖掉回收多少），不区分生命值 / 攻击力 / 电力 / 魔法',
+                '· Toolboxes are counted, not classified: each keeps its material / star (cost and refund), '
+                    'health / attack / power / magic are not distinguished',
               ),
               _t(
                 '· 工具箱融合花费 = 基础花费 × 8 × 2^k（k = 已融个数；第 7 个起封顶 ×512）',
@@ -1005,21 +883,26 @@ class _FusionCalcScreenState extends State<FusionCalcScreen> {
 
 // ==================== 通用：弹窗按钮 ====================
 
-/// 熔铸计算里所有弹出窗口统一的三个按钮：
+/// 熔铸计算里所有弹出窗口统一的按钮：
 ///
 /// * **取消** —— 不保存，关掉窗口
 /// * **确定并继续** —— 保存本次操作，**窗口留着**接着做下一件
-///   （继续添加下一个部件 / 继续编辑这个部件 / 接着融下一个工具箱 / 接着喂下一个材料）
+///   （继续添加下一个部件 / 接着融下一个工具箱 / 接着喂下一个材料）
 /// * **确定并关闭** —— 保存本次操作并关掉窗口
 ///
 /// [onContinue] / [onDone] 传 `null` 表示该按钮暂时不可用（例如还没选材料）。
 /// [expanded] 为 true 时改用「上排两个 + 下排一个整宽」的布局（底部弹窗更好按）。
+/// [simple] 为 true 时只留「取消 + 确定」两个按钮（**编辑**已有部件时用，省高度）。
+///
+/// 对话框里（`expanded == false`）三个按钮排成**一行**小而扁的按钮：
+/// `OverflowBar` 在竖屏手机上会把它们折成三行，太占高度。
 class _PopupActions extends StatelessWidget {
   final bool isZh;
   final VoidCallback onCancel;
   final VoidCallback? onContinue;
   final VoidCallback? onDone;
   final bool expanded;
+  final bool simple;
 
   const _PopupActions({
     required this.isZh,
@@ -1027,14 +910,46 @@ class _PopupActions extends StatelessWidget {
     this.onContinue,
     this.onDone,
     this.expanded = false,
+    this.simple = false,
   });
+
+  /// 对话框里用的一行小按钮（字号 13.5、高 34，比默认 Button 矮一截）
+  Widget _flat(String text, VoidCallback? onPressed) => TextButton(
+    onPressed: onPressed,
+    style: TextButton.styleFrom(
+      visualDensity: VisualDensity.compact,
+      minimumSize: const Size(0, 34),
+      padding: const EdgeInsets.symmetric(horizontal: 10),
+      textStyle: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600),
+    ),
+    child: Text(text, maxLines: 1, overflow: TextOverflow.ellipsis),
+  );
 
   @override
   Widget build(BuildContext context) {
-    final cancel = OutlinedButton(
-      onPressed: onCancel,
-      child: Text(isZh ? '取消' : 'Cancel'),
-    );
+    final cancel = _flat(isZh ? '取消' : 'Cancel', onCancel);
+    if (simple) {
+      return Row(
+        mainAxisAlignment: MainAxisAlignment.end,
+        children: <Widget>[
+          Flexible(child: cancel),
+          const SizedBox(width: 4),
+          Flexible(child: _flat(isZh ? '确定' : 'OK', onDone)),
+        ],
+      );
+    }
+    if (!expanded) {
+      return Row(
+        mainAxisAlignment: MainAxisAlignment.end,
+        children: <Widget>[
+          Flexible(child: cancel),
+          const SizedBox(width: 4),
+          Flexible(child: _flat(isZh ? '确定并继续' : 'OK & continue', onContinue)),
+          const SizedBox(width: 4),
+          Flexible(child: _flat(isZh ? '确定并关闭' : 'OK & close', onDone)),
+        ],
+      );
+    }
     final keepOpen = FilledButton.tonal(
       onPressed: onContinue,
       child: Text(isZh ? '确定并继续' : 'OK & continue'),
@@ -1043,14 +958,6 @@ class _PopupActions extends StatelessWidget {
       onPressed: onDone,
       child: Text(isZh ? '确定并关闭' : 'OK & close'),
     );
-    if (!expanded) {
-      return OverflowBar(
-        alignment: MainAxisAlignment.end,
-        spacing: 8,
-        overflowSpacing: 4,
-        children: <Widget>[cancel, keepOpen, close],
-      );
-    }
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
@@ -1097,7 +1004,6 @@ class _PartEditorDialogState extends State<_PartEditorDialog> {
   late int _level;
   late double _progress;
   late PartQuality _quality;
-  late PartSlot _slot;
 
   bool get _isZh => widget.isZh;
 
@@ -1110,7 +1016,6 @@ class _PartEditorDialogState extends State<_PartEditorDialog> {
     _materialIdx = init?.materialIdx ?? 2; // 默认军用
     _star = init?.star ?? 3; // 默认 3 星
     _quality = init?.quality ?? PartQuality.common;
-    _slot = init?.slot ?? PartSlot.body;
     if (init != null) {
       _level = init.level;
       _progress = init.isMaxLevel ? 0 : init.progress;
@@ -1157,7 +1062,6 @@ class _PartEditorDialogState extends State<_PartEditorDialog> {
     star: _star,
     exp: _exp,
     quality: _quality,
-    slot: _slot,
     toolboxes: widget.initial?.toolboxes,
   );
 
@@ -1182,6 +1086,8 @@ class _PartEditorDialogState extends State<_PartEditorDialog> {
     );
 
     return AlertDialog(
+      // 竖屏手机（360 dp 宽）上默认左右各 40 会让内容太窄、行数变多，这里收窄
+      insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
       title: Text(
         widget.initial == null
             ? _t('添加部件', 'Add part')
@@ -1194,114 +1100,100 @@ class _PartEditorDialogState extends State<_PartEditorDialog> {
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: <Widget>[
-              _label(_t('部位（决定能融哪种工具箱）', 'Slot (decides which toolboxes fit)')),
-              Wrap(
-                spacing: 6,
-                children: <Widget>[
-                  for (var i = 0; i < kSlotZh.length; i++)
-                    ChoiceChip(
-                      label: Text(_isZh ? kSlotZh[i] : kSlotEn[i]),
-                      selected: _slot.index == i,
-                      onSelected: (_) =>
-                          setState(() => _slot = PartSlot.values[i]),
-                    ),
-                ],
-              ),
-              const SizedBox(height: 10),
-              _label(_t('材质', 'Material')),
-              Wrap(
-                spacing: 6,
-                children: <Widget>[
-                  for (var i = 0; i < 5; i++)
-                    ChoiceChip(
-                      label: Text(_isZh ? kMaterialZh[i] : kMaterialEn[i]),
-                      selected: _materialIdx == i,
-                      onSelected: (_) => setState(() => _materialIdx = i),
-                    ),
-                ],
-              ),
-              const SizedBox(height: 10),
-              _label(_t('星级（决定段位与最高等级）', 'Star (tier and level cap)')),
-              Wrap(
-                spacing: 6,
-                children: <Widget>[
-                  for (var s = 1; s <= 5; s++)
-                    ChoiceChip(
-                      label: Text('$s ★'),
-                      selected: _star == s,
-                      onSelected: (_) => setState(() {
-                        _star = s;
-                        if (_level > _maxLevel) _level = _maxLevel;
-                      }),
-                    ),
-                ],
-              ),
-              const SizedBox(height: 10),
-              _label(
-                _t(
-                  '品质（影响经验与售价，不影响融合花费）',
-                  'Quality (affects XP and sale price, not fusion cost)',
-                ),
-              ),
-              Wrap(
-                spacing: 6,
-                children: <Widget>[
-                  for (var q = 0; q < 3; q++)
-                    ChoiceChip(
-                      label: Text(_isZh ? kQualityZh[q] : kQualityEn[q]),
-                      selected: _quality.index == q,
-                      onSelected: (_) =>
-                          setState(() => _quality = PartQuality.values[q]),
-                    ),
-                ],
-              ),
-              const SizedBox(height: 10),
-              _label(
-                _t(
-                  '等级（最高 $_maxLevel 级；满级＝第 ${_maxLevel - 1} 级的 100%）',
-                  'Level (max $_maxLevel; the max level equals level ${_maxLevel - 1} at 100%)',
-                ),
-              ),
+              // 一行两个下拉（比两排 chip 省一半高度）
               Row(
                 children: <Widget>[
                   Expanded(
-                    child: Slider(
-                      value: _level.toDouble().clamp(1, _maxLevel.toDouble()),
-                      min: 1,
-                      max: _maxLevel.toDouble(),
-                      divisions: _maxLevel - 1,
-                      label: '$_level',
-                      onChanged: (v) => setState(() {
-                        _level = v.round();
-                        if (_isMax) _progress = 0;
-                      }),
+                    child: _dropdown<int>(
+                      _t('材质', 'Material'),
+                      value: _materialIdx,
+                      items: <int>[0, 1, 2, 3, 4],
+                      text: (i) => _isZh ? kMaterialZh[i] : kMaterialEn[i],
+                      onChanged: (v) => setState(() => _materialIdx = v),
                     ),
                   ),
-                  SizedBox(
-                    width: 48,
-                    child: Text(
-                      _isMax ? '$_level\n满' : '$_level',
-                      textAlign: TextAlign.end,
-                      style: const TextStyle(fontWeight: FontWeight.w700),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: _dropdown<int>(
+                      _t('星级', 'Star'),
+                      value: _star,
+                      items: <int>[1, 2, 3, 4, 5],
+                      text: (s) => '$s ★',
+                      onChanged: (v) => setState(() {
+                        _star = v;
+                        if (_level > _maxLevel) _level = _maxLevel;
+                      }),
                     ),
                   ),
                 ],
               ),
-              _label(
-                _t(
-                  _isMax
-                      ? '经验条进度（满级没有进度条）'
-                      : '经验条进度 ${(_progress * 100).toStringAsFixed(0)}%',
-                  _isMax
-                      ? 'Progress (a maxed part has no bar)'
-                      : 'Progress ${(_progress * 100).toStringAsFixed(0)}%',
-                ),
-              ),
-              Slider(
-                value: _isMax ? 0 : _progress,
-                onChanged: _isMax ? null : (v) => setState(() => _progress = v),
+              const SizedBox(height: 10),
+              Row(
+                children: <Widget>[
+                  SizedBox(
+                    width: 44,
+                    child: Text(
+                      _t('品质', 'Quality'),
+                      style: TextStyle(
+                        fontSize: 12.5,
+                        color: theme.colorScheme.outline,
+                      ),
+                    ),
+                  ),
+                  Expanded(
+                    child: SegmentedButton<int>(
+                      segments: <ButtonSegment<int>>[
+                        for (var q = 0; q < 3; q++)
+                          ButtonSegment<int>(
+                            value: q,
+                            label: Text(_isZh ? kQualityZh[q] : kQualityEn[q]),
+                          ),
+                      ],
+                      selected: <int>{_quality.index},
+                      showSelectedIcon: false,
+                      style: const ButtonStyle(
+                        visualDensity: VisualDensity.compact,
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      ),
+                      onSelectionChanged: (s) => setState(
+                        () => _quality = PartQuality.values[s.first],
+                      ),
+                    ),
+                  ),
+                ],
               ),
               const SizedBox(height: 4),
+              _sliderLine(
+                label: _t('等级', 'Level'),
+                value: _isMax ? '$_level ${_t('满', 'max')}' : '$_level',
+                slider: MiniSlider(
+                  min: 1,
+                  max: _maxLevel.toDouble(),
+                  value: _level.toDouble(),
+                  divisions: _maxLevel - 1,
+                  formatValue: (v) => '${v.round()}',
+                  onChanged: (v) => setState(() {
+                    _level = v.round();
+                    if (_isMax) _progress = 0;
+                  }),
+                ),
+              ),
+              _sliderLine(
+                label: _t('进度', 'Progress'),
+                value: _isMax
+                    ? '—'
+                    : '${(_progress * 100).toStringAsFixed(0)}%',
+                slider: MiniSlider(
+                  min: 0,
+                  max: 1,
+                  value: _isMax ? 0 : _progress,
+                  formatValue: (v) => '${(v * 100).round()}%',
+                  onChanged: _isMax
+                      ? null
+                      : (v) => setState(() => _progress = v),
+                ),
+              ),
+              const SizedBox(height: 2),
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.all(10),
@@ -1356,6 +1248,8 @@ class _PartEditorDialogState extends State<_PartEditorDialog> {
       actions: <Widget>[
         _PopupActions(
           isZh: _isZh,
+          // 编辑已有部件：只留「取消 + 确定」（没有「继续编辑下一个」这种需求）
+          simple: widget.initial != null,
           onCancel: () => Navigator.pop(context),
           onContinue: () => _confirm(keepOpen: true),
           onDone: () => _confirm(keepOpen: false),
@@ -1375,38 +1269,85 @@ class _PartEditorDialogState extends State<_PartEditorDialog> {
     setState(() {});
   }
 
-  Widget _label(String text) => Padding(
-    padding: const EdgeInsets.only(bottom: 4),
-    child: Text(
-      text,
-      style: TextStyle(
-        fontSize: 12,
-        color: Theme.of(context).colorScheme.outline,
+  /// 紧凑下拉（一行能放两个）
+  Widget _dropdown<T>(
+    String label, {
+    required T value,
+    required List<T> items,
+    required String Function(T) text,
+    required ValueChanged<T> onChanged,
+  }) {
+    final theme = Theme.of(context);
+    return DropdownButtonFormField<T>(
+      initialValue: value,
+      isDense: true,
+      isExpanded: true,
+      style: TextStyle(fontSize: 13.5, color: theme.colorScheme.onSurface),
+      decoration: InputDecoration(
+        labelText: label,
+        isDense: true,
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 10,
+          vertical: 10,
+        ),
+        border: const OutlineInputBorder(),
       ),
-    ),
-  );
+      items: <DropdownMenuItem<T>>[
+        for (final i in items)
+          DropdownMenuItem<T>(value: i, child: Text(text(i))),
+      ],
+      onChanged: (v) {
+        if (v != null) onChanged(v);
+      },
+    );
+  }
+
+  /// 紧凑滑块行：左边标签 + 滑块 + 右边数值（比「标签一行 + 滑块一行」省一半）
+  Widget _sliderLine({
+    required String label,
+    required String value,
+    required Widget slider,
+  }) {
+    final theme = Theme.of(context);
+    return Row(
+      children: <Widget>[
+        SizedBox(
+          width: 44,
+          child: Text(
+            label,
+            style: TextStyle(fontSize: 12.5, color: theme.colorScheme.outline),
+          ),
+        ),
+        Expanded(child: slider),
+        SizedBox(
+          width: 52,
+          child: Text(
+            value,
+            textAlign: TextAlign.end,
+            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+          ),
+        ),
+      ],
+    );
+  }
 }
 
 // ==================== 工具箱选择弹窗 ====================
 
-/// 选一个工具箱融进部件：类型（按部位过滤）/ 材质 / 星级 + 花费与加成预览
+/// 往部件上融一个工具箱：选工具箱的**材质 / 星级**（决定花费与回收），
+/// 再按「第几个」算倍率。**不区分类型**（生命值 / 攻击力 / 电力 / 魔法）。
 ///
 /// 「确定并继续」= 融合后窗口留着（可以接着融下一个）；「确定并关闭」= 融合后关掉。
 class _ToolboxSheet extends StatefulWidget {
   final bool isZh;
   final FusionPart part;
-  final int hpSkillLevel;
-  final int atkSkillLevel;
 
   /// 真正执行融合（由外层 [FusionCalcScreen] 做：加进部件、保存、弹提示）
-  final Future<void> Function(ToolboxKind kind, int materialIdx, int star)
-  onFuse;
+  final Future<void> Function(int materialIdx, int star) onFuse;
 
   const _ToolboxSheet({
     required this.isZh,
     required this.part,
-    required this.hpSkillLevel,
-    required this.atkSkillLevel,
     required this.onFuse,
   });
 
@@ -1415,7 +1356,6 @@ class _ToolboxSheet extends StatefulWidget {
 }
 
 class _ToolboxSheetState extends State<_ToolboxSheet> {
-  late ToolboxKind _kind;
   late int _materialIdx;
   late int _star;
 
@@ -1439,27 +1379,12 @@ class _ToolboxSheetState extends State<_ToolboxSheet> {
     return '$buf$frac';
   }
 
-  /// 这个部位能融的工具箱
-  List<ToolboxKind> get _fittingKinds => ToolboxKind.values
-      .where((k) => toolboxFits(k, widget.part.slot))
-      .toList();
-
   @override
   void initState() {
     super.initState();
-    final fits = _fittingKinds;
-    _kind = fits.isEmpty ? ToolboxKind.health : fits.first;
     _materialIdx = widget.part.materialIdx;
     _star = widget.part.star;
   }
-
-  int get _bonus => toolboxBonusOf(
-    _kind,
-    _materialIdx,
-    _star,
-    hpSkillLevel: widget.hpSkillLevel,
-    attackSkillLevel: widget.atkSkillLevel,
-  );
 
   int get _cost => toolboxFuseCostOf(
     materialIdx: _materialIdx,
@@ -1467,16 +1392,9 @@ class _ToolboxSheetState extends State<_ToolboxSheet> {
     alreadyFused: widget.part.toolboxCount,
   );
 
-  String get _bonusText => switch (_kind) {
-    ToolboxKind.health => '+${_num(_bonus)} HP',
-    ToolboxKind.attack => '+${_num(_bonus)} ATK',
-    ToolboxKind.power => _t('+1 电力', '+1 power'),
-    ToolboxKind.magic => _t('+10% 魔法加成（有上限）', '+10% magic (capped)'),
-  };
-
   /// 融合这个箱子；[keepOpen] 为 true 时窗口留着继续融下一个
   Future<void> _confirm({required bool keepOpen}) async {
-    await widget.onFuse(_kind, _materialIdx, _star);
+    await widget.onFuse(_materialIdx, _star);
     if (!mounted) return;
     if (!keepOpen) {
       Navigator.pop(context);
@@ -1523,10 +1441,8 @@ class _ToolboxSheetState extends State<_ToolboxSheet> {
                     const SizedBox(height: 4),
                     Text(
                       _t(
-                        '目标：${part.tier} 段 · ${kSlotZh[part.slot.index]}'
-                            '（已融 ${part.toolboxCount} 个）',
-                        'Target: tier ${part.tier} · ${kSlotEn[part.slot.index]} '
-                            '(${part.toolboxCount} fused)',
+                        '目标：${_partTitle(part)}（已融 ${part.toolboxCount} 个）',
+                        'Target: ${_partTitleEn(part)} (${part.toolboxCount} fused)',
                       ),
                       style: TextStyle(
                         fontSize: 12,
@@ -1534,55 +1450,7 @@ class _ToolboxSheetState extends State<_ToolboxSheet> {
                       ),
                     ),
                     const SizedBox(height: 10),
-                    _label(
-                      _t(
-                        '工具箱类型（只有能融进该部位的才会出现）',
-                        'Toolbox type (only those that fit)',
-                      ),
-                    ),
-                    Wrap(
-                      spacing: 6,
-                      children: <Widget>[
-                        for (final kind in _fittingKinds)
-                          ChoiceChip(
-                            label: Text(
-                              _isZh
-                                  ? kToolboxKindZh[kind.index]
-                                  : kToolboxKindEn[kind.index],
-                            ),
-                            selected: _kind == kind,
-                            onSelected: (_) => setState(() => _kind = kind),
-                          ),
-                      ],
-                    ),
-                    const SizedBox(height: 10),
-                    _label(_t('工具箱材质（与目标部件无关，可任选）', 'Toolbox material (any)')),
-                    Wrap(
-                      spacing: 6,
-                      children: <Widget>[
-                        for (var i = 0; i < kMaterialZh.length; i++)
-                          ChoiceChip(
-                            label: Text(
-                              _isZh ? kMaterialZh[i] : kMaterialEn[i],
-                            ),
-                            selected: _materialIdx == i,
-                            onSelected: (_) => setState(() => _materialIdx = i),
-                          ),
-                      ],
-                    ),
-                    const SizedBox(height: 10),
-                    _label(_t('工具箱星级', 'Toolbox star')),
-                    Wrap(
-                      spacing: 6,
-                      children: <Widget>[
-                        for (var s = 1; s <= 5; s++)
-                          ChoiceChip(
-                            label: Text('$s ★'),
-                            selected: _star == s,
-                            onSelected: (_) => setState(() => _star = s),
-                          ),
-                      ],
-                    ),
+                    _materialStarPicker(theme),
                     const SizedBox(height: 12),
                     Container(
                       padding: const EdgeInsets.all(10),
@@ -1600,7 +1468,6 @@ class _ToolboxSheetState extends State<_ToolboxSheet> {
                             _t('箱子档位', 'Toolbox tier'),
                             '${tierNumber(_materialIdx, _star)} ${_t('段', 'tier')}',
                           ),
-                          _row(theme, _t('提供的加成', 'Bonus granted'), _bonusText),
                           _row(
                             theme,
                             _t('融合花费', 'Fuse cost'),
@@ -1629,11 +1496,14 @@ class _ToolboxSheetState extends State<_ToolboxSheet> {
                     const SizedBox(height: 8),
                     Text(
                       _t(
-                        '· 工具箱加的是属性、不占经验：满级部件也能融，且不影响部件的融合经验与售价里的部件部分。\n'
+                        '· 这里只记工具箱的数量与它的材质 / 星级（决定花多少钱、卖掉回收多少），不区分生命值 / 攻击力 / 电力 / 魔法。\n'
+                            '· 工具箱加的是属性、不占经验：满级部件也能融，且不影响部件自身的融合经验与售价。\n'
                             '· 卖掉这个部件时，每个工具箱都只按「它自己售价的 50%」回收——'
                             '**与它是第几个无关**，第 2 个起花的钱翻倍、回收并不翻倍。\n'
                             '· 把部件当材料融合时，工具箱不继承（加成随之消失）。',
-                        '· A toolbox adds a stat, not XP: even a maxed part can take one, and the part\'s own XP '
+                        '· Only the count and each box\'s material / star are tracked here (they set the cost and the '
+                            'refund); health / attack / power / magic are not distinguished.\n'
+                            '· A toolbox adds a stat, not XP: even a maxed part can take one, and the part\'s own XP '
                             'and price formulas stay unchanged.\n'
                             '· Selling refunds 50% of each toolbox\'s own sell price — **not** a share of what '
                             'you paid, so the doubled cost of the 2nd/3rd one is not refunded.\n'
@@ -1663,13 +1533,72 @@ class _ToolboxSheetState extends State<_ToolboxSheet> {
     );
   }
 
-  Widget _label(String s) => Padding(
-    padding: const EdgeInsets.only(bottom: 4),
-    child: Text(
-      s,
-      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
-    ),
-  );
+  /// 材质 + 星级（跟添加部件里同一套控件，省位置）
+  Widget _materialStarPicker(ThemeData theme) {
+    return Row(
+      children: <Widget>[
+        Expanded(
+          child: _dropdown<int>(
+            theme,
+            label: _t('工具箱材质', 'Material'),
+            value: _materialIdx,
+            items: <int>[0, 1, 2, 3, 4],
+            text: (i) => _isZh ? kMaterialZh[i] : kMaterialEn[i],
+            onChanged: (v) => setState(() => _materialIdx = v),
+          ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: _dropdown<int>(
+            theme,
+            label: _t('工具箱星级', 'Star'),
+            value: _star,
+            items: <int>[1, 2, 3, 4, 5],
+            text: (s) => '$s ★',
+            onChanged: (v) => setState(() => _star = v),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _dropdown<T>(
+    ThemeData theme, {
+    required String label,
+    required T value,
+    required List<T> items,
+    required String Function(T) text,
+    required ValueChanged<T> onChanged,
+  }) {
+    return DropdownButtonFormField<T>(
+      initialValue: value,
+      isDense: true,
+      isExpanded: true,
+      style: TextStyle(fontSize: 13.5, color: theme.colorScheme.onSurface),
+      decoration: InputDecoration(
+        labelText: label,
+        isDense: true,
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 10,
+          vertical: 10,
+        ),
+        border: const OutlineInputBorder(),
+      ),
+      items: <DropdownMenuItem<T>>[
+        for (final i in items)
+          DropdownMenuItem<T>(value: i, child: Text(text(i))),
+      ],
+      onChanged: (v) {
+        if (v != null) onChanged(v);
+      },
+    );
+  }
+
+  String _partTitle(FusionPart p) =>
+      '${p.tier} ${_t('段', 'tier')} · ${_isZh ? kMaterialZh[p.materialIdx] : kMaterialEn[p.materialIdx]} ${p.star} ${_t('星', 'star')}';
+
+  String _partTitleEn(FusionPart p) =>
+      'tier ${p.tier} · ${kMaterialEn[p.materialIdx]} ${p.star}★';
 
   Widget _row(ThemeData theme, String k, String v) => Padding(
     padding: const EdgeInsets.symmetric(vertical: 1),
