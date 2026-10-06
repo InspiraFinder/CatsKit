@@ -102,11 +102,7 @@ class _LifeSimScreenState extends State<LifeSimScreen> {
     final actName = LifeSimEngine.activityName(period.activityId, _locale);
     final dayIn = period.dayInPeriod(s.day);
     final items = <(IconData, String, Color)>[
-      (
-        Icons.event,
-        _t('第 ${s.day} 天', 'Day ${s.day}'),
-        Colors.cyan,
-      ),
+      (Icons.event, _t('第 ${s.day} 天', 'Day ${s.day}'), Colors.cyan),
       (
         Icons.bolt,
         '${s.energy}/${s.maxEnergy}',
@@ -121,7 +117,10 @@ class _LifeSimScreenState extends State<LifeSimScreen> {
       ),
       (
         Icons.speed,
-        _t('战力 ${_fmt(_engine.fleetPower(s))}', 'Power ${_fmt(_engine.fleetPower(s))}'),
+        _t(
+          '战力 ${_fmt(_engine.fleetPower(s))}',
+          'Power ${_fmt(_engine.fleetPower(s))}',
+        ),
         Colors.blue,
       ),
       (
@@ -469,9 +468,9 @@ class _LifeSimScreenState extends State<LifeSimScreen> {
                         Text(
                           _t(
                             '单车最高战力 ${_fmt(_engine.maxVehiclePower(s))} · '
-                            '基础进度 ${gearBasePoints(_engine.maxVehiclePower(s))}',
+                                '基础进度 ${gearBasePoints(_engine.maxVehiclePower(s))}',
                             'Top car power ${_fmt(_engine.maxVehiclePower(s))} · '
-                            'base progress ${gearBasePoints(_engine.maxVehiclePower(s))}',
+                                'base progress ${gearBasePoints(_engine.maxVehiclePower(s))}',
                           ),
                           style: TextStyle(
                             fontSize: 12,
@@ -482,7 +481,7 @@ class _LifeSimScreenState extends State<LifeSimScreen> {
                           Text(
                             _t(
                               '需要提升车辆战力（单车最高战力需 ≥ ${_fmt(kGearMinPower)}，'
-                              '否则进度 ×0）',
+                                  '否则进度 ×0）',
                               'Increase your car power (top car must be ≥ ${_fmt(kGearMinPower)}, otherwise progress ×0)',
                             ),
                             style: const TextStyle(
@@ -518,9 +517,9 @@ class _LifeSimScreenState extends State<LifeSimScreen> {
               Text(
                 _t(
                   '分数 ${_fmt(s.progress)} · 当前名次 #$allStarRank · '
-                  '档位 ${allStarTier?.labelZh ?? ''}',
+                      '档位 ${allStarTier?.labelZh ?? ''}',
                   'Score ${_fmt(s.progress)} · rank #$allStarRank · '
-                  '${allStarTier?.labelEn ?? ''}',
+                      '${allStarTier?.labelEn ?? ''}',
                 ),
                 style: const TextStyle(
                   fontSize: 12,
@@ -530,9 +529,9 @@ class _LifeSimScreenState extends State<LifeSimScreen> {
               Text(
                 _t(
                   '榜单每天变化；单车最高战力 ${_fmt(_engine.maxVehiclePower(s))} '
-                  '→ 每次决策基础分 ${_fmt(allStarScore(_engine.maxVehiclePower(s)))}',
+                      '→ 每次决策基础分 ${_fmt(allStarScore(_engine.maxVehiclePower(s)))}',
                   'The board changes daily. Top car power ${_fmt(_engine.maxVehiclePower(s))} '
-                  '→ base score per choice ${_fmt(allStarScore(_engine.maxVehiclePower(s)))}',
+                      '→ base score per choice ${_fmt(allStarScore(_engine.maxVehiclePower(s)))}',
                 ),
                 style: TextStyle(fontSize: 12, color: Colors.grey[600]),
               ),
@@ -540,9 +539,9 @@ class _LifeSimScreenState extends State<LifeSimScreen> {
                 Text(
                   _t(
                     '本档奖励：部件 ${allStarTier.partKinds} 种×${allStarTier.partEach}、'
-                    '代币 ${allStarTier.token}、紫票 ${_fmt(allStarTier.cash)}',
+                        '代币 ${allStarTier.token}、紫票 ${_fmt(allStarTier.cash)}',
                     'Tier reward: ${allStarTier.partKinds} kinds ×${allStarTier.partEach}, '
-                    '${allStarTier.token} tokens, ${_fmt(allStarTier.cash)} cash',
+                        '${allStarTier.token} tokens, ${_fmt(allStarTier.cash)} cash',
                   ),
                   style: const TextStyle(fontSize: 12, color: Colors.teal),
                 ),
@@ -550,9 +549,9 @@ class _LifeSimScreenState extends State<LifeSimScreen> {
               Text(
                 _t(
                   '分数 ${_fmt(s.progress)} · 当前名次 #$gpRank · '
-                  '档位 ${gpTier?.labelZh ?? ''}',
+                      '档位 ${gpTier?.labelZh ?? ''}',
                   'Score ${_fmt(s.progress)} · rank #$gpRank · '
-                  '${gpTier?.labelEn ?? ''}',
+                      '${gpTier?.labelEn ?? ''}',
                 ),
                 style: const TextStyle(
                   fontSize: 12,
@@ -562,11 +561,11 @@ class _LifeSimScreenState extends State<LifeSimScreen> {
               Text(
                 _t(
                   '旗帜 ${_fmt(s.gpFlags)} · 汽油 ${_fmt(s.gpGasoline)} · '
-                  '乘数 +${_engine.gpBonus(s)}%'
-                  '（汽油 +${_engine.gpGasBonus(s)}% / 氪金 +${_engine.gpMoneyBonus(s)}%）',
+                      '乘数 +${_engine.gpBonus(s)}%'
+                      '（汽油 +${_engine.gpGasBonus(s)}% / 氪金 +${_engine.gpMoneyBonus(s)}%）',
                   'Flags ${_fmt(s.gpFlags)} · gasoline ${_fmt(s.gpGasoline)} · '
-                  'multiplier +${_engine.gpBonus(s)}% '
-                  '(gas +${_engine.gpGasBonus(s)}% / top-up +${_engine.gpMoneyBonus(s)}%)',
+                      'multiplier +${_engine.gpBonus(s)}% '
+                      '(gas +${_engine.gpGasBonus(s)}% / top-up +${_engine.gpMoneyBonus(s)}%)',
                 ),
                 style: TextStyle(fontSize: 12, color: Colors.grey[600]),
               ),
@@ -599,7 +598,7 @@ class _LifeSimScreenState extends State<LifeSimScreen> {
                 Text(
                   _t(
                     '本档奖励：部件 ${gpTier.partKinds} 种×${gpTier.partEach}、'
-                    '代币 ${gpTier.token}、紫票 ${_fmt(gpTier.cash)}',
+                        '代币 ${gpTier.token}、紫票 ${_fmt(gpTier.cash)}',
                     'Tier reward: ${gpTier.partKinds} kinds ×${gpTier.partEach}, '
                         '${gpTier.token} tokens, ${_fmt(gpTier.cash)} cash',
                   ),
@@ -647,10 +646,7 @@ class _LifeSimScreenState extends State<LifeSimScreen> {
                   ActionChip(
                     avatar: const Icon(Icons.ondemand_video, size: 14),
                     label: Text(
-                      _t(
-                        '看广告 · $kAdEnergyCost⚡',
-                        'Watch ad · $kAdEnergyCost⚡',
-                      ),
+                      _t('看广告 · $kAdEnergyCost⚡', 'Watch ad · $kAdEnergyCost⚡'),
                       style: const TextStyle(fontSize: 12),
                     ),
                     onPressed: s.energy >= kAdEnergyCost ? _watchAd : null,
@@ -684,8 +680,10 @@ class _LifeSimScreenState extends State<LifeSimScreen> {
                     onPressed: _endDay,
                     icon: const Icon(Icons.nightlight_round, size: 18),
                     label: Text(
-                      _t('结束这一天（+${LifeSimSave.kDailyEnergy} 精力）',
-                          'End the day (+${LifeSimSave.kDailyEnergy} energy)'),
+                      _t(
+                        '结束这一天（+${LifeSimSave.kDailyEnergy} 精力）',
+                        'End the day (+${LifeSimSave.kDailyEnergy} energy)',
+                      ),
                       style: const TextStyle(fontSize: 12),
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -780,9 +778,9 @@ class _LifeSimScreenState extends State<LifeSimScreen> {
             child: Text(
               _t(
                 '${t.labelZh}：部件 ${t.partKinds} 种×${t.partEach}、'
-                '代币 ${t.token}、紫票 ${_fmt(t.cash)}',
+                    '代币 ${t.token}、紫票 ${_fmt(t.cash)}',
                 '${t.labelEn}: ${t.partKinds} kinds ×${t.partEach}, '
-                '${t.token} tokens, ${_fmt(t.cash)} cash',
+                    '${t.token} tokens, ${_fmt(t.cash)} cash',
               ),
               style: TextStyle(
                 fontSize: 11,
@@ -827,24 +825,24 @@ class _LifeSimScreenState extends State<LifeSimScreen> {
         Text(
           _t(
             '旗帜 ${_fmt(s.gpFlags)} · 汽油 ${_fmt(s.gpGasoline)} · '
-            '乘数 +${_engine.gpBonus(s)}%'
-            '（汽油 +${_engine.gpGasBonus(s)}% / 氪金 +${_engine.gpMoneyBonus(s)}%）',
+                '乘数 +${_engine.gpBonus(s)}%'
+                '（汽油 +${_engine.gpGasBonus(s)}% / 氪金 +${_engine.gpMoneyBonus(s)}%）',
             'Flags ${_fmt(s.gpFlags)} · gasoline ${_fmt(s.gpGasoline)} · '
-            'multiplier +${_engine.gpBonus(s)}% '
-            '(gas +${_engine.gpGasBonus(s)}% / top-up +${_engine.gpMoneyBonus(s)}%)',
+                'multiplier +${_engine.gpBonus(s)}% '
+                '(gas +${_engine.gpGasBonus(s)}% / top-up +${_engine.gpMoneyBonus(s)}%)',
           ),
           style: TextStyle(fontSize: 11, color: Colors.grey[700]),
         ),
         Text(
           _t(
             '每消耗 $kGpGasBonusStep 汽油 → 乘数 +$kGpGasBonusStepPct%'
-            '（上限 +$kGpGasBonusMaxPct%）；'
-            '每 $kGpTopUpMoney 钱 → 乘数 +$kGpTopUpBonusPct%'
-            '（上限 $kGpMaxTopUpCount 次）；整体封顶 +$kGpTotalBonusCapPct%',
+                '（上限 +$kGpGasBonusMaxPct%）；'
+                '每 $kGpTopUpMoney 钱 → 乘数 +$kGpTopUpBonusPct%'
+                '（上限 $kGpMaxTopUpCount 次）；整体封顶 +$kGpTotalBonusCapPct%',
             'Every $kGpGasBonusStep gasoline → +$kGpGasBonusStepPct% '
-            '(max +$kGpGasBonusMaxPct%); every $kGpTopUpMoney money → '
-            '+$kGpTopUpBonusPct% (max $kGpMaxTopUpCount times); '
-            'overall cap +$kGpTotalBonusCapPct%',
+                '(max +$kGpGasBonusMaxPct%); every $kGpTopUpMoney money → '
+                '+$kGpTopUpBonusPct% (max $kGpMaxTopUpCount times); '
+                'overall cap +$kGpTotalBonusCapPct%',
           ),
           style: TextStyle(fontSize: 11, color: Colors.grey[600]),
         ),
@@ -909,8 +907,8 @@ class _LifeSimScreenState extends State<LifeSimScreen> {
         Text(
           _t(
             '总进度 ${config.total}，节点按对数分布（先密后疏）、'
-            '一个节点只给一种奖励，达成后奖励立即发放。'
-            '每个周期结束后进度与节点会重置。',
+                '一个节点只给一种奖励，达成后奖励立即发放。'
+                '每个周期结束后进度与节点会重置。',
             'Total progress ${config.total}. Nodes are log-spaced (dense early, sparse late), one reward per node, granted immediately. Progress and nodes reset each cycle.',
           ),
           style: TextStyle(fontSize: 12, color: Colors.grey[600]),
@@ -961,21 +959,23 @@ class _LifeSimScreenState extends State<LifeSimScreen> {
     );
   }
 
-  String _scrapRewardText(ScrapNode node) => node.rewards.map((r) {
-    switch (r.kind) {
-      case ScrapRewardKind.r6Part:
-        final id = r.partId ?? '';
-        return '${_engine.partLabel(id, _locale == 'zh')} ×${r.amount}';
-      case ScrapRewardKind.randomR6Part:
-        return _t('随机 R6 部件 ×${r.amount}', 'Random R6 part ×${r.amount}');
-      case ScrapRewardKind.randomPart:
-        return _t('随机部件宝箱 ×${r.amount}', 'Random part chest ×${r.amount}');
-      case ScrapRewardKind.token:
-        return _t('代币 ×${r.amount}', 'Tokens ×${r.amount}');
-      case ScrapRewardKind.cash:
-        return _t('紫票 ×${_fmt(r.amount)}', 'Cash ×${_fmt(r.amount)}');
-    }
-  }).join('、');
+  String _scrapRewardText(ScrapNode node) => node.rewards
+      .map((r) {
+        switch (r.kind) {
+          case ScrapRewardKind.r6Part:
+            final id = r.partId ?? '';
+            return '${_engine.partLabel(id, _locale == 'zh')} ×${r.amount}';
+          case ScrapRewardKind.randomR6Part:
+            return _t('随机 R6 部件 ×${r.amount}', 'Random R6 part ×${r.amount}');
+          case ScrapRewardKind.randomPart:
+            return _t('随机部件宝箱 ×${r.amount}', 'Random part chest ×${r.amount}');
+          case ScrapRewardKind.token:
+            return _t('代币 ×${r.amount}', 'Tokens ×${r.amount}');
+          case ScrapRewardKind.cash:
+            return _t('紫票 ×${_fmt(r.amount)}', 'Cash ×${_fmt(r.amount)}');
+        }
+      })
+      .join('、');
 
   /// 看广告（废铁行动）
   void _watchAd() {
@@ -1041,8 +1041,8 @@ class _LifeSimScreenState extends State<LifeSimScreen> {
                   isGp
                       ? _t(
                           '每花 $kGpTopUpMoney 钱，GP 分数乘数永久 +$kGpTopUpBonusPct%'
-                          '（最多 $kGpMaxTopUpCount 次）。'
-                          '钱可以为负。当前余额：${_fmt(s.money)}',
+                              '（最多 $kGpMaxTopUpCount 次）。'
+                              '钱可以为负。当前余额：${_fmt(s.money)}',
                           'Spend $kGpTopUpMoney money for a permanent '
                               '+$kGpTopUpBonusPct% GP score multiplier '
                               '(max $kGpMaxTopUpCount times). Money may go '
@@ -1050,7 +1050,7 @@ class _LifeSimScreenState extends State<LifeSimScreen> {
                         )
                       : _t(
                           '消耗「钱」获得本次活动的$unitZh倍率（周期结束时失效）。'
-                          '钱可以为负。当前余额：${_fmt(s.money)}',
+                              '钱可以为负。当前余额：${_fmt(s.money)}',
                           'Spend money for a $unitEn multiplier in this event '
                               'cycle (expires at cycle end). Money may go '
                               'negative. Balance: ${_fmt(s.money)}',
@@ -1071,8 +1071,7 @@ class _LifeSimScreenState extends State<LifeSimScreen> {
                           ),
                           style: const TextStyle(fontSize: 13),
                         ),
-                        trailing:
-                            s.scrapMultiplier >= kTopUpTiers[i].multiplier
+                        trailing: s.scrapMultiplier >= kTopUpTiers[i].multiplier
                             ? const Icon(Icons.check, color: Colors.green)
                             : const Icon(Icons.chevron_right),
                         enabled: s.scrapMultiplier < kTopUpTiers[i].multiplier,
@@ -1099,10 +1098,7 @@ class _LifeSimScreenState extends State<LifeSimScreen> {
                     color: Colors.purple.withValues(alpha: 0.10),
                     child: ListTile(
                       dense: true,
-                      leading: const Icon(
-                        Icons.trending_up,
-                        size: 18,
-                      ),
+                      leading: const Icon(Icons.trending_up, size: 18),
                       title: Text(
                         _t(
                           '氪乘数：$kGpTopUpMoney 钱 → 乘数 +$kGpTopUpBonusPct%'
@@ -1148,10 +1144,7 @@ class _LifeSimScreenState extends State<LifeSimScreen> {
                     color: Colors.purple.withValues(alpha: 0.10),
                     child: ListTile(
                       dense: true,
-                      leading: const Icon(
-                        Icons.add_circle_outline,
-                        size: 18,
-                      ),
+                      leading: const Icon(Icons.add_circle_outline, size: 18),
                       title: Text(
                         _t(
                           '买分：$kAllStarBuyEnergyCost⚡ + $kAllStarBuyMoneyCost 钱'
@@ -1367,8 +1360,10 @@ class _LifeSimScreenState extends State<LifeSimScreen> {
             onPressed: () => _showGangSimDialog(),
             icon: const Icon(Icons.insights, size: 18),
             label: Text(
-              _t('帮派模拟（各组数量 / 战力 / 工具包与指挥决策）',
-                  'Gang simulation (counts / power / toolkits / commander)'),
+              _t(
+                '帮派模拟（各组数量 / 战力 / 工具包与指挥决策）',
+                'Gang simulation (counts / power / toolkits / commander)',
+              ),
               style: const TextStyle(fontSize: 12),
             ),
           ),
@@ -1483,7 +1478,9 @@ class _LifeSimScreenState extends State<LifeSimScreen> {
     final sealed = _engine.isGangSealed(s);
     final ranked = _engine.isGangRanked(s);
     final canFight =
-        !sealed && !s.cityChallenged && s.energy >= LifeSimEngine.kCityEnergyCost;
+        !sealed &&
+        !s.cityChallenged &&
+        s.energy >= LifeSimEngine.kCityEnergyCost;
     final scores = _engine.cityBaseScores(s);
     final mul = _engine.cityScoreMul(s);
     final myStrength = _engine.myCityStrength(s);
@@ -1521,8 +1518,10 @@ class _LifeSimScreenState extends State<LifeSimScreen> {
             ),
           ),
         Text(
-          _t('对手：${s.cityOpponentName ?? '——'}',
-              'Opponent: ${s.cityOpponentName ?? '——'}'),
+          _t(
+            '对手：${s.cityOpponentName ?? '——'}',
+            'Opponent: ${s.cityOpponentName ?? '——'}',
+          ),
           style: const TextStyle(fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 6),
@@ -1545,8 +1544,10 @@ class _LifeSimScreenState extends State<LifeSimScreen> {
           style: TextStyle(fontSize: 11, color: Colors.brown[600]),
         ),
         Text(
-          _t('对手三车：${opp.map(_fmt).join(' / ')}',
-              'Opponent cars: ${opp.map(_fmt).join(' / ')}'),
+          _t(
+            '对手三车：${opp.map(_fmt).join(' / ')}',
+            'Opponent cars: ${opp.map(_fmt).join(' / ')}',
+          ),
           style: const TextStyle(fontSize: 13),
         ),
         Text(
@@ -1558,21 +1559,23 @@ class _LifeSimScreenState extends State<LifeSimScreen> {
         ),
         const SizedBox(height: 6),
         Text(
-          _t('战绩 ${s.cityWins} 胜 ${s.cityLosses} 负',
-              'Record ${s.cityWins}W ${s.cityLosses}L'),
+          _t(
+            '战绩 ${s.cityWins} 胜 ${s.cityLosses} 负',
+            'Record ${s.cityWins}W ${s.cityLosses}L',
+          ),
           style: TextStyle(fontSize: 12, color: Colors.grey[600]),
         ),
         Text(
           _t(
             s.cityLossStreak > 0
                 ? '连败 ${s.cityLossStreak} 场：再输一场活跃度 -${_engine.nextCityLossPenalty(s)}'
-                    '（胜利会清零连败）'
+                      '（胜利会清零连败）'
                 : '失利会打击士气，降低帮派活跃度（连败扣得更多，胜利清零）',
             s.cityLossStreak > 0
                 ? 'Loss streak ${s.cityLossStreak}: another loss costs '
-                    '-${_engine.nextCityLossPenalty(s)} activity (a win resets it)'
+                      '-${_engine.nextCityLossPenalty(s)} activity (a win resets it)'
                 : 'Losing hurts gang morale and lowers activity '
-                    '(worse on a streak, reset by a win)',
+                      '(worse on a streak, reset by a win)',
           ),
           style: TextStyle(
             fontSize: 11,
@@ -1638,8 +1641,10 @@ class _LifeSimScreenState extends State<LifeSimScreen> {
         ),
         const SizedBox(height: 6),
         Text(
-          _t('胜场奖励（每个宝箱 = 随机一个该稀有度部件）',
-              'Win rewards (1 chest = 1 random part of that rarity)'),
+          _t(
+            '胜场奖励（每个宝箱 = 随机一个该稀有度部件）',
+            'Win rewards (1 chest = 1 random part of that rarity)',
+          ),
           style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
         ),
         for (var i = 0; i < kCityWinMilestones.length; i++)
@@ -1703,20 +1708,23 @@ class _LifeSimScreenState extends State<LifeSimScreen> {
               },
               icon: const Icon(Icons.sports_kabaddi),
               label: Text(
-                _t('发起挑战（${LifeSimEngine.kCityEnergyCost} 精力）',
-                    'Challenge (${LifeSimEngine.kCityEnergyCost} energy)'),
+                _t(
+                  '发起挑战（${LifeSimEngine.kCityEnergyCost} 精力）',
+                  'Challenge (${LifeSimEngine.kCityEnergyCost} energy)',
+                ),
               ),
             ),
           )
         else
           Text(
             sealed
-                ? _t('已封存，无法参战（先招募成员）',
-                    'Sealed — recruit members first')
+                ? _t('已封存，无法参战（先招募成员）', 'Sealed — recruit members first')
                 : s.cityChallenged
                 ? _t('今日已挑战，明天再来。', 'Already challenged today.')
-                : _t('精力不足，先结束这一天恢复精力。',
-                    'Not enough energy. End the day to recover.'),
+                : _t(
+                    '精力不足，先结束这一天恢复精力。',
+                    'Not enough energy. End the day to recover.',
+                  ),
           ),
       ],
     );
@@ -1734,9 +1742,9 @@ class _LifeSimScreenState extends State<LifeSimScreen> {
         Text(
           _t(
             '用活动奖励拿到的部件组建最多 3 辆车；部件数值随等级提升（等级在「部件」页升级）。'
-            '同一个部件只能装在一辆车上，装到新车上时会自动从原车卸下。',
+                '同一个部件只能装在一辆车上，装到新车上时会自动从原车卸下。',
             'Build up to 3 cars from your parts. Stats scale with part level (upgrade on the Parts tab). '
-            'Each part can only be fitted on one car; fitting it elsewhere removes it from the old car.',
+                'Each part can only be fitted on one car; fitting it elsewhere removes it from the old car.',
           ),
           style: TextStyle(fontSize: 12, color: Colors.grey[600]),
         ),
@@ -2028,8 +2036,8 @@ class _LifeSimScreenState extends State<LifeSimScreen> {
           Text(
             _t(
               '加入一个帮派可以每天开启「城市之王」，并让帮派活跃度提升你的战力；'
-              '加入哪个组别的帮派就属于哪个组别。'
-              '也可以自建帮派：从木组起步，慢慢往上打。',
+                  '加入哪个组别的帮派就属于哪个组别。'
+                  '也可以自建帮派：从木组起步，慢慢往上打。',
               'Join a gang to unlock daily City King battles and let gang activity boost your power — you join the division the gang belongs to. Or build your own: it starts in the Wood League.',
             ),
             style: TextStyle(fontSize: 12, color: Colors.grey[600]),
@@ -2050,8 +2058,10 @@ class _LifeSimScreenState extends State<LifeSimScreen> {
               onPressed: () => _showFoundGang(s),
               icon: const Icon(Icons.add_home_work),
               label: Text(
-                _t('组建帮派（${LifeSimEngine.kFoundGangCashCost} 紫票）',
-                    'Found a gang (${LifeSimEngine.kFoundGangCashCost} Cash)'),
+                _t(
+                  '组建帮派（${LifeSimEngine.kFoundGangCashCost} 紫票）',
+                  'Found a gang (${LifeSimEngine.kFoundGangCashCost} Cash)',
+                ),
               ),
             ),
           ),
@@ -2086,8 +2096,7 @@ class _LifeSimScreenState extends State<LifeSimScreen> {
               const SizedBox(height: 4),
               Text(
                 rank > 0
-                    ? _t('大致排名：全服第 $rank 位',
-                        'Estimated rank: #$rank globally')
+                    ? _t('大致排名：全服第 $rank 位', 'Estimated rank: #$rank globally')
                     : _t('大致排名：本季未上榜', 'Estimated rank: unranked this season'),
                 style: const TextStyle(fontSize: 12, color: Colors.orange),
               ),
@@ -2204,7 +2213,8 @@ class _LifeSimScreenState extends State<LifeSimScreen> {
               Align(
                 alignment: Alignment.centerLeft,
                 child: TextButton.icon(
-                  onPressed: s.gangActivity >= 100 ||
+                  onPressed:
+                      s.gangActivity >= 100 ||
                           s.energy < kGangActivityEnergyCost
                       ? null
                       : () {
@@ -2237,7 +2247,10 @@ class _LifeSimScreenState extends State<LifeSimScreen> {
         ),
         const SizedBox(height: 12),
         _card(
-          title: _t('成员（${s.gangMembers.length}）', 'Members (${s.gangMembers.length})'),
+          title: _t(
+            '成员（${s.gangMembers.length}）',
+            'Members (${s.gangMembers.length})',
+          ),
           icon: '👥',
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -2327,8 +2340,10 @@ class _LifeSimScreenState extends State<LifeSimScreen> {
                     },
               icon: const Icon(Icons.person_remove),
               label: Text(
-                _t('踢出成员（人数 < $kGangSealMinMembers 即封存）',
-                    'Kick a member (< $kGangSealMinMembers members = sealed)'),
+                _t(
+                  '踢出成员（人数 < $kGangSealMinMembers 即封存）',
+                  'Kick a member (< $kGangSealMinMembers members = sealed)',
+                ),
               ),
             ),
           ),
@@ -2351,20 +2366,21 @@ class _LifeSimScreenState extends State<LifeSimScreen> {
   // ===================================================================
 
   Widget _buildParts(LifeSimSave s) {
-    final ids = <String>[
-      for (final id in s.ownedParts)
-        if (_engine.partIndex[id] != null &&
-            (_partFilter == null ||
-                _engine.partIndex[id]!.category == _partFilter))
-          id,
-    ]..sort((a, b) {
-      final pa = _engine.partIndex[a]!;
-      final pb = _engine.partIndex[b]!;
-      // 按稀有度降序，再按碎片降序
-      final r = pb.rarity.index.compareTo(pa.rarity.index);
-      if (r != 0) return r;
-      return s.stockOf(b).compareTo(s.stockOf(a));
-    });
+    final ids =
+        <String>[
+          for (final id in s.ownedParts)
+            if (_engine.partIndex[id] != null &&
+                (_partFilter == null ||
+                    _engine.partIndex[id]!.category == _partFilter))
+              id,
+        ]..sort((a, b) {
+          final pa = _engine.partIndex[a]!;
+          final pb = _engine.partIndex[b]!;
+          // 按稀有度降序，再按碎片降序
+          final r = pb.rarity.index.compareTo(pa.rarity.index);
+          if (r != 0) return r;
+          return s.stockOf(b).compareTo(s.stockOf(a));
+        });
 
     return Column(
       children: [
@@ -2407,8 +2423,10 @@ class _LifeSimScreenState extends State<LifeSimScreen> {
                 runSpacing: 6,
                 children: [
                   ChoiceChip(
-                    label: Text(_t('全部', 'All'),
-                        style: const TextStyle(fontSize: 12)),
+                    label: Text(
+                      _t('全部', 'All'),
+                      style: const TextStyle(fontSize: 12),
+                    ),
                     selected: _partFilter == null,
                     onSelected: (_) => setState(() => _partFilter = null),
                   ),
@@ -2458,7 +2476,8 @@ class _LifeSimScreenState extends State<LifeSimScreen> {
     final stock = s.stockOf(id);
     final cost = LifeSimEngine.upgradeCost(p, level);
     final need = cost?.pieces ?? 0;
-    final canUpgrade = cost != null &&
+    final canUpgrade =
+        cost != null &&
         stock >= cost.pieces &&
         s.cash >= cost.cash &&
         s.token >= cost.token;
@@ -2466,12 +2485,10 @@ class _LifeSimScreenState extends State<LifeSimScreen> {
     final atkNow = p.atk(level);
     final hpStack = s.partHpBoxes[id] ?? 0;
     final atkStack = s.partAtkBoxes[id] ?? 0;
-    final canUseHp = p.hp(1) > 0 &&
-        s.hpToolbox > 0 &&
-        hpStack < kToolboxMaxStack;
-    final canUseAtk = p.atk(1) > 0 &&
-        s.atkToolbox > 0 &&
-        atkStack < kToolboxMaxStack;
+    final canUseHp =
+        p.hp(1) > 0 && s.hpToolbox > 0 && hpStack < kToolboxMaxStack;
+    final canUseAtk =
+        p.atk(1) > 0 && s.atkToolbox > 0 && atkStack < kToolboxMaxStack;
     return Card(
       margin: const EdgeInsets.only(bottom: 6),
       child: Padding(
@@ -2499,10 +2516,7 @@ class _LifeSimScreenState extends State<LifeSimScreen> {
                         '第 ${_equippedCarIndex(s, id)! + 1} 辆车在用',
                         'On car ${_equippedCarIndex(s, id)! + 1}',
                       ),
-                      style: const TextStyle(
-                        fontSize: 11,
-                        color: Colors.teal,
-                      ),
+                      style: const TextStyle(fontSize: 11, color: Colors.teal),
                     ),
                   ),
                 Text(
@@ -2533,8 +2547,10 @@ class _LifeSimScreenState extends State<LifeSimScreen> {
                       onPressed: () => _useToolbox(s, id, true),
                       icon: const Icon(Icons.favorite, size: 15),
                       label: Text(
-                        _t('生命箱 (+$kToolboxBonusPct%)',
-                            'HP box (+$kToolboxBonusPct%)'),
+                        _t(
+                          '生命箱 (+$kToolboxBonusPct%)',
+                          'HP box (+$kToolboxBonusPct%)',
+                        ),
                         style: const TextStyle(fontSize: 11),
                       ),
                       style: TextButton.styleFrom(
@@ -2547,8 +2563,10 @@ class _LifeSimScreenState extends State<LifeSimScreen> {
                       onPressed: () => _useToolbox(s, id, false),
                       icon: const Icon(Icons.bolt, size: 15),
                       label: Text(
-                        _t('攻击箱 (+$kToolboxBonusPct%)',
-                            'ATK box (+$kToolboxBonusPct%)'),
+                        _t(
+                          '攻击箱 (+$kToolboxBonusPct%)',
+                          'ATK box (+$kToolboxBonusPct%)',
+                        ),
                         style: const TextStyle(fontSize: 11),
                       ),
                       style: TextButton.styleFrom(
@@ -2580,8 +2598,7 @@ class _LifeSimScreenState extends State<LifeSimScreen> {
                 ),
                 if (cost != null)
                   TextButton.icon(
-                    onPressed:
-                        canUpgrade ? () => _upgradePart(s, id) : null,
+                    onPressed: canUpgrade ? () => _upgradePart(s, id) : null,
                     icon: const Icon(Icons.arrow_upward, size: 16),
                     label: Text(
                       _t('升级', 'Upgrade'),
@@ -2692,9 +2709,7 @@ class _LifeSimScreenState extends State<LifeSimScreen> {
     _run(() {});
     if (isGp) {
       // GP：提示旗帜变动与分数
-      final flag = r.flagDelta >= 0
-          ? '+${r.flagDelta}'
-          : '${r.flagDelta}';
+      final flag = r.flagDelta >= 0 ? '+${r.flagDelta}' : '${r.flagDelta}';
       _snack(
         _t(
           '旗帜 $flag（剩 ${r.gpFlags}）· 分数 +${_fmt(r.progress)}',
@@ -2708,7 +2723,7 @@ class _LifeSimScreenState extends State<LifeSimScreen> {
             Text(
               _t(
                 '旗帜已经归零，今天的三个选项全部禁用。'
-                '明天如果当天起始旗帜仍为 0，可以做 1 次低风险把它救回来。',
+                    '明天如果当天起始旗帜仍为 0，可以做 1 次低风险把它救回来。',
                 'Your flags hit zero, so all three options are locked today. '
                     'Tomorrow, if the day starts at zero, one low-risk rescue '
                     'is allowed.',
@@ -2757,7 +2772,12 @@ class _LifeSimScreenState extends State<LifeSimScreen> {
       return;
     }
     if (r.backfired) {
-      _snack(_t('翻车了！只拿到 ${r.progress} 进度', 'Backfired! Only ${r.progress} progress'));
+      _snack(
+        _t(
+          '翻车了！只拿到 ${r.progress} 进度',
+          'Backfired! Only ${r.progress} progress',
+        ),
+      );
     } else {
       _snack(_t('进度 +${r.progress}', 'Progress +${r.progress}'));
     }
@@ -2768,7 +2788,10 @@ class _LifeSimScreenState extends State<LifeSimScreen> {
     final r = _engine.endDay(s);
     _run(() {});
     if (r.settledPeriod != null) {
-      final name = LifeSimEngine.activityName(r.settledActivityId ?? '', _locale);
+      final name = LifeSimEngine.activityName(
+        r.settledActivityId ?? '',
+        _locale,
+      );
       _dialog(
         title: _t('活动结束', 'Activity finished'),
         children: [
@@ -2798,9 +2821,9 @@ class _LifeSimScreenState extends State<LifeSimScreen> {
       _snack(
         _t(
           '${LifeSimEngine.activityName(r.settledActivityId!, _locale)} 结束，'
-          '进度条已重置（节点奖励已即时发放）',
+              '进度条已重置（节点奖励已即时发放）',
           '${LifeSimEngine.activityName(r.settledActivityId!, _locale)} finished; '
-          'the progress bar has been reset',
+              'the progress bar has been reset',
         ),
       );
     } else {
@@ -2812,8 +2835,12 @@ class _LifeSimScreenState extends State<LifeSimScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(_t('紫票 +${_fmt(r.cash)}　代币 +${_fmt(r.token)}',
-            'Cash +${_fmt(r.cash)}  Tokens +${_fmt(r.token)}')),
+        Text(
+          _t(
+            '紫票 +${_fmt(r.cash)}　代币 +${_fmt(r.token)}',
+            'Cash +${_fmt(r.cash)}  Tokens +${_fmt(r.token)}',
+          ),
+        ),
         if (r.partIds.isNotEmpty)
           Text(
             _t(
@@ -2836,10 +2863,9 @@ class _LifeSimScreenState extends State<LifeSimScreen> {
     _run(() {});
     _dialog(
       title: _t('领取奖励', 'Rewards claimed'),
-      children: [for (final r in claimed) ...[
-        _rewardPreview(r),
-        const Divider(),
-      ]],
+      children: [
+        for (final r in claimed) ...[_rewardPreview(r), const Divider()],
+      ],
     );
   }
 
@@ -2929,12 +2955,18 @@ class _LifeSimScreenState extends State<LifeSimScreen> {
             style: TextStyle(fontSize: 11, color: Colors.grey[600]),
           ),
         Text(
-          _t('比分 ${r.myWins}:${r.oppWins}${r.draws > 0 ? '（平 ${r.draws}）' : ''}',
-              'Score ${r.myWins}:${r.oppWins}${r.draws > 0 ? ' (${r.draws} drawn)' : ''}'),
+          _t(
+            '比分 ${r.myWins}:${r.oppWins}${r.draws > 0 ? '（平 ${r.draws}）' : ''}',
+            'Score ${r.myWins}:${r.oppWins}${r.draws > 0 ? ' (${r.draws} drawn)' : ''}',
+          ),
         ),
         if (r.cash > 0 || r.token > 0)
-          Text(_t('紫票 +${_fmt(r.cash)}　代币 +${_fmt(r.token)}',
-              'Cash +${_fmt(r.cash)}  Tokens +${_fmt(r.token)}')),
+          Text(
+            _t(
+              '紫票 +${_fmt(r.cash)}　代币 +${_fmt(r.token)}',
+              'Cash +${_fmt(r.cash)}  Tokens +${_fmt(r.token)}',
+            ),
+          ),
         if (r.parts.isNotEmpty)
           Text(
             _t(
@@ -2958,13 +2990,17 @@ class _LifeSimScreenState extends State<LifeSimScreen> {
           ),
         const Divider(height: 16),
         Text(
-          _t('双方强度：我方 ${_fmt(r.myStrength)} vs 对手 ${_fmt(r.oppStrength)}',
-              'Strength: mine ${_fmt(r.myStrength)} vs ${_fmt(r.oppStrength)}'),
+          _t(
+            '双方强度：我方 ${_fmt(r.myStrength)} vs 对手 ${_fmt(r.oppStrength)}',
+            'Strength: mine ${_fmt(r.myStrength)} vs ${_fmt(r.oppStrength)}',
+          ),
           style: TextStyle(fontSize: 12, color: Colors.grey[600]),
         ),
         Text(
-          _t('本场基础分：胜 ${_fmt(r.winScore)} / 败 ${_fmt(r.lossScore)}',
-              'Base score: win ${_fmt(r.winScore)} / loss ${_fmt(r.lossScore)}'),
+          _t(
+            '本场基础分：胜 ${_fmt(r.winScore)} / 败 ${_fmt(r.lossScore)}',
+            'Base score: win ${_fmt(r.winScore)} / loss ${_fmt(r.lossScore)}',
+          ),
           style: TextStyle(fontSize: 12, color: Colors.grey[600]),
         ),
         Text(
@@ -2986,8 +3022,7 @@ class _LifeSimScreenState extends State<LifeSimScreen> {
         if (r.chestParts.isNotEmpty || r.chestToken > 0) ...[
           const SizedBox(height: 6),
           Text(
-            _t('🎁 达成胜场里程碑！',
-                '🎁 Win milestone reached!'),
+            _t('🎁 达成胜场里程碑！', '🎁 Win milestone reached!'),
             style: const TextStyle(
               fontWeight: FontWeight.bold,
               color: Colors.teal,
@@ -2997,7 +3032,7 @@ class _LifeSimScreenState extends State<LifeSimScreen> {
             Text(
               _t(
                 '宝箱部件 ×${r.chestParts.length}：'
-                '${r.chestParts.map((id) => _engine.partIndex[id] == null ? id : _pn(_engine.partIndex[id]!)).join('、')}',
+                    '${r.chestParts.map((id) => _engine.partIndex[id] == null ? id : _pn(_engine.partIndex[id]!)).join('、')}',
                 'Chest parts ×${r.chestParts.length}: '
                     '${r.chestParts.map((id) => _engine.partIndex[id] == null ? id : _pn(_engine.partIndex[id]!)).join(', ')}',
               ),
@@ -3005,8 +3040,7 @@ class _LifeSimScreenState extends State<LifeSimScreen> {
             ),
           if (r.chestToken > 0)
             Text(
-              _t('里程碑代币 +${r.chestToken}',
-                  'Milestone tokens +${r.chestToken}'),
+              _t('里程碑代币 +${r.chestToken}', 'Milestone tokens +${r.chestToken}'),
               style: const TextStyle(fontSize: 13),
             ),
         ],
@@ -3021,17 +3055,19 @@ class _LifeSimScreenState extends State<LifeSimScreen> {
       return;
     }
     _run(() {});
-    _snack(
-      _t('招募了「${r.member?.name}」', 'Recruited "${r.member?.name}"'),
-    );
+    _snack(_t('招募了「${r.member?.name}」', 'Recruited "${r.member?.name}"'));
   }
 
   void _confirmLeaveGang(LifeSimSave s) {
     _dialog(
       title: _t('退出帮派', 'Leave gang'),
       children: [
-        Text(_t('退出后城市之王与帮派加成会失效，确定吗？',
-            'City King and gang bonuses will be lost. Continue?')),
+        Text(
+          _t(
+            '退出后城市之王与帮派加成会失效，确定吗？',
+            'City King and gang bonuses will be lost. Continue?',
+          ),
+        ),
         const SizedBox(height: 12),
         Row(
           mainAxisAlignment: MainAxisAlignment.end,
@@ -3054,14 +3090,16 @@ class _LifeSimScreenState extends State<LifeSimScreen> {
   }
 
   void _showFoundGang(LifeSimSave s) {
-    final controller = TextEditingController(
-      text: _t('我的猫团', 'My Cat Gang'),
-    );
+    final controller = TextEditingController(text: _t('我的猫团', 'My Cat Gang'));
     _dialog(
       title: _t('组建帮派', 'Found a gang'),
       children: [
-        Text(_t('花费 ${LifeSimEngine.kFoundGangCashCost} 紫票创建帮派：',
-            'Create a gang for ${LifeSimEngine.kFoundGangCashCost} Cash:')),
+        Text(
+          _t(
+            '花费 ${LifeSimEngine.kFoundGangCashCost} 紫票创建帮派：',
+            'Create a gang for ${LifeSimEngine.kFoundGangCashCost} Cash:',
+          ),
+        ),
         const SizedBox(height: 4),
         Text(
           _t(
@@ -3184,16 +3222,17 @@ class _LifeSimScreenState extends State<LifeSimScreen> {
       ..._engine.partsUsedByOtherCars(s, vehicleIndex),
       ...s.vehicles[vehicleIndex].allPartIds.where((id) => id != currentId),
     };
-    final owned = <PartData>[
-      for (final id in s.ownedParts)
-        if (_engine.partIndex[id]?.category == category &&
-            !blocked.contains(id))
-          _engine.partIndex[id]!,
-    ]..sort((a, b) {
-      final sa = a.hpMax + a.atkMax;
-      final sb = b.hpMax + b.atkMax;
-      return sb.compareTo(sa);
-    });
+    final owned =
+        <PartData>[
+          for (final id in s.ownedParts)
+            if (_engine.partIndex[id]?.category == category &&
+                !blocked.contains(id))
+              _engine.partIndex[id]!,
+        ]..sort((a, b) {
+          final sa = a.hpMax + a.atkMax;
+          final sb = b.hpMax + b.atkMax;
+          return sb.compareTo(sa);
+        });
     final blockedInCategory = blocked
         .where((id) => _engine.partIndex[id]?.category == category)
         .length;
@@ -3212,8 +3251,7 @@ class _LifeSimScreenState extends State<LifeSimScreen> {
               style: TextStyle(fontSize: 12, color: Colors.orange[800]),
             ),
           ),
-        if (owned.isEmpty)
-          Text(_t('没有该分类的部件', 'No parts in this category')),
+        if (owned.isEmpty) Text(_t('没有该分类的部件', 'No parts in this category')),
         for (final p in owned)
           ListTile(
             dense: true,
@@ -3236,7 +3274,10 @@ class _LifeSimScreenState extends State<LifeSimScreen> {
                     final slots = p.slots;
                     if (slots != null) {
                       if (v.weaponIds.length > slots.weapon) {
-                        v.weaponIds.removeRange(slots.weapon, v.weaponIds.length);
+                        v.weaponIds.removeRange(
+                          slots.weapon,
+                          v.weaponIds.length,
+                        );
                       }
                       if (v.wheelIds.length > slots.wheel) {
                         v.wheelIds.removeRange(slots.wheel, v.wheelIds.length);
@@ -3445,14 +3486,17 @@ class _LifeSimScreenState extends State<LifeSimScreen> {
               const SizedBox(height: 12),
               Text(
                 _t('以「天」为单位重开猫生', 'Restart your cat life day by day'),
-                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
               const SizedBox(height: 12),
               Text(
                 _t(
                   '按活动日历的轮换顺序度过一个个活动周期：在活动进行时消耗精力做出决策累积进度，'
-                  '活动结束时按档位领取部件、紫票与代币；用部件组建自己的车，'
-                  '加入帮派后每天还能参加「城市之王」。',
+                      '活动结束时按档位领取部件、紫票与代币；用部件组建自己的车，'
+                      '加入帮派后每天还能参加「城市之王」。',
                   'Live through activity cycles in calendar order: spend energy on choices while an activity runs, then claim parts, Cash and Tokens by rank when it ends. Build cars from your parts and fight the daily City King once you join a gang.',
                 ),
                 textAlign: TextAlign.center,
@@ -3502,7 +3546,7 @@ class _LifeSimScreenState extends State<LifeSimScreen> {
         Text(
           _t(
             '在活动期间消耗精力做决策，活动结束时按档位领奖；'
-            '重复获得的部件会变成碎片，可以在「部件」页升级。',
+                '重复获得的部件会变成碎片，可以在「部件」页升级。',
             'Spend energy on choices while an activity runs, then claim rank rewards when it ends. Duplicate parts become fragments you can spend to upgrade parts on the Parts tab.',
           ),
           style: TextStyle(fontSize: 12, color: Colors.grey[600]),
@@ -3515,8 +3559,9 @@ class _LifeSimScreenState extends State<LifeSimScreen> {
     _dialog(
       title: _t('重置存档', 'Reset save'),
       children: [
-        Text(_t('所有进度将被清空，且无法恢复。确定吗？',
-            'All progress will be erased. Continue?')),
+        Text(
+          _t('所有进度将被清空，且无法恢复。确定吗？', 'All progress will be erased. Continue?'),
+        ),
         const SizedBox(height: 12),
         Row(
           mainAxisAlignment: MainAxisAlignment.end,

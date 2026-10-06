@@ -95,17 +95,11 @@ class SimGangMember {
 
   /// 该成员的车辆战力（HP+ATK），最多 3 辆，按从强到弱
   final List<int> carPowers;
-  const SimGangMember({
-    required this.name,
-    required this.carPowers,
-  });
+  const SimGangMember({required this.name, required this.carPowers});
 
   int get totalPower => carPowers.fold(0, (s, v) => s + v);
 
-  Map<String, dynamic> toJson() => <String, dynamic>{
-    'n': name,
-    'p': carPowers,
-  };
+  Map<String, dynamic> toJson() => <String, dynamic>{'n': name, 'p': carPowers};
 
   factory SimGangMember.fromJson(Map<String, dynamic> json) => SimGangMember(
     name: json['n'] as String? ?? '',
@@ -565,9 +559,7 @@ class LifeSimSave {
     for (var i = 0; i < maxVehicles; i++) {
       if (i < rawVehicles.length && rawVehicles[i] is Map) {
         vehicles.add(
-          SimVehicle.fromJson(
-            (rawVehicles[i] as Map).cast<String, dynamic>(),
-          ),
+          SimVehicle.fromJson((rawVehicles[i] as Map).cast<String, dynamic>()),
         );
       } else {
         vehicles.add(SimVehicle());
@@ -627,8 +619,7 @@ class LifeSimSave {
       cityOpponentActivity: (json['cAct'] as num?)?.toInt() ?? 0,
       cityOpponentPower: (json['cPower'] as num?)?.toInt() ?? 0,
       cityOpponentToolkits: (json['cKits'] as num?)?.toInt() ?? 0,
-      cityOpponentCommanderSkill:
-          (json['cSkill'] as num?)?.toInt() ?? 60,
+      cityOpponentCommanderSkill: (json['cSkill'] as num?)?.toInt() ?? 60,
       cityChallenged: json['cDone'] as bool? ?? false,
       cityWins: (json['cWin'] as num?)?.toInt() ?? 0,
       cityLosses: (json['cLose'] as num?)?.toInt() ?? 0,

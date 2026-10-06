@@ -754,11 +754,7 @@ class _MyGarageScreenState extends State<MyGarageScreen> {
     for (final s in slots) {
       groups.putIfAbsent(s.category, () => []).add(s);
     }
-    const cats = [
-      PartCategory.weapon,
-      PartCategory.wheel,
-      PartCategory.gadget,
-    ];
+    const cats = [PartCategory.weapon, PartCategory.wheel, PartCategory.gadget];
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -1340,9 +1336,7 @@ class _MyGarageScreenState extends State<MyGarageScreen> {
         chain.add('${_t('分类+', 'Cat+')} ${_fmt(afterCat)}');
       }
       if (sponsorB > 0) {
-        chain.add(
-          '${_t('赞助+', 'Sponsor+')}$sponsorB%: ${_fmt(afterSponsor)}',
-        );
+        chain.add('${_t('赞助+', 'Sponsor+')}$sponsorB%: ${_fmt(afterSponsor)}');
       }
       if (s.hasExtra) {
         chain.add('${_t('额外+', 'Extra+')} ${_fmt(finalV)}');

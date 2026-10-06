@@ -54,6 +54,7 @@ class StatVehicle {
   final int netPower; // 净电力（不含额外武器）
   final List<StatItem> items;
 
+
   const StatVehicle({
     required this.bodyId,
     this.extraId,

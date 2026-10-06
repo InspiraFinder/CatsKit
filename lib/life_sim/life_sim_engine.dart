@@ -262,7 +262,13 @@ class LifeSimEngine {
         if (idx[id] != null) idx[id]!,
     ];
     final levels = <String, int>{};
-    for (final p in <PartData?>[body, extra, ...weapons, ...wheels, ...gadgets]) {
+    for (final p in <PartData?>[
+      body,
+      extra,
+      ...weapons,
+      ...wheels,
+      ...gadgets,
+    ]) {
       if (p == null) continue;
       // 与组车工具一致：等级限制在 1 ~ maxLevel
       final lv = partLevels?[p.id] ?? 1;
@@ -442,8 +448,7 @@ class LifeSimEngine {
   }
 
   /// 该周期是否为「大活动」（4 天）
-  static bool isMajorPeriodStart(int startDay) =>
-      ((startDay - 1) % 7) < 4;
+  static bool isMajorPeriodStart(int startDay) => ((startDay - 1) % 7) < 4;
 
   /// 按周期第一天构造周期信息
   SimPeriod periodOf(int startDay) {
@@ -613,11 +618,7 @@ class LifeSimEngine {
       final guaranteed = Rarity.values[kStarterGuaranteedRarityIndex];
       final order = List<int>.generate(ids.length, (i) => i)..shuffle(_rng);
       for (final i in order) {
-        final id = _rollPartOfCategory(
-          slots[i],
-          used,
-          rarity: guaranteed,
-        );
+        final id = _rollPartOfCategory(slots[i], used, rarity: guaranteed);
         if (id.isNotEmpty) {
           used.remove(ids[i]);
           ids[i] = id;
@@ -636,7 +637,8 @@ class LifeSimEngine {
   }) {
     final pool = PartDatabase.partsForServer(server)
         .where(
-          (p) => p.category == category && (rarity == null || p.rarity == rarity),
+          (p) =>
+              p.category == category && (rarity == null || p.rarity == rarity),
         )
         .toList();
     if (pool.isEmpty) return '';
@@ -688,9 +690,7 @@ class LifeSimEngine {
     // 部件实际数值随等级变化，排序也必须用等级后的值
     double hpOf(PartData p) => p.hp(save.levelOf(p.id).clamp(1, p.maxLevel));
 
-    final bodies = owned
-        .where((p) => p.category == PartCategory.body)
-        .toList()
+    final bodies = owned.where((p) => p.category == PartCategory.body).toList()
       ..sort((a, b) => hpOf(b).compareTo(hpOf(a)));
     if (bodies.isEmpty) return;
 
@@ -733,14 +733,14 @@ class LifeSimEngine {
     double hpOf(PartData p) => p.hp(save.levelOf(p.id).clamp(1, p.maxLevel));
     double atkOf(PartData p) => p.atk(save.levelOf(p.id).clamp(1, p.maxLevel));
 
-    final weapons = owned.where((p) => p.category == PartCategory.weapon).toList()
-      ..sort((a, b) => atkOf(b).compareTo(atkOf(a)));
+    final weapons =
+        owned.where((p) => p.category == PartCategory.weapon).toList()
+          ..sort((a, b) => atkOf(b).compareTo(atkOf(a)));
     final wheels = owned.where((p) => p.category == PartCategory.wheel).toList()
-      ..sort(
-        (a, b) => (hpOf(b) + atkOf(b)).compareTo(hpOf(a) + atkOf(a)),
-      );
-    final gadgets = owned.where((p) => p.category == PartCategory.gadget).toList()
-      ..sort((a, b) => hpOf(b).compareTo(hpOf(a)));
+      ..sort((a, b) => (hpOf(b) + atkOf(b)).compareTo(hpOf(a) + atkOf(a)));
+    final gadgets =
+        owned.where((p) => p.category == PartCategory.gadget).toList()
+          ..sort((a, b) => hpOf(b).compareTo(hpOf(a)));
 
     sv.wheelIds.addAll(wheels.take(slots.wheel).map((p) => p.id));
     sv.gadgetIds.addAll(gadgets.take(slots.gadget).map((p) => p.id));
@@ -864,11 +864,7 @@ class LifeSimEngine {
     final isMilestone = isMilestoneActivity(period.activityId);
     final gain = isMilestone
         ? milestoneGain(save, period.activityId, choice)
-        : (score *
-                  coef *
-                  (1 + save.activeActivityBonus) *
-                  gangMul *
-                  jitter)
+        : (score * coef * (1 + save.activeActivityBonus) * gangMul * jitter)
               .round();
 
     save.progress += gain;
@@ -889,18 +885,17 @@ class LifeSimEngine {
       save.gangActivity = min(100, save.gangActivity + choice.gangActivityGain);
     }
     if (choice.nextActivityBonus > 0) {
-      save.nextActivityBonus = min(1.0, save.nextActivityBonus + choice.nextActivityBonus);
+      save.nextActivityBonus = min(
+        1.0,
+        save.nextActivityBonus + choice.nextActivityBonus,
+      );
     }
 
     final actName = activityName(period.activityId, 'zh');
     final actNameEn = activityName(period.activityId, 'en');
-    final total = isMilestone
-        ? milestoneConfig(period.activityId)!.total
-        : 0;
+    final total = isMilestone ? milestoneConfig(period.activityId)!.total : 0;
     final progressSuffix = isMilestone ? '（${save.progress}/$total）' : '';
-    final progressSuffixEn = isMilestone
-        ? ' (${save.progress}/$total)'
-        : '';
+    final progressSuffixEn = isMilestone ? ' (${save.progress}/$total)' : '';
     if (backfired) {
       _log(
         save,
@@ -994,9 +989,7 @@ class LifeSimEngine {
     final key = '$server/${period.startDay}/${save.day}';
     return _allStarBoardCache.putIfAbsent(key, () {
       final seed =
-          server.hashCode * 31 +
-          period.startDay * 7919 +
-          save.day * 104729;
+          server.hashCode * 31 + period.startDay * 7919 + save.day * 104729;
       return buildAllStarBoard(seed: seed);
     });
   }
@@ -1146,8 +1139,9 @@ class LifeSimEngine {
   }
 
   /// GP：氪乘数（每 [kGpTopUpMoney] 钱 → 乘数 +[kGpTopUpBonusPct]%，上限 50 次）
-  ({bool ok, String errorZh, String errorEn, int bonusPct, int count})
-  gpTopUp(LifeSimSave save) {
+  ({bool ok, String errorZh, String errorEn, int bonusPct, int count}) gpTopUp(
+    LifeSimSave save,
+  ) {
     final period = periodForDay(save.day);
     if (!isGpActivity(period.activityId)) {
       return (
@@ -1239,7 +1233,15 @@ class LifeSimEngine {
   ///
   /// - 24h锦标赛+黑市：只给随机紫票（本期不设活动）
   /// - 里程碑活动：随机紫票 + 随机进度（进度受氪金倍率影响）
-  ({bool ok, String errorZh, String errorEn, int cash, int progress, int baseProgress, List<ScrapNode> nodes})
+  ({
+    bool ok,
+    String errorZh,
+    String errorEn,
+    int cash,
+    int progress,
+    int baseProgress,
+    List<ScrapNode> nodes,
+  })
   watchAd(LifeSimSave save) {
     final period = periodForDay(save.day);
     final activityId = period.activityId;
@@ -1277,12 +1279,10 @@ class LifeSimEngine {
     final actZh = activityName(activityId, 'zh');
     final actEn = activityName(activityId, 'en');
     if (config != null && config.adProgressTiers.isNotEmpty) {
-      base = config.adProgressTiers[_rng.nextInt(
-        config.adProgressTiers.length,
-      )];
+      base =
+          config.adProgressTiers[_rng.nextInt(config.adProgressTiers.length)];
       // 齿轮奔袭：单车最高战力不达标时进度 ×0
-      final ready =
-          activityId != 'gear' || gearPowerReady(save);
+      final ready = activityId != 'gear' || gearPowerReady(save);
       progress = ready ? base * save.scrapMultiplier : 0;
       save.progress += progress;
       nodes = claimMilestoneNodes(save, activityId);
@@ -1334,8 +1334,10 @@ class LifeSimEngine {
   /// 氪金：消耗「钱」换取本次里程碑活动的进度倍率
   ///
   /// 钱可以扣至负值；倍率取「更高者」，周期结束时重置为 1。
-  ({bool ok, String errorZh, String errorEn, int multiplier})
-  topUp(LifeSimSave save, int tierIndex) {
+  ({bool ok, String errorZh, String errorEn, int multiplier}) topUp(
+    LifeSimSave save,
+    int tierIndex,
+  ) {
     if (tierIndex < 0 || tierIndex >= kTopUpTiers.length) {
       return (
         ok: false,
@@ -1377,12 +1379,7 @@ class LifeSimEngine {
       'Top-up: spent ${tier.cost} money, $actEn progress ×${tier.multiplier}'
           ' (money balance ${save.money})',
     );
-    return (
-      ok: true,
-      errorZh: '',
-      errorEn: '',
-      multiplier: tier.multiplier,
-    );
+    return (ok: true, errorZh: '', errorEn: '', multiplier: tier.multiplier);
   }
 
   /// 全明星「买分」：消耗 1 精力 + 10 钱，获得 15000 分
@@ -1434,10 +1431,11 @@ class LifeSimEngine {
 
   /// 废铁行动奖励的 R6 部件（15 种）
   List<String> get scrapR6PartIds {
-    final all = PartDatabase.partsForServer(server)
-        .where((p) => p.rarity == Rarity.r6)
-        .toList()
-      ..sort((a, b) => a.id.compareTo(b.id));
+    final all =
+        PartDatabase.partsForServer(
+            server,
+          ).where((p) => p.rarity == Rarity.r6).toList()
+          ..sort((a, b) => a.id.compareTo(b.id));
     final explicit = kScrapR6PartIds
         .where((id) => partIndex.containsKey(id))
         .toList();
@@ -1527,9 +1525,7 @@ class LifeSimEngine {
     final pool = PartDatabase.partsForServer(
       server,
     ).where((p) => p.rarity == Rarity.r6).toList()..shuffle(_rng);
-    final kinds = <String>[
-      for (final p in pool.take(tier.partKinds)) p.id,
-    ];
+    final kinds = <String>[for (final p in pool.take(tier.partKinds)) p.id];
     final partIds = <String>[
       for (final id in kinds) ...List<String>.filled(tier.partEach, id),
     ];
@@ -1576,9 +1572,7 @@ class LifeSimEngine {
     final pool = PartDatabase.partsForServer(
       server,
     ).where((p) => p.rarity == Rarity.r6).toList()..shuffle(_rng);
-    final kinds = <String>[
-      for (final p in pool.take(tier.partKinds)) p.id,
-    ];
+    final kinds = <String>[for (final p in pool.take(tier.partKinds)) p.id];
     final partIds = <String>[
       for (final id in kinds) ...List<String>.filled(tier.partEach, id),
     ];
@@ -1819,7 +1813,8 @@ class LifeSimEngine {
         break;
       }
     }
-    final rarity = Rarity.values[rarityIndex.clamp(0, Rarity.values.length - 1)];
+    final rarity =
+        Rarity.values[rarityIndex.clamp(0, Rarity.values.length - 1)];
     final pool = PartDatabase.partsForServer(
       server,
     ).where((p) => p.rarity == rarity).toList();
@@ -2019,9 +2014,7 @@ class LifeSimEngine {
       final board = _npcBoard(d, save.day);
       if (board.isEmpty) continue;
       final picked = <GangLeagueRow>[board.first];
-      final joinable = board
-          .where((r) => r.members < kGangMaxMembers)
-          .toList()
+      final joinable = board.where((r) => r.members < kGangMaxMembers).toList()
         ..sort((a, b) => a.rank.compareTo(b.rank));
       final pool = joinable.take(perDivision * 3).toList()..shuffle(_rng);
       for (final r in pool) {
@@ -2155,13 +2148,7 @@ class LifeSimEngine {
     save.cityOpponentName = null;
     save.cityOpponentCars = <int>[];
     save.cityOpponentPower = 0;
-    _log(
-      save,
-      '🚪',
-      'gang',
-      '你退出了帮派「$name」',
-      'You left the gang "$name"',
-    );
+    _log(save, '🚪', 'gang', '你退出了帮派「$name」', 'You left the gang "$name"');
   }
 
   /// 招募一名 AI 成员（战力随玩家车队成长）
@@ -2191,8 +2178,7 @@ class LifeSimEngine {
         member: null,
       );
     }
-    final cost =
-        kRecruitCashBase + kRecruitCashStep * save.gangMembers.length;
+    final cost = kRecruitCashBase + kRecruitCashStep * save.gangMembers.length;
     if (save.energy < kRecruitEnergyCost) {
       return (
         ok: false,
@@ -2236,8 +2222,9 @@ class LifeSimEngine {
   ///
   /// 把人数压到 [kGangSealMinMembers] 以下就是「封存」：
   /// 打不了城市之王、不上排行榜，也就不会被判 80+ 掉级。
-  ({bool ok, String errorZh, String errorEn, SimGangMember? member})
-  kickMember(LifeSimSave save) {
+  ({bool ok, String errorZh, String errorEn, SimGangMember? member}) kickMember(
+    LifeSimSave save,
+  ) {
     if (!save.inGang || !save.gangOwned) {
       return (
         ok: false,
@@ -2275,7 +2262,7 @@ class LifeSimEngine {
       'gang',
       locked
           ? '帮派已设为「禁止加入」：无法招募新成员'
-              '${isGangSealed(save) ? '（当前已封存，不上排行榜）' : ''}'
+                '${isGangSealed(save) ? '（当前已封存，不上排行榜）' : ''}'
           : '帮派已取消「禁止加入」，可以继续招募',
       locked
           ? 'Recruiting disabled: the gang accepts no new members'
@@ -2291,12 +2278,7 @@ class LifeSimEngine {
   }) {
     final p = partIndex[partId];
     if (p == null) {
-      return (
-        ok: false,
-        errorZh: '部件不存在',
-        errorEn: 'Unknown part',
-        stacks: 0,
-      );
+      return (ok: false, errorZh: '部件不存在', errorEn: 'Unknown part', stacks: 0);
     }
     final have = hp ? save.hpToolbox : save.atkToolbox;
     if (have <= 0) {
@@ -2328,8 +2310,7 @@ class LifeSimEngine {
     if (applied >= kToolboxMaxStack) {
       return (
         ok: false,
-        errorZh:
-            '该部件的工具箱已叠满（+${kToolboxMaxStack * kToolboxBonusPct}%）',
+        errorZh: '该部件的工具箱已叠满（+${kToolboxMaxStack * kToolboxBonusPct}%）',
         errorEn: 'This part is already at max toolbox stacks',
         stacks: applied,
       );
@@ -2369,8 +2350,11 @@ class LifeSimEngine {
   // ===================================================================
 
   /// 玩家帮派所在的联赛组别
-  GangDivision gangDivision(LifeSimSave save) => GangDivision
-      .values[save.gangDivisionIndex.clamp(0, GangDivision.values.length - 1)];
+  GangDivision gangDivision(LifeSimSave save) =>
+      GangDivision.values[save.gangDivisionIndex.clamp(
+        0,
+        GangDivision.values.length - 1,
+      )];
 
   static final Map<String, GangDivisionBoard> _gangBoardCache =
       <String, GangDivisionBoard>{};
@@ -2549,7 +2533,8 @@ class LifeSimEngine {
       save.token += reward.token;
       save.lifetimeToken += reward.token;
       final parts = <String>[
-        for (var i = 0; i < reward.chests; i++) _rollPartOfRarity(reward.chestRarityIndex),
+        for (var i = 0; i < reward.chests; i++)
+          _rollPartOfRarity(reward.chestRarityIndex),
       ].where((id) => id.isNotEmpty).toList();
       if (parts.isNotEmpty) {
         grantParts(save, parts);
@@ -2767,10 +2752,8 @@ class LifeSimEngine {
 
   /// 抽一个指定稀有度下标的部件（城市之王宝箱）
   String _rollPartOfRarity(int rarityIndex) {
-    final rarity = Rarity.values[rarityIndex.clamp(
-      0,
-      Rarity.values.length - 1,
-    )];
+    final rarity =
+        Rarity.values[rarityIndex.clamp(0, Rarity.values.length - 1)];
     final pool = PartDatabase.partsForServer(
       server,
     ).where((p) => p.rarity == rarity).toList();
@@ -2893,9 +2876,8 @@ class LifeSimEngine {
 
   /// 取帮派最强的 3 辆车
   List<int> _topCars(GangInstance gang) {
-    final cars = <int>[
-      for (final m in gang.members) ...m.carPowers,
-    ]..sort((a, b) => b.compareTo(a));
+    final cars = <int>[for (final m in gang.members) ...m.carPowers]
+      ..sort((a, b) => b.compareTo(a));
     while (cars.length < 3) {
       cars.add(0);
     }
@@ -2914,9 +2896,11 @@ class LifeSimEngine {
     if (isGangSealed(save)) {
       return CityKingResult(
         ok: false,
-        errorZh: '帮派成员不足 $kGangSealMinMembers 人（已封存），'
+        errorZh:
+            '帮派成员不足 $kGangSealMinMembers 人（已封存），'
             '无法参加城市之王',
-        errorEn: 'Sealed gang: fewer than $kGangSealMinMembers members, '
+        errorEn:
+            'Sealed gang: fewer than $kGangSealMinMembers members, '
             'cannot fight City King',
       );
     }
@@ -2950,9 +2934,8 @@ class LifeSimEngine {
 
     final myMul = activityMultiplier(save.gangActivity);
     final oppMul = activityMultiplier(save.cityOpponentActivity) * oppBoost;
-    final myCars = [
-      for (final p in vehiclePowers(save)) (p * myMul).round(),
-    ]..sort((a, b) => b.compareTo(a));
+    final myCars = [for (final p in vehiclePowers(save)) (p * myMul).round()]
+      ..sort((a, b) => b.compareTo(a));
     while (myCars.length < 3) {
       myCars.add(0);
     }
@@ -2988,9 +2971,11 @@ class LifeSimEngine {
         won = myTotal > oppTotal;
       }
     }
-    final scoreText = '$myWins:$oppWins'
+    final scoreText =
+        '$myWins:$oppWins'
         '${drawCount > 0 ? '（平 $drawCount）' : ''}';
-    final scoreTextEn = '$myWins:$oppWins'
+    final scoreTextEn =
+        '$myWins:$oppWins'
         '${drawCount > 0 ? ' ($drawCount drawn)' : ''}';
 
     final opponentName = save.cityOpponentName ?? '——';
@@ -3074,10 +3059,7 @@ class LifeSimEngine {
         save.cityLossStreak++;
         final penalty =
             kCityLossActivityPenalty +
-            min(
-              kCityLossStreakMaxExtra,
-              save.cityLossStreak - 1,
-            ) *
+            min(kCityLossStreakMaxExtra, save.cityLossStreak - 1) *
                 kCityLossStreakExtra;
         final before = save.gangActivity;
         save.gangActivity = max(0, save.gangActivity - penalty);
@@ -3319,13 +3301,7 @@ class LifeSimEngine {
   // 工具
   // ===================================================================
 
-  void _log(
-    LifeSimSave save,
-    String icon,
-    String kind,
-    String zh,
-    String en,
-  ) {
+  void _log(LifeSimSave save, String icon, String kind, String zh, String en) {
     save.logs.insert(
       0,
       LogEntry(day: save.day, icon: icon, kind: kind, zh: zh, en: en),
