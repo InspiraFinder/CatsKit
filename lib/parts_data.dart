@@ -873,7 +873,7 @@ class PartDatabase {
       category: PartCategory.weapon,
       rarity: Rarity.r6,
       sponsor: Sponsor.naturalis,
-      atk1: 8000,
+      atk1: 9000,
       mHp1: 11000,
       power: -10,
       partClass: PartClass.minion,
@@ -990,7 +990,7 @@ class PartDatabase {
       category: PartCategory.weapon,
       rarity: Rarity.r6,
       sponsor: Sponsor.mecha,
-      atk1: 4500,
+      atk1: 5400,
       power: -5,
       partClass: PartClass.autoAim,
       bonus: bWeapon10,
@@ -3262,6 +3262,37 @@ class PartDatabase {
       bonus: bGadget20,
       sip: StatsIncrementPattern.r6,
       imageCn: 'assets/images_cn/donuts_sticky_roller.jpg',
+    );
+    // 蝙蝠：atk8000（国际服自 2026-10-15 起为 atk9000，国服保持原值）
+    map['bats'] = const PartData(
+      id: 'bats',
+      name: 'Bats',
+      nameZh: '蝙蝠',
+      nameJa: 'コウモリ',
+      category: PartCategory.weapon,
+      rarity: Rarity.r6,
+      sponsor: Sponsor.naturalis,
+      atk1: 8000,
+      mHp1: 11000,
+      power: -10,
+      partClass: PartClass.minion,
+      bonus: bBody10,
+      sip: StatsIncrementPattern.r6,
+    );
+    // 等离子哨兵：atk4500（国际服自 2026-10-15 起为 atk5400，国服保持原值）
+    map['plasma_sentry'] = const PartData(
+      id: 'plasma_sentry',
+      name: 'Plasma Sentry',
+      nameZh: '等离子哨兵',
+      nameJa: 'プラズマセントリー',
+      category: PartCategory.weapon,
+      rarity: Rarity.r6,
+      sponsor: Sponsor.mecha,
+      atk1: 4500,
+      power: -5,
+      partClass: PartClass.autoAim,
+      bonus: bWeapon10,
+      sip: StatsIncrementPattern.r6,
     );
 
     return map.values.toList();

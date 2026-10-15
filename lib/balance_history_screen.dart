@@ -37,8 +37,8 @@ class _BalanceHistoryScreenState extends State<BalanceHistoryScreen> {
         children: [
           _buildIntro(),
           const SizedBox(height: 10),
-          for (final p in kBalanceHistory) ...[
-            _buildPatchCard(p),
+          for (var i = 0; i < kBalanceHistory.length; i++) ...[
+            _buildPatchCard(kBalanceHistory[i], i),
             const SizedBox(height: 10),
           ],
           const SizedBox(height: 8),
@@ -74,7 +74,7 @@ class _BalanceHistoryScreenState extends State<BalanceHistoryScreen> {
     );
   }
 
-  Widget _buildPatchCard(BalancePatch p) {
+  Widget _buildPatchCard(BalancePatch p, int index) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final note = _isZh
         ? (p.noteZh ?? '')
@@ -95,7 +95,7 @@ class _BalanceHistoryScreenState extends State<BalanceHistoryScreen> {
                 ),
                 const SizedBox(width: 6),
                 Text(
-                  p.date,
+                  '${p.date} ${balanceOrdinalSuffix(balanceOrdinalOf(index))}',
                   style: const TextStyle(
                     fontSize: 15,
                     fontWeight: FontWeight.bold,
@@ -163,19 +163,26 @@ class _BalanceHistoryScreenState extends State<BalanceHistoryScreen> {
 
     // 备注类条目
     if (c.field == 'note') {
-      return Padding(
-        padding: const EdgeInsets.only(bottom: 6),
-        child: Row(
-          children: [
-            Icon(Icons.info_outline, size: 14, color: grey),
-            const SizedBox(width: 4),
-            Expanded(
-              child: Text(
-                '${c.partName}：${c.newValue}',
-                style: TextStyle(fontSize: 12, color: grey),
+      return SizedBox(
+        width: 424,
+        child: Padding(
+          padding: const EdgeInsets.only(bottom: 6),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                padding: const EdgeInsets.only(top: 1),
+                child: Icon(Icons.info_outline, size: 14, color: grey),
               ),
-            ),
-          ],
+              const SizedBox(width: 4),
+              Expanded(
+                child: Text(
+                  '${c.partName}：${c.newValue}',
+                  style: TextStyle(fontSize: 12, color: grey),
+                ),
+              ),
+            ],
+          ),
         ),
       );
     }
@@ -283,6 +290,8 @@ class _BalanceHistoryScreenState extends State<BalanceHistoryScreen> {
     switch (field) {
       case 'hp':
         return 'HP';
+      case 'atk':
+        return 'ATK';
       case 'power':
         return _t('电力', 'Power');
       case 'slots':
