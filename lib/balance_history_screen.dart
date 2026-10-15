@@ -37,8 +37,8 @@ class _BalanceHistoryScreenState extends State<BalanceHistoryScreen> {
         children: [
           _buildIntro(),
           const SizedBox(height: 10),
-          for (final p in kBalanceHistory) ...[
-            _buildPatchCard(p),
+          for (var i = 0; i < kBalanceHistory.length; i++) ...[
+            _buildPatchCard(kBalanceHistory[i], i),
             const SizedBox(height: 10),
           ],
           const SizedBox(height: 8),
@@ -74,7 +74,7 @@ class _BalanceHistoryScreenState extends State<BalanceHistoryScreen> {
     );
   }
 
-  Widget _buildPatchCard(BalancePatch p) {
+  Widget _buildPatchCard(BalancePatch p, int index) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final note = _isZh
         ? (p.noteZh ?? '')
@@ -95,7 +95,7 @@ class _BalanceHistoryScreenState extends State<BalanceHistoryScreen> {
                 ),
                 const SizedBox(width: 6),
                 Text(
-                  p.date,
+                  '${p.date} ${balanceOrdinalSuffix(balanceOrdinalOf(index))}',
                   style: const TextStyle(
                     fontSize: 15,
                     fontWeight: FontWeight.bold,
@@ -163,10 +163,6 @@ class _BalanceHistoryScreenState extends State<BalanceHistoryScreen> {
 
     // 备注类条目
     if (c.field == 'note') {
-      // ⚠️ 这里必须跟上面一样限定宽度：外层是横向 SingleChildScrollView，
-      // 宽度不受约束，直接放 Expanded 会抛
-      // “RenderFlex children have non-zero flex but incoming width constraints are unbounded”，
-      // 整页布局失败 → 界面全白。
       return SizedBox(
         width: 424,
         child: Padding(

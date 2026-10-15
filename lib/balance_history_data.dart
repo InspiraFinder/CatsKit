@@ -67,12 +67,60 @@ class BalancePatch {
   });
 }
 
+/// 同一天内的第几次调整（1 起，按时间先后）
+///
+/// [kBalanceHistory] 是「最新在前」，所以同一天里**靠后**的条目序号更小：
+/// 最后一个同日期条目 = 1st、倒数第二个 = 2nd，依次类推。
+int balanceOrdinalOf(int index) {
+  final date = kBalanceHistory[index].date;
+  var later = 0;
+  for (var j = index + 1; j < kBalanceHistory.length; j++) {
+    if (kBalanceHistory[j].date == date) later++;
+  }
+  return later + 1;
+}
+
+/// 序号后缀：1 → '1st'、2 → '2nd'、3 → '3rd'、其余 'Nth'
+String balanceOrdinalSuffix(int ordinal) {
+  final mod100 = ordinal % 100;
+  if (mod100 >= 11 && mod100 <= 13) return '${ordinal}th';
+  switch (ordinal % 10) {
+    case 1:
+      return '${ordinal}st';
+    case 2:
+      return '${ordinal}nd';
+    case 3:
+      return '${ordinal}rd';
+    default:
+      return '${ordinal}th';
+  }
+}
+
 /// 历次平衡性调整（最新在前）
 const List<BalancePatch> kBalanceHistory = [
+  // 2026-10-15 当天第二次调整（最新）
   BalancePatch(
     date: '2026-10-15',
-    noteZh: '当天先后两次调整：口香糖枪在第二次调整中调回原值',
-    noteEn: 'Two adjustments on the same day; the Gumball Gun was reverted in the second one',
+    changes: [
+      BalanceChange(
+        partName: '口香糖枪',
+        field: 'power',
+        oldValue: '10',
+        newValue: '15',
+        percent: '+50.0%',
+      ),
+      BalanceChange(
+        partName: '口香糖枪',
+        field: 'atk',
+        oldValue: '8,500',
+        newValue: '10,920',
+        percent: '+28.5%',
+      ),
+    ],
+  ),
+  // 2026-10-15 当天第一次调整
+  BalancePatch(
+    date: '2026-10-15',
     changes: [
       BalanceChange(
         partName: '蝙蝠',
@@ -82,18 +130,27 @@ const List<BalancePatch> kBalanceHistory = [
         percent: '+12.5%',
       ),
       BalanceChange(
+        partName: '口香糖枪',
+        field: 'power',
+        oldValue: '15',
+        newValue: '10',
+        percent: '-33.3%',
+        percentUp: false,
+      ),
+      BalanceChange(
+        partName: '口香糖枪',
+        field: 'atk',
+        oldValue: '10,920',
+        newValue: '8,500',
+        percent: '-22.2%',
+        percentUp: false,
+      ),
+      BalanceChange(
         partName: '等离子哨兵',
         field: 'atk',
         oldValue: '4,500',
         newValue: '5,400',
         percent: '+20.0%',
-      ),
-      BalanceChange(
-        partName: '口香糖枪',
-        field: 'note',
-        oldValue: '电力 15、ATK 10,920',
-        newValue: '第一次调整：电力 15 → 10、ATK 10,920 → 8,500；'
-            '同一天第二次调整已调回原值（电力 15、ATK 10,920）',
       ),
     ],
   ),
