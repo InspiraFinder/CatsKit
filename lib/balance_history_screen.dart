@@ -283,6 +283,8 @@ class _BalanceHistoryScreenState extends State<BalanceHistoryScreen> {
     switch (field) {
       case 'hp':
         return 'HP';
+      case 'atk':
+        return 'ATK';
       case 'power':
         return _t('电力', 'Power');
       case 'slots':

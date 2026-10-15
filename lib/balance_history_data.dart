@@ -10,7 +10,7 @@ class BalanceChange {
   /// 部件中文名
   final String partName;
 
-  /// 字段：'hp' | 'power' | 'slots' | 'note'
+  /// 字段：'hp' | 'atk' | 'power' | 'slots' | 'note'
   final String field;
 
   /// 旧值（展示用文本）
@@ -69,6 +69,34 @@ class BalancePatch {
 
 /// 历次平衡性调整（最新在前）
 const List<BalancePatch> kBalanceHistory = [
+  BalancePatch(
+    date: '2026-10-15',
+    noteZh: '当天先后两次调整：口香糖枪在第二次调整中调回原值',
+    noteEn: 'Two adjustments on the same day; the Gumball Gun was reverted in the second one',
+    changes: [
+      BalanceChange(
+        partName: '蝙蝠',
+        field: 'atk',
+        oldValue: '8,000',
+        newValue: '11,700',
+        percent: '+46.3%',
+      ),
+      BalanceChange(
+        partName: '等离子哨兵',
+        field: 'atk',
+        oldValue: '4,500',
+        newValue: '5,400',
+        percent: '+20.0%',
+      ),
+      BalanceChange(
+        partName: '口香糖枪',
+        field: 'note',
+        oldValue: '电力 15、ATK 10,920',
+        newValue: '第一次调整：电力 15 → 10、ATK 10,920 → 8,500；'
+            '同一天第二次调整已调回原值（电力 15、ATK 10,920）',
+      ),
+    ],
+  ),
   BalancePatch(
     date: '2026-09-10',
     changes: [
