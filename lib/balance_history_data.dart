@@ -78,8 +78,8 @@ const List<BalancePatch> kBalanceHistory = [
         partName: '蝙蝠',
         field: 'atk',
         oldValue: '8,000',
-        newValue: '11,700',
-        percent: '+46.3%',
+        newValue: '9,000',
+        percent: '+12.5%',
       ),
       BalanceChange(
         partName: '等离子哨兵',

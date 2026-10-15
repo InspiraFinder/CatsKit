@@ -873,7 +873,7 @@ class PartDatabase {
       category: PartCategory.weapon,
       rarity: Rarity.r6,
       sponsor: Sponsor.naturalis,
-      atk1: 11700,
+      atk1: 9000,
       mHp1: 11000,
       power: -10,
       partClass: PartClass.minion,
@@ -3263,7 +3263,7 @@ class PartDatabase {
       sip: StatsIncrementPattern.r6,
       imageCn: 'assets/images_cn/donuts_sticky_roller.jpg',
     );
-    // 蝙蝠：atk8000（国际服自 2026-10-15 起为 atk11700，国服保持原值）
+    // 蝙蝠：atk8000（国际服自 2026-10-15 起为 atk9000，国服保持原值）
     map['bats'] = const PartData(
       id: 'bats',
       name: 'Bats',

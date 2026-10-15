@@ -163,19 +163,30 @@ class _BalanceHistoryScreenState extends State<BalanceHistoryScreen> {
 
     // 备注类条目
     if (c.field == 'note') {
-      return Padding(
-        padding: const EdgeInsets.only(bottom: 6),
-        child: Row(
-          children: [
-            Icon(Icons.info_outline, size: 14, color: grey),
-            const SizedBox(width: 4),
-            Expanded(
-              child: Text(
-                '${c.partName}：${c.newValue}',
-                style: TextStyle(fontSize: 12, color: grey),
+      // ⚠️ 这里必须跟上面一样限定宽度：外层是横向 SingleChildScrollView，
+      // 宽度不受约束，直接放 Expanded 会抛
+      // “RenderFlex children have non-zero flex but incoming width constraints are unbounded”，
+      // 整页布局失败 → 界面全白。
+      return SizedBox(
+        width: 424,
+        child: Padding(
+          padding: const EdgeInsets.only(bottom: 6),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                padding: const EdgeInsets.only(top: 1),
+                child: Icon(Icons.info_outline, size: 14, color: grey),
               ),
-            ),
-          ],
+              const SizedBox(width: 4),
+              Expanded(
+                child: Text(
+                  '${c.partName}：${c.newValue}',
+                  style: TextStyle(fontSize: 12, color: grey),
+                ),
+              ),
+            ],
+          ),
         ),
       );
     }
