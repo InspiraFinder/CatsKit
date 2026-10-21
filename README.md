@@ -13,6 +13,13 @@
   <img alt="Last Commit" src="https://img.shields.io/github/last-commit/InspiraFinder/CatsKit?style=flat-square">
 </p>
 
+<p align="center">
+  <a href="https://github.com/InspiraFinder/CatsKit/releases/latest/download/app-arm64-v8a-release.apk"><img alt="Android" src="https://img.shields.io/badge/Android-3DDC84?style=flat-square&logo=android&logoColor=white"></a>
+  <a href="https://github.com/InspiraFinder/CatsKit/releases/latest"><img alt="iOS" src="https://img.shields.io/badge/iOS-000000?style=flat-square&logo=apple&logoColor=white"></a>
+  <a href="https://github.com/InspiraFinder/CatsKit/releases/latest"><img alt="Windows" src="https://img.shields.io/badge/%E2%8A%9E%20Windows-0078D6?style=flat-square"></a>
+  <a href="https://github.com/InspiraFinder/CatsKit/releases/latest"><img alt="Linux" src="https://img.shields.io/badge/Linux-FCC624?style=flat-square&logo=linux&logoColor=black"></a>
+</p>
+
 ---
 
 ## 📖 简介
