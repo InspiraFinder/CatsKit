@@ -349,7 +349,7 @@ jobs:
                 - 在终端执行：`pip install rapidocr-onnxruntime opencv-python numpy`
 
               ### 🔧 系统要求
-              - Android 5.0 及以上
+              - Android 7.0 及以上（API 24）
               - Windows 10 / 11（64 位）
               - Linux（x86_64，glibc 2.35+，需 GTK3）
               - iOS 15.5 及以上
