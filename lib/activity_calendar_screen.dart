@@ -141,6 +141,19 @@ class ActivityCalendar {
     'allstar',
   ];
 
+  /// 国服 4 天时段最新序列（2026-09-24 19:00 起）
+  /// GP → 全明星 → 废铁 → 太空（循环）
+  static const List<String> _cn4dSequenceLatest = [
+    'gp',
+    'allstar',
+    'scrap',
+    'space',
+  ];
+
+  /// 最新改版起点：2026-09-24（周四）19:00 所在的 weekIndex
+  /// （锚点 2026-08-20 + 5 周 = 9/24）
+  static const int revampWeek2 = 5;
+
   /// 国际服 4 天时段活动序列（用户给定顺序）
   /// GP-废铁-全明星-GP-废铁-齿轮，当前（锚点周）为废铁（索引4），下周齿轮（索引5）
   static const List<String> _intl4dSequence = [
@@ -168,8 +181,12 @@ class ActivityCalendar {
     'space',
   ];
 
-  /// 国服 4 天时段轮换顺序（公开，用于展示；改版后为新顺序）
-  static List<String> get cnSequence => List.unmodifiable(_cn4dSequenceNew);
+  /// 国服 4 天时段轮换顺序（公开，用于展示；2026-09-24 起为最新顺序）
+  static List<String> get cnSequence =>
+      List.unmodifiable(_cn4dSequenceLatest);
+
+  /// 国服 2026-09-17 ~ 2026-09-23 之间的顺序（废铁 / GP 对调版）
+  static List<String> get cnSequenceMid => List.unmodifiable(_cn4dSequenceNew);
 
   /// 国服改版前的轮换顺序
   static List<String> get cnSequenceOld => List.unmodifiable(_cn4dSequenceOld);
@@ -234,6 +251,11 @@ class ActivityCalendar {
       return seq[(_intlStartIndex + weekIdx) % seq.length];
     }
     if (server == 'cn') {
+      // 2026-09-24 起改用最新顺序（GP → 全明星 → 废铁 → 太空）
+      if (weekIdx >= revampWeek2) {
+        final seq = _cn4dSequenceLatest;
+        return seq[(weekIdx - revampWeek2) % seq.length];
+      }
       final seq = _cn4dSequenceNew;
       return seq[(weekIdx - revampWeek) % seq.length];
     }
@@ -1191,8 +1213,10 @@ class _ActivityCalendarScreenState extends State<ActivityCalendarScreen> {
           Text(
             isCn
                 ? _t(
-                    '2026-09-17（周四）19:00 起：废铁 与 GP 对调（此前按旧顺序）',
-                    'From 2026-09-17 19:00: Scrap and GP swapped (earlier dates keep the old order)',
+                    '2026-09-17 起：废铁 与 GP 对调；2026-09-24（周四）19:00 起：'
+                    '改为 GP → 全明星 → 废铁 → 太空（更早的日期按旧顺序）',
+                    'From 2026-09-17: Scrap and GP swapped; from 2026-09-24 19:00: '
+                    'order becomes GP → All Star → Scrap → Space (earlier dates keep the old order)',
                   )
                 : _t(
                     '2026-09-17（周四）19:00 起：轮换顺序不变，整体后移 3 周（此前按旧顺序）',
