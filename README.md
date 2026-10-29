@@ -13,11 +13,57 @@
   <img alt="Last Commit" src="https://img.shields.io/github/last-commit/InspiraFinder/CatsKit?style=flat-square">
 </p>
 
+<p align="center">
+  <a href="https://github.com/InspiraFinder/CatsKit/releases/latest/download/app-arm64-v8a-release.apk"><img alt="Android 7.0+" src="https://img.shields.io/badge/Android-7.0%2B-3DDC84?style=flat-square&logo=android&logoColor=white"></a>
+  <a href="https://github.com/InspiraFinder/CatsKit/releases/latest"><img alt="iOS 15.5+" src="https://img.shields.io/badge/iOS-15.5%2B-000000?style=flat-square&logo=apple&logoColor=white"></a>
+  <a href="https://github.com/InspiraFinder/CatsKit/releases/latest"><img alt="Windows 10+" src="https://img.shields.io/badge/%E2%8A%9E%20Windows-10%2B-0078D6?style=flat-square"></a>
+  <a href="https://github.com/InspiraFinder/CatsKit/releases/latest"><img alt="Linux glibc 2.35+" src="https://img.shields.io/badge/Linux-glibc%202.35%2B-FCC624?style=flat-square&logo=linux&logoColor=black"></a>
+</p>
+
 ---
 
 ## 📖 简介
 
 - Meow 🐱 — 基于 Flutter 的跨平台 C.A.T.S. 游戏辅助工具。
+
+## ⬇ 下载
+
+> 卡片里的链接都指向**最新 Release**；Android 可以直接点对应架构下载 APK，
+> 其它平台在本页下载对应压缩包即可。
+
+<table>
+  <tr>
+    <td align="center" width="25%">
+      <h3>🤖 Android</h3>
+      <a href="https://github.com/InspiraFinder/CatsKit/releases/latest/download/app-arm64-v8a-release.apk"><b>arm64-v8a</b></a> ·
+      <a href="https://github.com/InspiraFinder/CatsKit/releases/latest/download/app-armeabi-v7a-release.apk">armeabi-v7a</a> ·
+      <a href="https://github.com/InspiraFinder/CatsKit/releases/latest/download/app-x86_64-release.apk">x86_64</a><br>
+      <sub>主流手机选 <b>arm64-v8a</b>；老设备选 armeabi-v7a</sub><br>
+      <sub>Android 7.0 及以上（API 24）</sub>
+    </td>
+    <td align="center" width="25%">
+      <h3>🍎 iOS</h3>
+      <a href="https://github.com/InspiraFinder/CatsKit/releases/latest"><b>下载 IPA</b></a><br>
+      <sub>未签名 IPA（<code>CatsKit-ios-*.ipa</code>）</sub><br>
+      <sub>TrollStore / SideStore / 轻松签</sub><br>
+      <sub>iOS 15.5 及以上 · 见下方安装指南</sub>
+    </td>
+    <td align="center" width="25%">
+      <h3>🪟 Windows</h3>
+      <a href="https://github.com/InspiraFinder/CatsKit/releases/latest"><b>下载 ZIP</b></a><br>
+      <sub><code>CatsKit-windows-*.zip</code>，解压后运行 <code>catskit.exe</code></sub><br>
+      <sub>OCR 识别需先装 Python 依赖</sub><br>
+      <sub>Windows 10 / 11（64 位）</sub>
+    </td>
+    <td align="center" width="25%">
+      <h3>🐧 Linux</h3>
+      <a href="https://github.com/InspiraFinder/CatsKit/releases/latest"><b>下载 TAR.GZ</b></a><br>
+      <sub><code>CatsKit-linux-x64-*.tar.gz</code>，解压后执行 <code>./catskit</code></sub><br>
+      <sub>需 GTK3 与 Python（OCR）</sub><br>
+      <sub>x86_64 · glibc 2.35 及以上</sub>
+    </td>
+  </tr>
+</table>
 
 ## 📖 测试群
 
