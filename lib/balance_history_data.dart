@@ -98,6 +98,135 @@ String balanceOrdinalSuffix(int ordinal) {
 
 /// 历次平衡性调整（最新在前）
 const List<BalancePatch> kBalanceHistory = [
+  // 2026-10-29 国际服：10 个部件 HP / ATK +20%，其中 4 个同时降低耗电
+  BalancePatch(
+    date: '2026-10-29',
+    noteZh: 'HP / ATK 统一 +20%，部分部件同时降低耗电',
+    noteEn: 'HP / ATK +20% across the board, some parts use less power',
+    changes: [
+      BalanceChange(
+        partName: '铁娘子',
+        field: 'hp',
+        oldValue: '53,000',
+        newValue: '63,600',
+        percent: '+20.0%',
+      ),
+      BalanceChange(
+        partName: '海怪',
+        field: 'atk',
+        oldValue: '10,500',
+        newValue: '12,600',
+        percent: '+20.0%',
+      ),
+      BalanceChange(
+        partName: '海怪',
+        field: 'hp',
+        oldValue: '20,000',
+        newValue: '24,000',
+        percent: '+20.0%',
+      ),
+      BalanceChange(
+        partName: '海怪',
+        field: 'power',
+        oldValue: '-15',
+        newValue: '-10',
+      ),
+      BalanceChange(
+        partName: '烈焰巨龙',
+        field: 'atk',
+        oldValue: '12,285',
+        newValue: '14,742',
+        percent: '+20.0%',
+      ),
+      BalanceChange(
+        partName: '烈焰巨龙',
+        field: 'power',
+        oldValue: '-10',
+        newValue: '-5',
+      ),
+      BalanceChange(
+        partName: '陀螺精神',
+        field: 'atk',
+        oldValue: '5,500',
+        newValue: '6,600',
+        percent: '+20.0%',
+      ),
+      BalanceChange(
+        partName: '陀螺精神',
+        field: 'power',
+        oldValue: '-10',
+        newValue: '-5',
+      ),
+      BalanceChange(
+        partName: '愤怒之角',
+        field: 'atk',
+        oldValue: '4,500',
+        newValue: '5,400',
+        percent: '+20.0%',
+      ),
+      BalanceChange(
+        partName: '愤怒之角',
+        field: 'power',
+        oldValue: '-10',
+        newValue: '-5',
+      ),
+      BalanceChange(
+        partName: '大南瓜车轮',
+        field: 'hp',
+        oldValue: '8,260',
+        newValue: '9,912',
+        percent: '+20.0%',
+      ),
+      BalanceChange(
+        partName: '大南瓜车轮',
+        field: 'atk',
+        oldValue: '1,750',
+        newValue: '2,100',
+        percent: '+20.0%',
+      ),
+      BalanceChange(
+        partName: '小南瓜车轮',
+        field: 'hp',
+        oldValue: '7,670',
+        newValue: '9,204',
+        percent: '+20.0%',
+      ),
+      BalanceChange(
+        partName: '小南瓜车轮',
+        field: 'atk',
+        oldValue: '1,250',
+        newValue: '1,500',
+        percent: '+20.0%',
+      ),
+      BalanceChange(
+        partName: '猫咪鬼魂',
+        field: 'hp',
+        oldValue: '16,284',
+        newValue: '19,540',
+        percent: '+20.0%',
+      ),
+      BalanceChange(
+        partName: '骷髅酒杯',
+        field: 'hp',
+        oldValue: '5,900',
+        newValue: '7,080',
+        percent: '+20.0%',
+      ),
+      BalanceChange(
+        partName: '骷髅酒杯',
+        field: 'power',
+        oldValue: '-5',
+        newValue: '0',
+      ),
+      BalanceChange(
+        partName: '魔法灯',
+        field: 'hp',
+        oldValue: '2,360',
+        newValue: '2,832',
+        percent: '+20.0%',
+      ),
+    ],
+  ),
   // 2026-10-15 当天第二次调整（最新）
   BalancePatch(
     date: '2026-10-15',

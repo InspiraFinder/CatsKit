@@ -276,8 +276,11 @@ class _BalanceHistoryScreenState extends State<BalanceHistoryScreen> {
   /// - 其余字段：沿用数据中提供的展示文本（如 `+10.7%`、`配件 +1`）
   ({String text, bool up}) _deltaInfo(BalanceChange c) {
     if (c.field == 'power') {
-      final oldV = int.tryParse(c.oldValue.replaceAll(RegExp(r'\D'), ''));
-      final newV = int.tryParse(c.newValue.replaceAll(RegExp(r'\D'), ''));
+      // 保留负号（负数 = 耗电）：只去掉千分位逗号与空白
+      int? parsePower(String s) => int.tryParse(s.replaceAll(',', '').trim());
+
+      final oldV = parsePower(c.oldValue);
+      final newV = parsePower(c.newValue);
       if (oldV != null && newV != null) {
         final diff = newV - oldV;
         return (text: diff >= 0 ? '+$diff' : '$diff', up: diff >= 0);
