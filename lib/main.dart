@@ -5448,7 +5448,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         : 'Thanks to "威廉博士" for intl-exclusive part images',
                   ),
                   const SizedBox(height: 2),
-                  Text(locale == 'zh' ? '国服数据提供：防防猫' : 'CN data by: 防防猫'),
+                  Text(
+                    locale == 'zh'
+                        ? '国服数据提供：防防猫、梦游尘世间、MAKI、Pantolone、jcbx5、班某入'
+                        : 'CN data by: 防防猫, 梦游尘世间, MAKI, Pantolone, jcbx5, 班某入',
+                  ),
                   const SizedBox(height: 2),
                   Text(
                     locale == 'zh'
