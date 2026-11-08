@@ -29,7 +29,7 @@ import 'mini_slider.dart';
 import 'update_check_utils.dart';
 import 'life_sim/life_sim_screen.dart';
 
-const String appVersion = '2.3.4';
+const String appVersion = '2.3.5';
 
 /// 获取部件在当前语言下的显示名称
 String pn(PartData part, String? locale) {
@@ -876,8 +876,9 @@ class _MainMenuScreenState extends State<MainMenuScreen> {
         _MenuSubItem(
           icon: Icons.auto_awesome,
           label: _t('碎片计算', 'Fragment Calc'),
-          onTap: () =>
-              _navigateAndAwaitLocale(FragmentCalcScreen(locale: _locale)),
+          onTap: () => _navigateAndAwaitLocale(
+            FragmentCalcScreen(locale: _locale, server: _server),
+          ),
         ),
         _MenuSubItem(
           icon: Icons.upgrade,
@@ -3372,7 +3373,8 @@ class _PartDataScreen extends StatelessWidget {
                   ),
                 ],
                 rows: () {
-                  final costs = upgradeCosts[part.rarity] ?? [];
+                  // 国服部件多 2 级，费用表也对应更长
+                  final costs = upgradeCostsFor(part.rarity, cn: part.isCn);
                   final rows = <DataRow>[];
                   final hasHp = part.hp1 > 0;
                   final hasAtk = part.atk1 > 0;
@@ -5446,7 +5448,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         : 'Thanks to "威廉博士" for intl-exclusive part images',
                   ),
                   const SizedBox(height: 2),
-                  Text(locale == 'zh' ? '国服数据提供：防防猫' : 'CN data by: 防防猫'),
+                  Text(
+                    locale == 'zh'
+                        ? '国服数据提供：防防猫、梦游尘世间、MAKI、Pantolone、jcbx5、班某入'
+                        : 'CN data by: 防防猫, 梦游尘世间, MAKI, Pantolone, jcbx5, 班某入',
+                  ),
                   const SizedBox(height: 2),
                   Text(
                     locale == 'zh'

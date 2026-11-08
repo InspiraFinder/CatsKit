@@ -5,7 +5,10 @@ library;
 // ========== 稀有度 ==========
 enum Rarity { r1, r2, r3, r4, r5, r6 }
 
-int maxLevelForRarity(Rarity r) => r == Rarity.r6 ? 18 : 20;
+/// 等级上限：国际服 R6 = 18、其余 20；
+/// 国服每个部件额外开放 2 级（R6 = 20、R5 及以下 = 22）。
+int maxLevelForRarity(Rarity r, {String server = 'intl'}) =>
+    (r == Rarity.r6 ? 18 : 20) + (server == 'cn' ? 2 : 0);
 
 // ========== 分类 ==========
 enum PartCategory { body, weapon, wheel, gadget }
@@ -20,12 +23,21 @@ enum Sponsor { none, mecha, naturalis, gluttony, sporty }
 enum StatsIncrementPattern { r1, r2, r3, r4, r5, r6, r6Legacy }
 
 /// 根据 SIP 和等级计算最终属性值
-double mapToLevel(double base, int level, StatsIncrementPattern sip) {
+///
+/// [maxLevel] 不传时按 SIP 推断（R6/R6Legacy = 18，其余 = 20）；
+/// 国服部件会传入自己的上限（R6 = 20、其余 = 22），超出仍按上限截断。
+double mapToLevel(
+  double base,
+  int level,
+  StatsIncrementPattern sip, {
+  int? maxLevel,
+}) {
   if (level <= 1) return base;
   final maxLv =
-      sip == StatsIncrementPattern.r6 || sip == StatsIncrementPattern.r6Legacy
-      ? 18
-      : 20;
+      maxLevel ??
+      (sip == StatsIncrementPattern.r6 || sip == StatsIncrementPattern.r6Legacy
+          ? 18
+          : 20);
   if (level > maxLv) level = maxLv;
 
   double result = base;
@@ -88,6 +100,9 @@ class PartData {
   final StatsIncrementPattern sip;
   final String? imageCn; // 国服专用图片路径；null 时使用 assets/images/<id>.png
 
+  /// 是否为国服部件：国服等级上限比国际服额外多 2 级。
+  final bool isCn;
+
   const PartData({
     required this.id,
     required this.name,
@@ -105,18 +120,43 @@ class PartData {
     this.slots,
     this.sip = StatsIncrementPattern.r1,
     this.imageCn,
+    this.isCn = false,
   });
 
-  int get maxLevel => maxLevelForRarity(rarity);
-  double hp(int level) => mapToLevel(hp1.toDouble(), level, sip);
-  double atk(int level) => mapToLevel(atk1.toDouble(), level, sip);
+  int get maxLevel => maxLevelForRarity(rarity, server: isCn ? 'cn' : 'intl');
+
+  /// 只用于国服表：把同一部件标记为国服（等级上限 +2）
+  PartData asCn() => PartData(
+    id: id,
+    name: name,
+    nameZh: nameZh,
+    nameJa: nameJa,
+    category: category,
+    rarity: rarity,
+    partClass: partClass,
+    sponsor: sponsor,
+    hp1: hp1,
+    atk1: atk1,
+    mHp1: mHp1,
+    power: power,
+    bonus: bonus,
+    slots: slots,
+    sip: sip,
+    imageCn: imageCn,
+    isCn: true,
+  );
+
+  double hp(int level) =>
+      mapToLevel(hp1.toDouble(), level, sip, maxLevel: maxLevel);
+  double atk(int level) =>
+      mapToLevel(atk1.toDouble(), level, sip, maxLevel: maxLevel);
   double get hpMax => hp(maxLevel);
   double get atkMax => atk(maxLevel);
   double mHp(int level) {
     final s = sip == StatsIncrementPattern.r6Legacy
         ? StatsIncrementPattern.r6
         : sip;
-    return mapToLevel(mHp1.toDouble(), level, s);
+    return mapToLevel(mHp1.toDouble(), level, s, maxLevel: maxLevel);
   }
 
   String get categoryLabel {
@@ -2846,7 +2886,57 @@ class PartDatabase {
       bonus: bWeapon10,
       sip: StatsIncrementPattern.r6,
     );
-    // KAPPA无人机：atk9600 耗电10
+    // ===== 2026-11-05 国服版本更新：无人机加强 =====
+    // 以下均以官方 11.5 更新后的数值为准（此前部分数值有误，直接覆盖）
+    //
+    // 猫咪无人机：随从 hp 15000 → 15450
+    map['cat_drone'] = const PartData(
+      id: 'cat_drone',
+      name: 'Cat Drone',
+      nameZh: '猫咪无人机',
+      nameJa: 'CATドローン',
+      category: PartCategory.weapon,
+      rarity: Rarity.r5,
+      atk1: 6000,
+      mHp1: 15450,
+      power: -10,
+      partClass: PartClass.minion,
+      bonus: bWeapon15,
+      sip: StatsIncrementPattern.r5,
+    );
+    // 便当无人机：随从 hp 30000 → 31500
+    map['bento_drone'] = const PartData(
+      id: 'bento_drone',
+      name: 'Bento Drone',
+      nameZh: '便当无人机',
+      nameJa: 'キャラ弁ドローン',
+      category: PartCategory.weapon,
+      rarity: Rarity.r6,
+      sponsor: Sponsor.gluttony,
+      atk1: 9000,
+      mHp1: 31500,
+      power: -10,
+      partClass: PartClass.minion,
+      bonus: bGadget10,
+      sip: StatsIncrementPattern.r6,
+    );
+    // 达摩无人机：随从 hp 12600 → 18900，atk 8250 → 9900
+    map['daruma_drone'] = const PartData(
+      id: 'daruma_drone',
+      name: 'Daruma Drone',
+      nameZh: '达摩无人机',
+      nameJa: 'ダルマドローン',
+      category: PartCategory.weapon,
+      rarity: Rarity.r6,
+      sponsor: Sponsor.mecha,
+      atk1: 9900,
+      mHp1: 18900,
+      power: -10,
+      partClass: PartClass.minion,
+      bonus: bWeapon10,
+      sip: StatsIncrementPattern.r6,
+    );
+    // KAPPA无人机：随从 hp 25480 → 30576，atk 8000 → 8800
     map['kappa_drone'] = const PartData(
       id: 'kappa_drone',
       name: 'Kappa Drone',
@@ -2855,12 +2945,57 @@ class PartDatabase {
       category: PartCategory.weapon,
       rarity: Rarity.r6,
       sponsor: Sponsor.naturalis,
-      atk1: 9600,
-      mHp1: 11000,
+      atk1: 8800,
+      mHp1: 30576,
       power: -10,
       partClass: PartClass.minion,
       bonus: bWeapon10,
       sip: StatsIncrementPattern.r6,
+    );
+    // 治疗无人机：随从 hp 32000 → 33600
+    map['healing_drone'] = const PartData(
+      id: 'healing_drone',
+      name: 'Healing Drone',
+      nameZh: '治疗无人机',
+      nameJa: '回復ドローン',
+      category: PartCategory.gadget,
+      rarity: Rarity.r6,
+      sponsor: Sponsor.naturalis,
+      hp1: 16284,
+      mHp1: 33600,
+      power: -5,
+      partClass: PartClass.minion,
+      bonus: bBody10,
+      sip: StatsIncrementPattern.r6,
+    );
+    // ===== 2026-11-05 国服新增的两个终极配件 =====
+    // 转向器：HP 13334，供电 5，武器 +15%（机械公司）
+    map['steering_redirector'] = const PartData(
+      id: 'steering_redirector',
+      name: 'Steering Gear',
+      nameZh: '转向器',
+      category: PartCategory.gadget,
+      rarity: Rarity.r6,
+      sponsor: Sponsor.mecha,
+      hp1: 13334,
+      power: 5,
+      bonus: bWeapon15,
+      sip: StatsIncrementPattern.r6,
+      imageCn: 'assets/images_cn/steering_redirector_cn.jpg',
+    );
+    // 时间沙漏：HP 16520，供电 10，车身 +15%（机械公司）
+    map['time_sandglass'] = const PartData(
+      id: 'time_sandglass',
+      name: 'Time Sandglass',
+      nameZh: '时间沙漏',
+      category: PartCategory.gadget,
+      rarity: Rarity.r6,
+      sponsor: Sponsor.mecha,
+      hp1: 16520,
+      power: 10,
+      bonus: bBody15,
+      sip: StatsIncrementPattern.r6,
+      imageCn: 'assets/images_cn/time_sandglass_cn.jpg',
     );
     // 海怪：耗电10（国际服耗电15，国服仅修改耗电）
     map['sea_monster'] = const PartData(
@@ -3382,7 +3517,8 @@ class PartDatabase {
       sip: StatsIncrementPattern.r4,
     );
 
-    return map.values.toList();
+    // 国服所有部件等级上限额外 +2（R6 18→20、其余 20→22）
+    return [for (final p in map.values) p.asCn()];
   }
 }
 
@@ -3534,3 +3670,46 @@ const Map<Rarity, List<UpgradeCostEntry>> upgradeCosts = {
     UpgradeCostEntry(40, 1000000, 118),
   ],
 };
+
+/// 国服额外开放的 2 级升级费用（索引 = 目标等级）
+///
+/// - R6：18→19（索引 19）、19→20（索引 20）
+/// - R5 及以下：20→21（索引 21）、21→22（索引 22）
+const Map<Rarity, List<UpgradeCostEntry>> upgradeCostsCnExtra =
+    <Rarity, List<UpgradeCostEntry>>{
+      Rarity.r1: <UpgradeCostEntry>[
+        UpgradeCostEntry(224, 60000, 22),
+        UpgradeCostEntry(254, 70000, 24),
+      ],
+      Rarity.r2: <UpgradeCostEntry>[
+        UpgradeCostEntry(179, 90000, 44),
+        UpgradeCostEntry(204, 102500, 48),
+      ],
+      Rarity.r3: <UpgradeCostEntry>[
+        UpgradeCostEntry(119, 255000, 66),
+        UpgradeCostEntry(139, 285000, 72),
+      ],
+      Rarity.r4: <UpgradeCostEntry>[
+        UpgradeCostEntry(88, 390000, 90),
+        UpgradeCostEntry(103, 435000, 100),
+      ],
+      Rarity.r5: <UpgradeCostEntry>[
+        UpgradeCostEntry(44, 725000, 115),
+        UpgradeCostEntry(59, 800000, 135),
+      ],
+      Rarity.r6: <UpgradeCostEntry>[
+        UpgradeCostEntry(50, 1150000, 134),
+        UpgradeCostEntry(62, 1300000, 152),
+      ],
+    };
+
+/// 国服完整升级费用表（国际服原表 + 额外两级）
+final Map<Rarity, List<UpgradeCostEntry>> upgradeCostsCn =
+    <Rarity, List<UpgradeCostEntry>>{
+      for (final e in upgradeCosts.entries)
+        e.key: <UpgradeCostEntry>[...e.value, ...?upgradeCostsCnExtra[e.key]],
+    };
+
+/// 按服务器取升级费用表（[cn] = 国服，多出 2 级费用）
+List<UpgradeCostEntry> upgradeCostsFor(Rarity r, {required bool cn}) =>
+    (cn ? upgradeCostsCn[r] : upgradeCosts[r]) ?? const <UpgradeCostEntry>[];

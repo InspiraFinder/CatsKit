@@ -1774,29 +1774,30 @@ const List<GuideChapter> kGuideChapters = <GuideChapter>[
       GuideBlock.bullets(<GuideBullet>[
         GuideBullet(
           '普通部件（绝大多数）：2~16 级每一级把当前值 ×1.2 向下取整；17 级起改为固定步长'
-              '（约等于 16 级值的 8.75%）继续加，最高 20 级',
+              '（约等于 16 级值的 8.75%）继续加，国际服最高 20 级、国服 22 级',
           'Normal parts (the vast majority): from level 2 to 16 each level multiplies the current value by 1.2 (rounded down); '
-              'from level 17 on it adds a fixed step (about 8.75% of the level-16 value), up to level 20',
+              'from level 17 on it adds a fixed step (about 8.75% of the level-16 value), up to level 20 (intl) / 22 (CN)',
         ),
         GuideBullet(
           'R6 旧版部件（少数早期 R6）：每级增量本身还会递增 —— '
               'delta = 向下取整(基础值 × 0.19163)、delta2 = 向下取整(基础值 ÷ 15)（固定），'
-              '每级「值 += delta；delta += delta2」，最高 18 级',
+              '每级「值 += delta；delta += delta2」，国际服最高 18 级、国服 20 级',
           'Legacy R6 parts (a few early R6s): the increment itself grows — '
-              'delta = floor(base × 0.19163), delta2 = floor(base ÷ 15) (fixed), each level does "value += delta; delta += delta2", up to level 18',
+              'delta = floor(base × 0.19163), delta2 = floor(base ÷ 15) (fixed), each level does "value += delta; delta += delta2", '
+              'up to level 18 (intl) / 20 (CN)',
         ),
       ]),
       GuideBlock.table(
         GuideTable(
-          headZh: <String>['稀有度', '最高等级'],
-          headEn: <String>['Rarity', 'Max level'],
+          headZh: <String>['稀有度', '最高等级（国际服）', '最高等级（国服）'],
+          headEn: <String>['Rarity', 'Max level (intl)', 'Max level (CN)'],
           rowsZh: <List<String>>[
-            <String>['R1 - R5', '20 级'],
-            <String>['R6', '18 级'],
+            <String>['R1 - R5', '20 级', '22 级'],
+            <String>['R6', '18 级', '20 级'],
           ],
           rowsEn: <List<String>>[
-            <String>['R1 - R5', 'Level 20'],
-            <String>['R6', 'Level 18'],
+            <String>['R1 - R5', 'Level 20', 'Level 22'],
+            <String>['R6', 'Level 18', 'Level 20'],
           ],
         ),
       ),
@@ -4688,9 +4689,9 @@ const List<GuideChapter> kGuideChapters = <GuideChapter>[
       ),
       GuideBlock.tip(
         '两套体系别混：锦标赛战车的部件按「材料 + 星级」分 25 档（最高 6-26 级），'
-            '终极联赛战车的部件按 R1-R6 分稀有度（最高 20 / 18 级）。',
+            '终极联赛战车的部件按 R1-R6 分稀有度（国际服最高 20 / 18 级，国服 22 / 20 级）。',
         'Do not mix the two systems: Championship parts are tiered by "material + star" in 25 tiers (max level 6-26), '
-            'while Ultimate League parts use R1-R6 rarities (max level 20 / 18).',
+            'while Ultimate League parts use R1-R6 rarities (max level 20 / 18 on intl, 22 / 20 on CN).',
       ),
     ],
   ),
