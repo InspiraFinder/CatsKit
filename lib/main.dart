@@ -10,6 +10,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import 'fragment_calc_screen.dart';
 import 'fusion_calc_screen.dart';
+import 'championship_build_screen.dart';
 import 'garage_data.dart';
 import 'my_garage_screen.dart';
 import 'part_shape_view.dart';
@@ -872,6 +873,12 @@ class _MainMenuScreenState extends State<MainMenuScreen> {
           onTap: () => _navigateAndAwaitLocale(
             BuildToolScreen(locale: _locale, server: _server),
           ),
+        ),
+        _MenuSubItem(
+          icon: Icons.sports_motorsports,
+          label: _t('锦标赛组车工具', 'Championship Builder'),
+          onTap: () =>
+              _navigateAndAwaitLocale(ChampionshipBuildScreen(locale: _locale)),
         ),
         _MenuSubItem(
           icon: Icons.auto_awesome,

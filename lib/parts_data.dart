@@ -2969,7 +2969,7 @@ class PartDatabase {
       sip: StatsIncrementPattern.r6,
     );
     // ===== 2026-11-05 国服新增的两个终极配件 =====
-    // 转向器：HP 13334，供电 5，武器 +15%（机械公司）
+    // 转向器：HP 13334，耗电 5，武器 +15%（机械公司）
     map['steering_redirector'] = const PartData(
       id: 'steering_redirector',
       name: 'Steering Gear',
@@ -2978,12 +2978,12 @@ class PartDatabase {
       rarity: Rarity.r6,
       sponsor: Sponsor.mecha,
       hp1: 13334,
-      power: 5,
+      power: -5,
       bonus: bWeapon15,
       sip: StatsIncrementPattern.r6,
       imageCn: 'assets/images_cn/steering_redirector_cn.jpg',
     );
-    // 时间沙漏：HP 16520，供电 10，车身 +15%（机械公司）
+    // 时间沙漏：HP 16520，耗电 10，车身 +15%（机械公司）
     map['time_sandglass'] = const PartData(
       id: 'time_sandglass',
       name: 'Time Sandglass',
@@ -2992,7 +2992,7 @@ class PartDatabase {
       rarity: Rarity.r6,
       sponsor: Sponsor.mecha,
       hp1: 16520,
-      power: 10,
+      power: -10,
       bonus: bBody15,
       sip: StatsIncrementPattern.r6,
       imageCn: 'assets/images_cn/time_sandglass_cn.jpg',
