@@ -98,6 +98,82 @@ String balanceOrdinalSuffix(int ordinal) {
 
 /// 历次平衡性调整（最新在前）
 const List<BalancePatch> kBalanceHistory = [
+  // 2026-11-05 国服：无人机加强 + 2 个新配件 + 等级上限提升
+  BalancePatch(
+    date: '2026-11-05',
+    server: 'cn',
+    noteZh: '无人机加强、2 个新配件、等级上限提升',
+    noteEn: 'Drone buffs, 2 new gadgets, level cap increased',
+    changes: [
+      BalanceChange(
+        partName: '猫咪无人机',
+        field: 'hp',
+        oldValue: '15,000',
+        newValue: '15,450',
+        percent: '+3.0%',
+      ),
+      BalanceChange(
+        partName: '便当无人机',
+        field: 'hp',
+        oldValue: '30,000',
+        newValue: '31,500',
+        percent: '+5.0%',
+      ),
+      BalanceChange(
+        partName: '达摩无人机',
+        field: 'hp',
+        oldValue: '12,600',
+        newValue: '18,900',
+        percent: '+50.0%',
+      ),
+      BalanceChange(
+        partName: '达摩无人机',
+        field: 'atk',
+        oldValue: '8,250',
+        newValue: '9,900',
+        percent: '+20.0%',
+      ),
+      BalanceChange(
+        partName: 'KAPPA无人机',
+        field: 'hp',
+        oldValue: '25,480',
+        newValue: '30,576',
+        percent: '+20.0%',
+      ),
+      BalanceChange(
+        partName: 'KAPPA无人机',
+        field: 'atk',
+        oldValue: '8,000',
+        newValue: '8,800',
+        percent: '+10.0%',
+      ),
+      BalanceChange(
+        partName: '治疗无人机',
+        field: 'hp',
+        oldValue: '32,000',
+        newValue: '33,600',
+        percent: '+5.0%',
+      ),
+      BalanceChange(
+        partName: '转向器',
+        field: 'note',
+        oldValue: '',
+        newValue: '新增配件 R6：HP 13,334，供电 5，武器 +15%（机械公司）',
+      ),
+      BalanceChange(
+        partName: '时间沙漏',
+        field: 'note',
+        oldValue: '',
+        newValue: '新增配件 R6：HP 16,520，供电 10，车身 +15%（机械公司）',
+      ),
+      BalanceChange(
+        partName: '全部部件',
+        field: 'note',
+        oldValue: '',
+        newValue: '等级上限提升：R1-R5 20 → 22 级，R6 18 → 20 级',
+      ),
+    ],
+  ),
   // 2026-10-29 国际服：10 个部件 HP / ATK +20%，其中 4 个同时降低耗电
   BalancePatch(
     date: '2026-10-29',
