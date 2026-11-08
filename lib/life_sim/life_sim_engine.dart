@@ -582,16 +582,16 @@ class LifeSimEngine {
   /// 从 [level] 升到下一级需要的碎片数（满级返回 null）
   static int? upgradePieceCost(PartData p, int level) {
     if (level >= p.maxLevel) return null;
-    final table = upgradeCosts[p.rarity];
-    if (table == null || level + 1 >= table.length) return null;
+    final table = upgradeCostsFor(p.rarity, cn: p.isCn);
+    if (level + 1 >= table.length) return null;
     return table[level + 1].pieces;
   }
 
   /// 从 [level] 升到下一级的完整消耗（满级返回 null）
   static UpgradeCostEntry? upgradeCost(PartData p, int level) {
     if (level >= p.maxLevel) return null;
-    final table = upgradeCosts[p.rarity];
-    if (table == null || level + 1 >= table.length) return null;
+    final table = upgradeCostsFor(p.rarity, cn: p.isCn);
+    if (level + 1 >= table.length) return null;
     return table[level + 1];
   }
 

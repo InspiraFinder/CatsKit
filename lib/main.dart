@@ -876,8 +876,9 @@ class _MainMenuScreenState extends State<MainMenuScreen> {
         _MenuSubItem(
           icon: Icons.auto_awesome,
           label: _t('碎片计算', 'Fragment Calc'),
-          onTap: () =>
-              _navigateAndAwaitLocale(FragmentCalcScreen(locale: _locale)),
+          onTap: () => _navigateAndAwaitLocale(
+            FragmentCalcScreen(locale: _locale, server: _server),
+          ),
         ),
         _MenuSubItem(
           icon: Icons.upgrade,
@@ -3372,7 +3373,8 @@ class _PartDataScreen extends StatelessWidget {
                   ),
                 ],
                 rows: () {
-                  final costs = upgradeCosts[part.rarity] ?? [];
+                  // 国服部件多 2 级，费用表也对应更长
+                  final costs = upgradeCostsFor(part.rarity, cn: part.isCn);
                   final rows = <DataRow>[];
                   final hasHp = part.hp1 > 0;
                   final hasAtk = part.atk1 > 0;

@@ -24,9 +24,16 @@ class _CalcRow {
 /// 碎片计算界面
 /// 选择稀有度 r1-r6，输入当前等级与当前碎片，
 /// 计算升到每一级需要的碎片 / 紫票 / 代币，以及剩余碎片。
+///
+/// [server] = 'cn' 时使用国服上限与费用表（R6 20 级、其余 22 级）。
 class FragmentCalcScreen extends StatefulWidget {
   final String locale;
-  const FragmentCalcScreen({super.key, this.locale = 'zh'});
+  final String server;
+  const FragmentCalcScreen({
+    super.key,
+    this.locale = 'zh',
+    this.server = 'intl',
+  });
 
   @override
   State<FragmentCalcScreen> createState() => _FragmentCalcScreenState();
@@ -43,9 +50,11 @@ class _FragmentCalcScreenState extends State<FragmentCalcScreen> {
 
   bool get _isZh => widget.locale == 'zh';
 
+  bool get _isCn => widget.server == 'cn';
+
   String _tr(String zh, String en) => _isZh ? zh : en;
 
-  int get _maxLevel => maxLevelForRarity(_rarity);
+  int get _maxLevel => maxLevelForRarity(_rarity, server: widget.server);
 
   int get _currentLevel => int.tryParse(_levelController.text.trim()) ?? 1;
 
@@ -60,7 +69,7 @@ class _FragmentCalcScreenState extends State<FragmentCalcScreen> {
 
   /// 计算所有目标等级的累计消耗与剩余碎片
   List<_CalcRow> _computeRows() {
-    final costs = upgradeCosts[_rarity] ?? [];
+    final costs = upgradeCostsFor(_rarity, cn: _isCn);
     final cur = _currentLevel.clamp(0, _maxLevel);
     final frags = _currentFrags < 0 ? 0 : _currentFrags;
     final rows = <_CalcRow>[];

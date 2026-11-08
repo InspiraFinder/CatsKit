@@ -58,8 +58,9 @@ enum _PlanColumn {
 }
 
 /// 按升级策略给出默认列顺序（列 id 形式，便于测试）
-List<String> defaultPlanColumnIds(UpgradeStrategy s) =>
-    <String>[for (final c in _defaultPlanColumns(s)) c.id];
+List<String> defaultPlanColumnIds(UpgradeStrategy s) => <String>[
+  for (final c in _defaultPlanColumns(s)) c.id,
+];
 
 /// 按升级策略给出默认列顺序
 ///
@@ -101,9 +102,11 @@ class UpgradeStepResult {
   final int cumulativeCash;
   final int cumulativeToken;
   final double hpPerToken;
+
   /// HP / **千**紫票（紫票单价太小，按千紫票算才看得清）
   final double hpPerKiloCash;
   final double atkPerToken;
+
   /// ATK / **千**紫票
   final double atkPerKiloCash;
 
@@ -221,8 +224,8 @@ List<UpgradeStepResult> computeUpgradePlan({
       final hpGain = after.hp - before.hp;
       final atkGain = after.atk - before.atk;
 
-      // 从 lv 升到 lv+1 的费用（upgradeCosts[rarity][lv+1]）
-      final costs = upgradeCosts[p.rarity] ?? const <UpgradeCostEntry>[];
+      // 从 lv 升到 lv+1 的费用（国服部件费用表多 2 级）
+      final costs = upgradeCostsFor(p.rarity, cn: p.isCn);
       final idx = lv + 1;
       final cost = idx < costs.length
           ? costs[idx]
@@ -296,11 +299,7 @@ List<UpgradeStepResult> computeUpgradePlan({
 class UpgradePlanScreen extends StatefulWidget {
   final String locale;
   final String server;
-  const UpgradePlanScreen({
-    super.key,
-    this.locale = 'zh',
-    this.server = 'cn',
-  });
+  const UpgradePlanScreen({super.key, this.locale = 'zh', this.server = 'cn'});
 
   @override
   State<UpgradePlanScreen> createState() => _UpgradePlanScreenState();
@@ -460,7 +459,8 @@ class _UpgradePlanScreenState extends State<UpgradePlanScreen> {
   CarParts _resolveParts(GarageVehicle v) {
     final parts = CarParts();
     if (v.bodyId != null) parts.body = _partById[v.bodyId!];
-    if (v.extraWeaponId != null) parts.extraWeapon = _partById[v.extraWeaponId!];
+    if (v.extraWeaponId != null)
+      parts.extraWeapon = _partById[v.extraWeaponId!];
     for (final id in v.weaponIds) {
       final p = _partById[id];
       if (p != null) parts.weapons.add(p);
@@ -738,10 +738,7 @@ class _UpgradePlanScreenState extends State<UpgradePlanScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          _t(
-            '升级步骤表（共 ${steps.length} 步）',
-            'Upgrade Steps (${steps.length})',
-          ),
+          _t('升级步骤表（共 ${steps.length} 步）', 'Upgrade Steps (${steps.length})'),
           style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 6),
@@ -750,15 +747,11 @@ class _UpgradePlanScreenState extends State<UpgradePlanScreen> {
           child: DataTable(
             columnSpacing: 14,
             headingRowColor: WidgetStateProperty.all(Colors.indigo[50]),
-            columns: [
-              for (final c in _columns) _buildColumnHeader(c),
-            ],
+            columns: [for (final c in _columns) _buildColumnHeader(c)],
             rows: [
               for (final s in steps)
                 DataRow(
-                  cells: [
-                    for (final c in _columns) DataCell(_buildCell(c, s)),
-                  ],
+                  cells: [for (final c in _columns) DataCell(_buildCell(c, s))],
                 ),
             ],
           ),
@@ -775,25 +768,19 @@ class _UpgradePlanScreenState extends State<UpgradePlanScreen> {
               label: Text(
                 _t('+10 行（上限 $_maxSteps）', '+10 rows (max $_maxSteps)'),
               ),
-              style: OutlinedButton.styleFrom(
-                foregroundColor: Colors.indigo,
-              ),
+              style: OutlinedButton.styleFrom(foregroundColor: Colors.indigo),
             ),
             OutlinedButton.icon(
               onPressed: _customizeMaxSteps,
               icon: const Icon(Icons.edit, size: 18),
               label: Text(_t('自定义行数', 'Custom rows')),
-              style: OutlinedButton.styleFrom(
-                foregroundColor: Colors.indigo,
-              ),
+              style: OutlinedButton.styleFrom(foregroundColor: Colors.indigo),
             ),
             OutlinedButton.icon(
               onPressed: _saveMaxSteps,
               icon: const Icon(Icons.save_alt, size: 18),
               label: Text(_t('保存为默认', 'Save as default')),
-              style: OutlinedButton.styleFrom(
-                foregroundColor: Colors.teal,
-              ),
+              style: OutlinedButton.styleFrom(foregroundColor: Colors.teal),
             ),
           ],
         ),
@@ -1002,10 +989,7 @@ class _UpgradePlanScreenState extends State<UpgradePlanScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        _t(
-                          '显示列（从上到下 = 从左到右）',
-                          'Visible columns (top = left)',
-                        ),
+                        _t('显示列（从上到下 = 从左到右）', 'Visible columns (top = left)'),
                         style: const TextStyle(
                           fontSize: 13,
                           fontWeight: FontWeight.bold,
