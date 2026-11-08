@@ -2886,7 +2886,57 @@ class PartDatabase {
       bonus: bWeapon10,
       sip: StatsIncrementPattern.r6,
     );
-    // KAPPA无人机：atk9600 耗电10
+    // ===== 2026-11-05 国服版本更新：无人机加强 =====
+    // 以下均以官方 11.5 更新后的数值为准（此前部分数值有误，直接覆盖）
+    //
+    // 猫咪无人机：随从 hp 15000 → 15450
+    map['cat_drone'] = const PartData(
+      id: 'cat_drone',
+      name: 'Cat Drone',
+      nameZh: '猫咪无人机',
+      nameJa: 'CATドローン',
+      category: PartCategory.weapon,
+      rarity: Rarity.r5,
+      atk1: 6000,
+      mHp1: 15450,
+      power: -10,
+      partClass: PartClass.minion,
+      bonus: bWeapon15,
+      sip: StatsIncrementPattern.r5,
+    );
+    // 便当无人机：随从 hp 30000 → 31500
+    map['bento_drone'] = const PartData(
+      id: 'bento_drone',
+      name: 'Bento Drone',
+      nameZh: '便当无人机',
+      nameJa: 'キャラ弁ドローン',
+      category: PartCategory.weapon,
+      rarity: Rarity.r6,
+      sponsor: Sponsor.gluttony,
+      atk1: 9000,
+      mHp1: 31500,
+      power: -10,
+      partClass: PartClass.minion,
+      bonus: bGadget10,
+      sip: StatsIncrementPattern.r6,
+    );
+    // 达摩无人机：随从 hp 12600 → 18900，atk 8250 → 9900
+    map['daruma_drone'] = const PartData(
+      id: 'daruma_drone',
+      name: 'Daruma Drone',
+      nameZh: '达摩无人机',
+      nameJa: 'ダルマドローン',
+      category: PartCategory.weapon,
+      rarity: Rarity.r6,
+      sponsor: Sponsor.mecha,
+      atk1: 9900,
+      mHp1: 18900,
+      power: -10,
+      partClass: PartClass.minion,
+      bonus: bWeapon10,
+      sip: StatsIncrementPattern.r6,
+    );
+    // KAPPA无人机：随从 hp 25480 → 30576，atk 8000 → 8800
     map['kappa_drone'] = const PartData(
       id: 'kappa_drone',
       name: 'Kappa Drone',
@@ -2895,11 +2945,27 @@ class PartDatabase {
       category: PartCategory.weapon,
       rarity: Rarity.r6,
       sponsor: Sponsor.naturalis,
-      atk1: 9600,
-      mHp1: 11000,
+      atk1: 8800,
+      mHp1: 30576,
       power: -10,
       partClass: PartClass.minion,
       bonus: bWeapon10,
+      sip: StatsIncrementPattern.r6,
+    );
+    // 治疗无人机：随从 hp 32000 → 33600
+    map['healing_drone'] = const PartData(
+      id: 'healing_drone',
+      name: 'Healing Drone',
+      nameZh: '治疗无人机',
+      nameJa: '回復ドローン',
+      category: PartCategory.gadget,
+      rarity: Rarity.r6,
+      sponsor: Sponsor.naturalis,
+      hp1: 16284,
+      mHp1: 33600,
+      power: -5,
+      partClass: PartClass.minion,
+      bonus: bBody10,
       sip: StatsIncrementPattern.r6,
     );
     // 海怪：耗电10（国际服耗电15，国服仅修改耗电）
