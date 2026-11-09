@@ -145,6 +145,35 @@ const List<List<int>> kChampWeaponAtk = <List<int>>[
   [45200, 50860, 56520],
 ];
 
+/// 武器随从 HP（仅无人机类；组合 1/2/3）
+const List<List<int>> kChampWeaponMinionHp = <List<int>>[
+  [23, 23, 23],
+  [38, 30, 23],
+  [53, 45, 38],
+  [68, 60, 53],
+  [90, 79, 68],
+  [143, 117, 90],
+  [203, 173, 143],
+  [278, 240, 203],
+  [360, 323, 278],
+  [458, 409, 360],
+  [690, 574, 458],
+  [968, 829, 690],
+  [1290, 1129, 968],
+  [1665, 1478, 1290],
+  [2085, 1875, 1665],
+  [3128, 2607, 2085],
+  [4380, 3754, 3128],
+  [5843, 5112, 4380],
+  [7515, 6679, 5843],
+  [9398, 8460, 7515],
+  [14108, 11753, 9398],
+  [19763, 16935, 14108],
+  [26363, 23063, 19763],
+  [33900, 30128, 26363],
+  [42390, 38145, 33900],
+];
+
 /// kChampWheelHp
 const List<List<int>> kChampWheelHp = <List<int>>[
   [10, 13, 15],
@@ -384,14 +413,29 @@ class ChampWheelInfo {
   final List<int> classes;
   final bool hasHpSkill;
 
-  const ChampWheelInfo(this.nameZh, this.nameEn, this.classes, this.hasHpSkill);
+  /// 是否有碾压 ATK（只有爬坡轮胎）
+  final bool hasCrushAtk;
+
+  const ChampWheelInfo(
+    this.nameZh,
+    this.nameEn,
+    this.classes,
+    this.hasHpSkill, {
+    this.hasCrushAtk = false,
+  });
 }
 
 const List<ChampWheelInfo> kChampWheels = <ChampWheelInfo>[
   ChampWheelInfo('旋钮轮', 'Knob wheel', <int>[0, 1, 2], true),
   ChampWheelInfo('滚轮', 'Roller', <int>[0, 1, 2], true),
   ChampWheelInfo('黏地轮 · 滚轮', 'Sticky roller', <int>[0, 1, 2], true),
-  ChampWheelInfo('爬坡轮胎', 'Climbing big', <int>[0, 1, 2], false),
+  ChampWheelInfo(
+    '爬坡轮胎',
+    'Climbing big',
+    <int>[0, 1, 2],
+    false,
+    hasCrushAtk: true,
+  ),
   ChampWheelInfo('滑板轮', 'Skateboard wheel', <int>[1, 2], true),
   ChampWheelInfo('轱辘轮', 'Cart wheel', <int>[1, 2], true),
   ChampWheelInfo('黏地轮 · 轱辘轮', 'Sticky cart wheel', <int>[1, 2], true),
@@ -415,6 +459,9 @@ class ChampGadgetInfo {
   final int combo1HpGroup;
   final bool hasHpSkill;
 
+  /// 是否治疗类（只有急救套件）
+  final bool isHealing;
+
   const ChampGadgetInfo(
     this.nameZh,
     this.nameEn, {
@@ -422,6 +469,7 @@ class ChampGadgetInfo {
     required this.combo1HighDrain,
     required this.combo1HpGroup,
     required this.hasHpSkill,
+    this.isHealing = false,
   });
 }
 
@@ -433,6 +481,7 @@ const List<ChampGadgetInfo> kChampGadgets = <ChampGadgetInfo>[
     combo1HighDrain: true,
     combo1HpGroup: 0,
     hasHpSkill: false,
+    isHealing: true,
   ),
   ChampGadgetInfo(
     '深度冻结',
@@ -588,10 +637,30 @@ double champGadgetHpValue({
   return first + kChampGadgetHpPerLevel[champMaterialOf(tier)] * (level - 1);
 }
 
-/// 配件治疗量 = 基础治疗量 + 每级加成 × (等级-1)
-double champGadgetHealValue({required int tier, required int level}) =>
-    kChampGadgetHeal[tier] +
-    kChampHealPerLevel[champMaterialOf(tier)] * (level - 1);
+/// 随从（无人机）每级加成（索引 = 材质）
+const List<double> kChampMinionPerLevel = <double>[38, 165, 833, 3960, 16898];
+
+/// 武器随从 HP = 基础随从 HP + 每级加成 × (等级-1)
+/// （随从 HP 不乘倍数、不吃技能，直接取表值加等级项）
+double champWeaponMinionHpValue({
+  required int tier,
+  required int combo,
+  required int level,
+}) =>
+    kChampWeaponMinionHp[tier][combo] +
+    kChampMinionPerLevel[champMaterialOf(tier)] * (level - 1);
+
+/// 配件治疗量 = 向上取整(3 × 该组基础配件 HP × (1+技能)) + 每级加成 × (等级-1)
+double champGadgetHealValue({
+  required int tier,
+  required int hpGroup,
+  required int level,
+  required int skillPct,
+}) {
+  final base = kChampGadgetHp[tier][hpGroup];
+  final first = (3 * base * (1 + skillPct / 100)).ceil();
+  return first + kChampHealPerLevel[champMaterialOf(tier)] * (level - 1);
+}
 
 /// 配件某个组合是否使用高组耗电
 bool champGadgetHighDrain(ChampGadgetInfo g, int combo) =>
