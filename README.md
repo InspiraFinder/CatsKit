@@ -7,9 +7,7 @@
 <p align="center">
   <img alt="版本" src="https://img.shields.io/github/v/tag/InspiraFinder/CatsKit?style=flat-square">
   <img alt="stars" src="https://img.shields.io/github/stars/InspiraFinder/CatsKit?style=flat-square">
-  <img alt="downloads" src="https://img.shields.io/badge/downloads-1016-green?style=flat-square">
-  <!-- 下载量为静态精确值：shields.io 的动态徽章会把数字缩写成 1k。
-       发版后可用 `node tool/downloads_total.js` 统计总数并更新这里的数字。 -->
+  <img alt="downloads" src="https://img.shields.io/github/downloads/InspiraFinder/CatsKit/total?style=flat-square">
   <img alt="License" src="https://img.shields.io/github/license/InspiraFinder/CatsKit?style=flat-square">
   <img alt="Icon License" src="https://img.shields.io/badge/%E5%9B%BE%E6%A0%87%E8%AE%B8%E5%8F%AF-CC%20BY--NC%204.0-lightgrey?style=flat-square">
   <img alt="Last Commit" src="https://img.shields.io/github/last-commit/InspiraFinder/CatsKit?style=flat-square">
