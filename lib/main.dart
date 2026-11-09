@@ -10,6 +10,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import 'fragment_calc_screen.dart';
 import 'fusion_calc_screen.dart';
+import 'championship_build_screen.dart';
 import 'garage_data.dart';
 import 'my_garage_screen.dart';
 import 'part_shape_view.dart';
@@ -29,7 +30,7 @@ import 'mini_slider.dart';
 import 'update_check_utils.dart';
 import 'life_sim/life_sim_screen.dart';
 
-const String appVersion = '2.3.5';
+const String appVersion = '2.4.0';
 
 /// 获取部件在当前语言下的显示名称
 String pn(PartData part, String? locale) {
@@ -872,6 +873,12 @@ class _MainMenuScreenState extends State<MainMenuScreen> {
           onTap: () => _navigateAndAwaitLocale(
             BuildToolScreen(locale: _locale, server: _server),
           ),
+        ),
+        _MenuSubItem(
+          icon: Icons.sports_motorsports,
+          label: _t('锦标赛组车工具', 'Championship Builder'),
+          onTap: () =>
+              _navigateAndAwaitLocale(ChampionshipBuildScreen(locale: _locale)),
         ),
         _MenuSubItem(
           icon: Icons.auto_awesome,

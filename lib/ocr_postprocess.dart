@@ -248,10 +248,34 @@ Map<String, dynamic> classifyByPosition(
   // ---- SPM / 分数 / 分数线 ----
   final leftSpm = <(int, String)>[];
   final rightSpm = <(int, String)>[];
-  final leftNum = <(int, String)>[];
-  final rightNum = <(int, String)>[];
+  final leftNum = <(int, String, Map<String, dynamic>)>[];
+  final rightNum = <(int, String, Map<String, dynamic>)>[];
   final leftZero = <String>[]; // 纯 0 文本（零分保底）
   final rightZero = <String>[];
+
+  /// 收录普通数字候选：同一位置且数值几乎相同（差 ≤1%）的重复识别
+  /// （如分数线 145000 / 146000）只保留**较小**的一个；差异很大的
+  /// （如 1800 / 51800）视为不同候选，交给「取最大值」逻辑。
+  void addNumCandidate(
+    bool left,
+    int v,
+    String digits,
+    Map<String, dynamic> it,
+  ) {
+    final list = left ? leftNum : rightNum;
+    for (var i = 0; i < list.length; i++) {
+      final e = list[i];
+      if (!_boxesOverlap(e.$3, it)) continue;
+      final a = e.$1;
+      final small = a < v ? a : v;
+      final large = a < v ? v : a;
+      if (large > 0 && (large - small) / large <= 0.01) {
+        if (v < a) list[i] = (v, digits, it);
+        return;
+      }
+    }
+    list.add((v, digits, it));
+  }
 
   for (final it in topItems) {
     final t = (it['text'] as String).trim().replaceAll(',', '');
@@ -274,11 +298,7 @@ Map<String, dynamic> classifyByPosition(
     } else if (!signed && v <= 150000) {
       if (v >= 100) {
         // 普通数字：分数 / 分数线
-        if (isLeft(it)) {
-          leftNum.add((v, digits));
-        } else {
-          rightNum.add((v, digits));
-        }
+        addNumCandidate(isLeft(it), v, digits, it);
       } else if (v == 0 && _isZeroOnlyText(t)) {
         // 纯 0 文本：作为该侧「零分」保底
         if (isLeft(it)) {
@@ -292,11 +312,7 @@ Map<String, dynamic> classifyByPosition(
         // 这类混入文字的噪声数字当成分数。
         // 注意：这里只作为候选，取分时仍取该侧最大值，
         // 所以不会顶掉正常的大分数。
-        if (isLeft(it)) {
-          leftNum.add((v, digits));
-        } else {
-          rightNum.add((v, digits));
-        }
+        addNumCandidate(isLeft(it), v, digits, it);
       }
     }
   }
@@ -312,7 +328,7 @@ Map<String, dynamic> classifyByPosition(
   }
 
   // 取列表里最大值（int?）
-  int? bestValue(List<(int, String)> list) {
+  int? bestValue(List<(int, String, Map<String, dynamic>)> list) {
     if (list.isEmpty) return null;
     var m = list.first.$1;
     for (final e in list) {
@@ -332,7 +348,10 @@ Map<String, dynamic> classifyByPosition(
   }
 
   // 分数：排除分数线项后，左右各取最大
-  String bestNumExcluding(List<(int, String)> list, int? exclude) {
+  String bestNumExcluding(
+    List<(int, String, Map<String, dynamic>)> list,
+    int? exclude,
+  ) {
     int? best;
     String? raw;
     for (final e in list) {
@@ -352,6 +371,19 @@ Map<String, dynamic> classifyByPosition(
   result['enemy_score'] = bestNumExcluding(rightNum, scoreLineVal);
   if ((result['enemy_score'] ?? '').isEmpty && rightZero.isNotEmpty) {
     result['enemy_score'] = '0';
+  }
+
+  // 某一侧完全没有分数时，另一侧收集到的「纯 0」可能是它略微越过中线的零分框
+  // （如 2340 宽截图中敌方 0 的框 x=1139，中心仍在中线左侧），补给空的一侧。
+  if ((result['my_score'] as String).isNotEmpty &&
+      (result['enemy_score'] as String).isEmpty &&
+      leftZero.isNotEmpty) {
+    result['enemy_score'] = '0';
+  }
+  if ((result['enemy_score'] as String).isNotEmpty &&
+      (result['my_score'] as String).isEmpty &&
+      rightZero.isNotEmpty) {
+    result['my_score'] = '0';
   }
 
   // ---- 后处理：左右两侧 SPM/分数互换修正 ----
@@ -374,4 +406,19 @@ Map<String, dynamic> classifyByPosition(
   fixSwap(result, 'enemy_score_per_min', 'enemy_score');
 
   return {'fields': result, 'boundaries': null};
+}
+
+/// 两个识别框是否高度重叠（IoU ≥ 0.6），用于合并同一位置的重复识别
+bool _boxesOverlap(Map<String, dynamic> a, Map<String, dynamic> b) {
+  final ax1 = a['x'] as int, ay1 = a['y'] as int;
+  final ax2 = ax1 + (a['w'] as int), ay2 = ay1 + (a['h'] as int);
+  final bx1 = b['x'] as int, by1 = b['y'] as int;
+  final bx2 = bx1 + (b['w'] as int), by2 = by1 + (b['h'] as int);
+  final iw = (ax2 < bx2 ? ax2 : bx2) - (ax1 > bx1 ? ax1 : bx1);
+  final ih = (ay2 < by2 ? ay2 : by2) - (ay1 > by1 ? ay1 : by1);
+  if (iw <= 0 || ih <= 0) return false;
+  final inter = iw * ih;
+  final union =
+      (ax2 - ax1) * (ay2 - ay1) + (bx2 - bx1) * (by2 - by1) - inter;
+  return union > 0 && inter / union >= 0.6;
 }
