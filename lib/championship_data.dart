@@ -302,3 +302,301 @@ int champGadgetDrain(int tier, {required bool highGroup}) {
   final low = star <= 2 ? 1 : 2;
   return highGroup ? low + 1 : low;
 }
+
+// ==================== 具体部件（含 HP/ATK 倍数与技能） ====================
+
+/// 技能等级 → 加成百分比（无 / 1 级 / 2 级 / 3 级）
+const List<int> kChampSkillPcts = <int>[0, 10, 20, 30];
+
+/// 具体车身（13 种）：倍数只作用在 HP 上，不影响供电
+class ChampBodyInfo {
+  final String nameZh;
+  final String nameEn;
+  final double multiplier;
+  final bool hasHpSkill;
+
+  const ChampBodyInfo(
+    this.nameZh,
+    this.nameEn,
+    this.multiplier,
+    this.hasHpSkill,
+  );
+}
+
+const List<ChampBodyInfo> kChampBodies = <ChampBodyInfo>[
+  ChampBodyInfo('经典', 'Classic', 1.0, true),
+  ChampBodyInfo('滑头', 'Sneaky', 1.3333, true),
+  ChampBodyInfo('磐石', 'Boulder', 1.6667, true),
+  ChampBodyInfo('巨鲸', 'Whale', 1.6667, true),
+  ChampBodyInfo('金字塔', 'Pyramid', 1.6667, true),
+  ChampBodyInfo('浪板', 'Surfer', 1.8333, true),
+  ChampBodyInfo('泰坦', 'Titan', 2.0, true),
+  ChampBodyInfo('钻石', 'Diamond', 2.0, false),
+  ChampBodyInfo('蝎', 'Scorpion', 2.0, false),
+  ChampBodyInfo('箭', 'Arrow', 2.0, false),
+  ChampBodyInfo('向量', 'Vector', 2.1667, false),
+  ChampBodyInfo('虎鲸', 'Orca', 2.1667, false),
+  ChampBodyInfo('圣骑士', 'Paladin', 2.3333, false),
+];
+
+/// 具体武器（19 种）
+class ChampWeaponInfo {
+  final String nameZh;
+  final String nameEn;
+  final double multiplier;
+  final bool hasAtkSkill;
+
+  const ChampWeaponInfo(
+    this.nameZh,
+    this.nameEn,
+    this.multiplier,
+    this.hasAtkSkill,
+  );
+}
+
+const List<ChampWeaponInfo> kChampWeapons = <ChampWeaponInfo>[
+  ChampWeaponInfo('圆锯', 'Saw', 0.33, true),
+  ChampWeaponInfo('双头圆锯', 'Double saw', 0.66, false),
+  ChampWeaponInfo('火箭', 'Rocket', 0.35, true),
+  ChampWeaponInfo('双管火箭', 'Double rocket', 0.35, true),
+  ChampWeaponInfo('旋转火箭', 'Tilted rocket', 0.35, false),
+  ChampWeaponInfo('激光', 'Laser', 0.4, true),
+  ChampWeaponInfo('死亡射灯', 'Death ray', 0.4, false),
+  ChampWeaponInfo('回旋镖', 'Boomerang', 0.4, false),
+  ChampWeaponInfo('长钉', 'Stinger', 0.615, true),
+  ChampWeaponInfo('猎枪', 'Shotgun', 0.7, false),
+  ChampWeaponInfo('燃烧瓶', 'Molotov', 0.75, false),
+  ChampWeaponInfo('电钻', 'Drill', 0.855, true),
+  ChampWeaponInfo('旋转电钻', 'Tilted drill', 0.855, false),
+  ChampWeaponInfo('电锯', 'Chainsaw', 1.0, true),
+  ChampWeaponInfo('急射小机枪', 'Rapid gun', 1.0, false),
+  ChampWeaponInfo('土豆大炮', 'Potato cannon', 1.0, false),
+  ChampWeaponInfo('旋转电锯', 'Tilted chainsaw', 1.2, false),
+  ChampWeaponInfo('直升无人机', 'Copter Drone', 0.64, false),
+  ChampWeaponInfo('直升无人机（随从）', 'Copter Drone (minion)', 1.0, false),
+];
+
+/// 具体车轮（10 种）：[classes] = 能读到的尺寸档（0 小 / 1 中 / 2 大），
+/// 组合选项数量 = classes 的长度（1-3 个，不同车轮不一样）
+class ChampWheelInfo {
+  final String nameZh;
+  final String nameEn;
+  final List<int> classes;
+  final bool hasHpSkill;
+
+  const ChampWheelInfo(this.nameZh, this.nameEn, this.classes, this.hasHpSkill);
+}
+
+const List<ChampWheelInfo> kChampWheels = <ChampWheelInfo>[
+  ChampWheelInfo('旋钮轮', 'Knob wheel', <int>[0, 1, 2], true),
+  ChampWheelInfo('滚轮', 'Roller', <int>[0, 1, 2], true),
+  ChampWheelInfo('黏地轮 · 滚轮', 'Sticky roller', <int>[0, 1, 2], true),
+  ChampWheelInfo('爬坡轮胎', 'Climbing big', <int>[0, 1, 2], false),
+  ChampWheelInfo('滑板轮', 'Skateboard wheel', <int>[1, 2], true),
+  ChampWheelInfo('轱辘轮', 'Cart wheel', <int>[1, 2], true),
+  ChampWheelInfo('黏地轮 · 轱辘轮', 'Sticky cart wheel', <int>[1, 2], true),
+  ChampWheelInfo('悬浮轮胎', 'Hover tire', <int>[1, 2], false),
+  ChampWheelInfo('反重力滑板轮', 'Anti-gravity skateboard wheel', <int>[1, 2], false),
+  ChampWheelInfo('大脚轮', 'Bigfoot', <int>[2], true),
+];
+
+/// 具体配件（12 种）
+class ChampGadgetInfo {
+  final String nameZh;
+  final String nameEn;
+
+  /// 是否有组合 2（低组耗电 + 高组 HP）
+  final bool hasCombo2;
+
+  /// 组合 1 的耗电是否为高组
+  final bool combo1HighDrain;
+
+  /// 组合 1 的基础 HP 组：0 低 / 1 中 / 2 高
+  final int combo1HpGroup;
+  final bool hasHpSkill;
+
+  const ChampGadgetInfo(
+    this.nameZh,
+    this.nameEn, {
+    required this.hasCombo2,
+    required this.combo1HighDrain,
+    required this.combo1HpGroup,
+    required this.hasHpSkill,
+  });
+}
+
+const List<ChampGadgetInfo> kChampGadgets = <ChampGadgetInfo>[
+  ChampGadgetInfo(
+    '急救套件',
+    'First-aid kit',
+    hasCombo2: true,
+    combo1HighDrain: true,
+    combo1HpGroup: 0,
+    hasHpSkill: false,
+  ),
+  ChampGadgetInfo(
+    '深度冻结',
+    'Deep freeze',
+    hasCombo2: true,
+    combo1HighDrain: true,
+    combo1HpGroup: 0,
+    hasHpSkill: false,
+  ),
+  ChampGadgetInfo(
+    '升降机',
+    'Lift',
+    hasCombo2: true,
+    combo1HighDrain: true,
+    combo1HpGroup: 0,
+    hasHpSkill: false,
+  ),
+  ChampGadgetInfo(
+    '叉车',
+    'Forklift',
+    hasCombo2: true,
+    combo1HighDrain: true,
+    combo1HpGroup: 0,
+    hasHpSkill: true,
+  ),
+  ChampGadgetInfo(
+    '护盾',
+    'Shield',
+    hasCombo2: false,
+    combo1HighDrain: false,
+    combo1HpGroup: 0,
+    hasHpSkill: false,
+  ),
+  ChampGadgetInfo(
+    '镇静剂之枪',
+    'Tranquilizer gun',
+    hasCombo2: false,
+    combo1HighDrain: false,
+    combo1HpGroup: 0,
+    hasHpSkill: false,
+  ),
+  ChampGadgetInfo(
+    '反弹器',
+    'Bouncer',
+    hasCombo2: false,
+    combo1HighDrain: false,
+    combo1HpGroup: 1,
+    hasHpSkill: true,
+  ),
+  ChampGadgetInfo(
+    '古怪手套',
+    'Odd glove',
+    hasCombo2: false,
+    combo1HighDrain: false,
+    combo1HpGroup: 1,
+    hasHpSkill: false,
+  ),
+  ChampGadgetInfo(
+    '推进器',
+    'Thruster',
+    hasCombo2: false,
+    combo1HighDrain: false,
+    combo1HpGroup: 2,
+    hasHpSkill: true,
+  ),
+  ChampGadgetInfo(
+    '反推器',
+    'Repulser',
+    hasCombo2: false,
+    combo1HighDrain: false,
+    combo1HpGroup: 2,
+    hasHpSkill: true,
+  ),
+  ChampGadgetInfo(
+    '渔网',
+    'Fishnet',
+    hasCombo2: false,
+    combo1HighDrain: false,
+    combo1HpGroup: 2,
+    hasHpSkill: false,
+  ),
+  ChampGadgetInfo(
+    '渔叉',
+    'Harpoon',
+    hasCombo2: false,
+    combo1HighDrain: false,
+    combo1HpGroup: 2,
+    hasHpSkill: false,
+  ),
+];
+
+// ==================== 公式（机制指南口径） ====================
+
+/// 车身 HP = 向上取整(基础 HP × 0.6 × (1+技能) × 倍数) + 每级加成 × (等级-1)
+double champBodyHpValue({
+  required int tier,
+  required int combo,
+  required int level,
+  required ChampBodyInfo body,
+  required int skillPct,
+}) {
+  final base = kChampBodyHp[tier][combo];
+  final first = (base * 0.6 * (1 + skillPct / 100) * body.multiplier).ceil();
+  return first + kChampBodyHpPerLevel[champMaterialOf(tier)] * (level - 1);
+}
+
+/// 武器 ATK = 向上取整(基础 ATK × 倍数 × (1+技能)) + 每级加成 × (等级-1)
+double champWeaponAtkValue({
+  required int tier,
+  required int combo,
+  required int level,
+  required ChampWeaponInfo weapon,
+  required int skillPct,
+}) {
+  final base = kChampWeaponAtk[tier][combo];
+  final first = (base * weapon.multiplier * (1 + skillPct / 100)).ceil();
+  return first + kChampWeaponAtkPerLevel[champMaterialOf(tier)] * (level - 1);
+}
+
+/// 车轮 HP = 向上取整(基础车轮 HP × (1+技能)) + 每级加成 × (等级-1)
+/// [sizeClass] 为车轮 classes 中选中的尺寸档（0 小 / 1 中 / 2 大）
+double champWheelHpValue({
+  required int tier,
+  required int sizeClass,
+  required int level,
+  required int skillPct,
+}) {
+  final base = kChampWheelHp[tier][sizeClass];
+  final first = (base * (1 + skillPct / 100)).ceil();
+  return first + kChampWheelHpPerLevel[champMaterialOf(tier)] * (level - 1);
+}
+
+/// 车轮碾压 ATK = 向上取整(基础车轮 HP × 0.4) + 每级加成 × (等级-1)
+double champWheelAtkValue({
+  required int tier,
+  required int sizeClass,
+  required int level,
+}) {
+  final base = kChampWheelHp[tier][sizeClass];
+  return (base * 0.4).ceil() +
+      kChampWheelAtkPerLevel[champMaterialOf(tier)] * (level - 1);
+}
+
+/// 配件 HP = 向上取整(基础配件 HP × (1+技能)) + 每级加成 × (等级-1)
+double champGadgetHpValue({
+  required int tier,
+  required int hpGroup,
+  required int level,
+  required int skillPct,
+}) {
+  final base = kChampGadgetHp[tier][hpGroup];
+  final first = (base * (1 + skillPct / 100)).ceil();
+  return first + kChampGadgetHpPerLevel[champMaterialOf(tier)] * (level - 1);
+}
+
+/// 配件治疗量 = 基础治疗量 + 每级加成 × (等级-1)
+double champGadgetHealValue({required int tier, required int level}) =>
+    kChampGadgetHeal[tier] +
+    kChampHealPerLevel[champMaterialOf(tier)] * (level - 1);
+
+/// 配件某个组合是否使用高组耗电
+bool champGadgetHighDrain(ChampGadgetInfo g, int combo) =>
+    combo == 0 ? g.combo1HighDrain : false;
+
+/// 配件某个组合的 HP 组（0 低 / 1 中 / 2 高）
+int champGadgetHpGroup(ChampGadgetInfo g, int combo) =>
+    combo == 0 ? g.combo1HpGroup : (g.combo1HpGroup == 0 ? 2 : 0);

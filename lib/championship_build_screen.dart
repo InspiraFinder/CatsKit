@@ -10,9 +10,9 @@ import 'championship_data.dart';
 /// - 车身提供供电；武器、配件消耗电力，供电不足则无法出车
 /// - 车身插槽**暂不限制**（可任意添加武器 / 车轮 / 配件）
 /// - 每件可选装 1 个工具箱（+HP 或 +ATK，按该件档位取加成）
-///
-/// 说明：这里只按「档位 / 组合 / 等级」算基础公式，
-/// **不含每件部件自带的 HP/ATK 倍数与类别技能**（那些需要具体部件信息）。
+/// - 可选**具体部件**并应用它的 HP/ATK 倍数与类别技能（+10/20/30%）
+/// - 组合选项数量随部件变化：车轮按可读尺寸档（1-3 个）、
+///   配件按是否有组合 2（1-2 个）
 class ChampionshipBuildScreen extends StatefulWidget {
   final String locale;
   const ChampionshipBuildScreen({super.key, this.locale = 'zh'});
@@ -24,9 +24,11 @@ class ChampionshipBuildScreen extends StatefulWidget {
 
 class _ChampPart {
   int tier = 24;
+  int partIndex = 0;
   int combo = 0;
   int level = 26;
   int toolbox = 0; // 0 = 无, 1 = +HP, 2 = +ATK
+  int skillPct = 30; // 0 / 10 / 20 / 30
 
   void clampLevel() {
     final max = champMaxLevel(tier);
@@ -40,9 +42,11 @@ class _ChampionshipBuildScreenState extends State<ChampionshipBuildScreen> {
   String _t(String zh, String en) => _zh ? zh : en;
 
   int _bodyTier = 24;
+  int _bodyIndex = 6; // 默认「泰坦」
   int _bodyCombo = 0;
   int _bodyLevel = 26;
   int _bodyToolbox = 0;
+  int _bodySkillPct = 30;
 
   final List<_ChampPart> _weapons = <_ChampPart>[];
   final List<_ChampPart> _wheels = <_ChampPart>[];
@@ -50,48 +54,76 @@ class _ChampionshipBuildScreenState extends State<ChampionshipBuildScreen> {
 
   // ---------- 计算 ----------
 
-  double get _bodyHp {
-    final m = champMaterialOf(_bodyTier);
-    return kChampBodyHp[_bodyTier][_bodyCombo] +
-        kChampBodyHpPerLevel[m] * (_bodyLevel - 1) +
-        (_bodyToolbox == 1 ? kChampToolboxHp[_bodyTier] : 0);
-  }
+  double get _bodyHp =>
+      champBodyHpValue(
+        tier: _bodyTier,
+        combo: _bodyCombo,
+        level: _bodyLevel,
+        body: kChampBodies[_bodyIndex],
+        skillPct: kChampBodies[_bodyIndex].hasHpSkill ? _bodySkillPct : 0,
+      ) +
+      (_bodyToolbox == 1 ? kChampToolboxHp[_bodyTier] : 0);
+
+  double get _bodyBaseHp => kChampBodyHp[_bodyTier][_bodyCombo].toDouble();
 
   int get _bodySupply => kChampBodySupply[_bodyTier][_bodyCombo];
 
   double _weaponAtk(_ChampPart p) {
-    final m = champMaterialOf(p.tier);
-    return kChampWeaponAtk[p.tier][p.combo] +
-        kChampWeaponAtkPerLevel[m] * (p.level - 1) +
+    final w = kChampWeapons[p.partIndex];
+    return champWeaponAtkValue(
+          tier: p.tier,
+          combo: p.combo,
+          level: p.level,
+          weapon: w,
+          skillPct: w.hasAtkSkill ? p.skillPct : 0,
+        ) +
         (p.toolbox == 2 ? kChampToolboxAtk[p.tier] : 0);
   }
 
   int _weaponDrain(_ChampPart p) => kChampWeaponDrain[p.tier][p.combo];
 
+  int _wheelSize(_ChampPart p) {
+    final w = kChampWheels[p.partIndex];
+    return w.classes[p.combo.clamp(0, w.classes.length - 1)];
+  }
+
   double _wheelHp(_ChampPart p) {
-    final m = champMaterialOf(p.tier);
-    return kChampWheelHp[p.tier][p.combo] +
-        kChampWheelHpPerLevel[m] * (p.level - 1) +
+    return champWheelHpValue(
+          tier: p.tier,
+          sizeClass: _wheelSize(p),
+          level: p.level,
+          skillPct: kChampWheels[p.partIndex].hasHpSkill ? p.skillPct : 0,
+        ) +
         (p.toolbox == 1 ? kChampToolboxHp[p.tier] : 0);
   }
 
   double _wheelAtk(_ChampPart p) {
-    final m = champMaterialOf(p.tier);
-    final base = kChampWheelHp[p.tier][p.combo];
-    return (base * 0.4).ceilToDouble() +
-        kChampWheelAtkPerLevel[m] * (p.level - 1) +
+    return champWheelAtkValue(
+          tier: p.tier,
+          sizeClass: _wheelSize(p),
+          level: p.level,
+        ) +
         (p.toolbox == 2 ? kChampToolboxAtk[p.tier] : 0);
   }
 
   double _gadgetHp(_ChampPart p) {
-    final m = champMaterialOf(p.tier);
-    return kChampGadgetHp[p.tier][p.combo] +
-        kChampGadgetHpPerLevel[m] * (p.level - 1) +
+    final g = kChampGadgets[p.partIndex];
+    return champGadgetHpValue(
+          tier: p.tier,
+          hpGroup: champGadgetHpGroup(g, p.combo),
+          level: p.level,
+          skillPct: g.hasHpSkill ? p.skillPct : 0,
+        ) +
         (p.toolbox == 1 ? kChampToolboxHp[p.tier] : 0);
   }
 
-  int _gadgetDrain(_ChampPart p) =>
-      champGadgetDrain(p.tier, highGroup: p.combo == 0);
+  int _gadgetDrain(_ChampPart p) {
+    final g = kChampGadgets[p.partIndex];
+    return champGadgetDrain(
+      p.tier,
+      highGroup: champGadgetHighDrain(g, p.combo),
+    );
+  }
 
   double get _totalHp =>
       _bodyHp +
@@ -181,7 +213,7 @@ class _ChampionshipBuildScreenState extends State<ChampionshipBuildScreen> {
             ),
           _addButton(
             _t('添加车轮', 'Add wheel'),
-            () => setState(() => _wheels.add(_ChampPart())),
+            () => setState(() => _wheels.add(_ChampPart()..partIndex = 9)),
           ),
           const SizedBox(height: 12),
           _sectionTitle(_t('配件', 'Gadgets')),
@@ -196,16 +228,16 @@ class _ChampionshipBuildScreenState extends State<ChampionshipBuildScreen> {
             ),
           _addButton(
             _t('添加配件', 'Add gadget'),
-            () => setState(() => _gadgets.add(_ChampPart())),
+            () => setState(() => _gadgets.add(_ChampPart()..partIndex = 4)),
           ),
           const SizedBox(height: 16),
           Text(
             _t(
-              '说明：插槽暂不限制；数值按「档位 / 组合 / 等级」的基础公式计算，'
-                  '不含每件部件自带的 HP/ATK 倍数与类别技能。',
-              'Slots are unlimited for now; values use the base formulas for '
-                  'tier / combo / level, without each part\'s own HP/ATK multiplier '
-                  'or class skills.',
+              '说明：插槽暂不限制；已按所选具体部件应用 HP/ATK 倍数与类别技能；'
+                  '车轮按可读尺寸档、配件按是否有组合 2 提供不同数量的组合选项。',
+              'Slots are unlimited for now; the selected part\'s HP/ATK multiplier '
+                  'and class skill are applied. Wheels offer the readable size '
+                  'classes and gadgets offer combo 1/2 depending on the part.',
             ),
             style: TextStyle(
               fontSize: 11,
@@ -322,6 +354,7 @@ class _ChampionshipBuildScreenState extends State<ChampionshipBuildScreen> {
   Widget _bodyCard(bool isDark) {
     final hp = _bodyHp;
     final supply = _bodySupply;
+    final body = kChampBodies[_bodyIndex];
     return Card(
       margin: EdgeInsets.zero,
       child: Padding(
@@ -335,7 +368,7 @@ class _ChampionshipBuildScreenState extends State<ChampionshipBuildScreen> {
                 const SizedBox(width: 6),
                 Expanded(
                   child: Text(
-                    '${champTierNameZh(_bodyTier)} · ${_comboLabel(_bodyCombo)}',
+                    '${body.nameZh} · ${champTierNameZh(_bodyTier)} · ${_comboLabel(_bodyCombo)}',
                     style: const TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.bold,
@@ -345,6 +378,15 @@ class _ChampionshipBuildScreenState extends State<ChampionshipBuildScreen> {
               ],
             ),
             const SizedBox(height: 8),
+            _nameDropdown(
+              <String>[
+                for (final b in kChampBodies)
+                  '${b.nameZh}（×${b.multiplier.toStringAsFixed(4)}）',
+              ],
+              _bodyIndex,
+              (v) => setState(() => _bodyIndex = v),
+            ),
+            const SizedBox(height: 6),
             _tierDropdown(_bodyTier, (v) {
               setState(() {
                 _bodyTier = v;
@@ -353,7 +395,11 @@ class _ChampionshipBuildScreenState extends State<ChampionshipBuildScreen> {
               });
             }),
             const SizedBox(height: 6),
-            _comboChips(_bodyCombo, (c) => setState(() => _bodyCombo = c)),
+            _comboChips(_bodyCombo, const <String>['组合 1', '组合 2', '组合 3'], (
+              c,
+            ) {
+              setState(() => _bodyCombo = c);
+            }),
             const SizedBox(height: 6),
             Row(
               children: [
@@ -373,10 +419,17 @@ class _ChampionshipBuildScreenState extends State<ChampionshipBuildScreen> {
                 ),
               ],
             ),
+            const SizedBox(height: 6),
+            _skillDropdown(
+              _bodySkillPct,
+              body.hasHpSkill,
+              (v) => setState(() => _bodySkillPct = v),
+            ),
             const SizedBox(height: 8),
             Text(
               '${_t('HP', 'HP')} ${_num(hp)}   ·   '
-              '${_t('供电', 'Supply')} $supply',
+              '${_t('供电', 'Supply')} $supply   ·   '
+              '${_t('基础 HP', 'Base HP')} ${_num(_bodyBaseHp)}',
               style: const TextStyle(fontSize: 12),
             ),
           ],
@@ -384,6 +437,38 @@ class _ChampionshipBuildScreenState extends State<ChampionshipBuildScreen> {
       ),
     );
   }
+
+  List<String> _partNames(_PartKind kind) => switch (kind) {
+    _PartKind.weapon => <String>[
+      for (final w in kChampWeapons)
+        '${w.nameZh}（×${w.multiplier.toStringAsFixed(4)}）',
+    ],
+    _PartKind.wheel => <String>[for (final w in kChampWheels) w.nameZh],
+    _PartKind.gadget => <String>[for (final g in kChampGadgets) g.nameZh],
+  };
+
+  bool _hasSkill(_PartKind kind, int index) => switch (kind) {
+    _PartKind.weapon => kChampWeapons[index].hasAtkSkill,
+    _PartKind.wheel => kChampWheels[index].hasHpSkill,
+    _PartKind.gadget => kChampGadgets[index].hasHpSkill,
+  };
+
+  String _sizeLabel(int size) => switch (size) {
+    0 => _t('小', 'Small'),
+    1 => _t('中', 'Medium'),
+    _ => _t('大', 'Large'),
+  };
+
+  List<String> _comboLabels(_PartKind kind, int index) => switch (kind) {
+    _PartKind.weapon => const <String>['组合 1', '组合 2', '组合 3'],
+    _PartKind.wheel => <String>[
+      for (final c in kChampWheels[index].classes) _sizeLabel(c),
+    ],
+    _PartKind.gadget =>
+      kChampGadgets[index].hasCombo2
+          ? const <String>['组合 1', '组合 2']
+          : const <String>['组合 1'],
+  };
 
   Widget _partCard({
     required Key key,
@@ -393,13 +478,18 @@ class _ChampionshipBuildScreenState extends State<ChampionshipBuildScreen> {
     required VoidCallback onChanged,
     required VoidCallback onDelete,
   }) {
+    final names = _partNames(kind);
+    final combos = _comboLabels(kind, part.partIndex);
+    final hasSkill = _hasSkill(kind, part.partIndex);
+    final partName = names[part.partIndex];
+
     final detail = switch (kind) {
       _PartKind.weapon =>
         'ATK ${_num(_weaponAtk(part))}   ·   ${_t('耗电', 'Drain')} ${_weaponDrain(part)}',
       _PartKind.wheel =>
         'HP ${_num(_wheelHp(part))}   ·   ${_t('碾压 ATK', 'Crush ATK')} ${_num(_wheelAtk(part))}',
       _PartKind.gadget =>
-        'HP ${_num(_gadgetHp(part))}   ·   ${_t('治疗', 'Heal')} ${_num(kChampGadgetHeal[part.tier] + kChampHealPerLevel[champMaterialOf(part.tier)] * (part.level - 1))}'
+        'HP ${_num(_gadgetHp(part))}   ·   ${_t('治疗', 'Heal')} ${_num(champGadgetHealValue(tier: part.tier, level: part.level))}'
             '   ·   ${_t('耗电', 'Drain')} ${_gadgetDrain(part)}',
     };
 
@@ -425,11 +515,12 @@ class _ChampionshipBuildScreenState extends State<ChampionshipBuildScreen> {
                 const SizedBox(width: 6),
                 Expanded(
                   child: Text(
-                    '$title · ${champTierNameZh(part.tier)}',
+                    '$title · $partName · ${champTierNameZh(part.tier)}',
                     style: const TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.bold,
                     ),
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
                 IconButton(
@@ -442,13 +533,21 @@ class _ChampionshipBuildScreenState extends State<ChampionshipBuildScreen> {
               ],
             ),
             const SizedBox(height: 6),
+            _nameDropdown(names, part.partIndex, (v) {
+              part.partIndex = v;
+              final n = _comboLabels(kind, v).length;
+              if (part.combo >= n) part.combo = n - 1;
+              if (!_hasSkill(kind, v)) part.skillPct = 0;
+              onChanged();
+            }),
+            const SizedBox(height: 6),
             _tierDropdown(part.tier, (v) {
               part.tier = v;
               part.clampLevel();
               onChanged();
             }),
             const SizedBox(height: 6),
-            _comboChips(part.combo, (c) {
+            _comboChips(part.combo, combos, (c) {
               part.combo = c;
               onChanged();
             }),
@@ -472,6 +571,11 @@ class _ChampionshipBuildScreenState extends State<ChampionshipBuildScreen> {
                 ),
               ],
             ),
+            const SizedBox(height: 6),
+            _skillDropdown(part.skillPct, hasSkill, (v) {
+              part.skillPct = v;
+              onChanged();
+            }),
             const SizedBox(height: 8),
             Text(detail, style: const TextStyle(fontSize: 12)),
           ],
@@ -501,18 +605,71 @@ class _ChampionshipBuildScreenState extends State<ChampionshipBuildScreen> {
     );
   }
 
-  Widget _comboChips(int combo, ValueChanged<int> onChanged) {
+  Widget _comboChips(
+    int combo,
+    List<String> labels,
+    ValueChanged<int> onChanged,
+  ) {
     return Wrap(
       spacing: 6,
       children: [
-        for (var c = 0; c < 3; c++)
+        for (var c = 0; c < labels.length; c++)
           ChoiceChip(
-            label: Text(_comboLabel(c), style: const TextStyle(fontSize: 11)),
+            label: Text(labels[c], style: const TextStyle(fontSize: 11)),
             selected: combo == c,
             onSelected: (_) => onChanged(c),
             visualDensity: VisualDensity.compact,
           ),
       ],
+    );
+  }
+
+  Widget _nameDropdown(
+    List<String> names,
+    int index,
+    ValueChanged<int> onChanged,
+  ) {
+    return DropdownButton<int>(
+      value: index,
+      isExpanded: true,
+      style: const TextStyle(fontSize: 12),
+      items: [
+        for (var i = 0; i < names.length; i++)
+          DropdownMenuItem(
+            value: i,
+            child: Text(names[i], style: const TextStyle(fontSize: 12)),
+          ),
+      ],
+      onChanged: (v) {
+        if (v != null) onChanged(v);
+      },
+    );
+  }
+
+  Widget _skillDropdown(int pct, bool enabled, ValueChanged<int> onChanged) {
+    if (!enabled) {
+      return Text(
+        _t('无类别技能', 'No class skill'),
+        style: const TextStyle(fontSize: 11, color: Colors.grey),
+      );
+    }
+    return DropdownButton<int>(
+      value: pct,
+      isExpanded: true,
+      style: const TextStyle(fontSize: 12),
+      items: [
+        for (final p in kChampSkillPcts)
+          DropdownMenuItem(
+            value: p,
+            child: Text(
+              p == 0 ? _t('技能：无', 'Skill: none') : _t('技能 +$p%', 'Skill +$p%'),
+              style: const TextStyle(fontSize: 12),
+            ),
+          ),
+      ],
+      onChanged: (v) {
+        if (v != null) onChanged(v);
+      },
     );
   }
 
