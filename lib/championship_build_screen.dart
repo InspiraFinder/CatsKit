@@ -41,6 +41,19 @@ class _ChampionshipBuildScreenState extends State<ChampionshipBuildScreen> {
   bool get _zh => widget.locale == 'zh';
   String _t(String zh, String en) => _zh ? zh : en;
 
+  /// 卡片内的文字颜色：按主题亮度（卡片背景随主题）
+  Color get _onCard => Theme.of(context).brightness == Brightness.dark
+      ? Colors.white
+      : Colors.black87;
+
+  /// 页面级文字颜色：按**实际页面背景色**亮度（自定义背景色时也能看清）
+  Color get _onPage {
+    final bg = Theme.of(context).scaffoldBackgroundColor;
+    return ThemeData.estimateBrightnessForColor(bg) == Brightness.dark
+        ? Colors.white
+        : Colors.black87;
+  }
+
   int _bodyTier = 24;
   int _bodyIndex = 6; // 默认「泰坦」
   int _bodyCombo = 0;
@@ -241,7 +254,7 @@ class _ChampionshipBuildScreenState extends State<ChampionshipBuildScreen> {
             ),
             style: TextStyle(
               fontSize: 11,
-              color: isDark ? Colors.grey[500] : Colors.grey[600],
+              color: _onPage.withValues(alpha: 0.65),
             ),
           ),
         ],
@@ -323,7 +336,7 @@ class _ChampionshipBuildScreenState extends State<ChampionshipBuildScreen> {
           style: TextStyle(
             fontSize: 18,
             fontWeight: FontWeight.bold,
-            color: color,
+            color: color ?? _onCard,
           ),
         ),
       ],
@@ -335,7 +348,11 @@ class _ChampionshipBuildScreenState extends State<ChampionshipBuildScreen> {
       padding: const EdgeInsets.only(bottom: 6, left: 2),
       child: Text(
         text,
-        style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+        style: TextStyle(
+          fontSize: 14,
+          fontWeight: FontWeight.bold,
+          color: _onPage,
+        ),
       ),
     );
   }
@@ -346,7 +363,7 @@ class _ChampionshipBuildScreenState extends State<ChampionshipBuildScreen> {
       child: TextButton.icon(
         onPressed: onTap,
         icon: const Icon(Icons.add, size: 18),
-        label: Text(label, style: const TextStyle(fontSize: 12)),
+        label: Text(label, style: TextStyle(fontSize: 12, color: _onPage)),
       ),
     );
   }
@@ -369,9 +386,10 @@ class _ChampionshipBuildScreenState extends State<ChampionshipBuildScreen> {
                 Expanded(
                   child: Text(
                     '${body.nameZh} · ${champTierNameZh(_bodyTier)} · ${_comboLabel(_bodyCombo)}',
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.bold,
+                      color: _onCard,
                     ),
                   ),
                 ),
@@ -430,7 +448,7 @@ class _ChampionshipBuildScreenState extends State<ChampionshipBuildScreen> {
               '${_t('HP', 'HP')} ${_num(hp)}   ·   '
               '${_t('供电', 'Supply')} $supply   ·   '
               '${_t('基础 HP', 'Base HP')} ${_num(_bodyBaseHp)}',
-              style: const TextStyle(fontSize: 12),
+              style: TextStyle(fontSize: 12, color: _onCard),
             ),
           ],
         ),
@@ -516,9 +534,10 @@ class _ChampionshipBuildScreenState extends State<ChampionshipBuildScreen> {
                 Expanded(
                   child: Text(
                     '$title · $partName · ${champTierNameZh(part.tier)}',
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.bold,
+                      color: _onCard,
                     ),
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -577,7 +596,7 @@ class _ChampionshipBuildScreenState extends State<ChampionshipBuildScreen> {
               onChanged();
             }),
             const SizedBox(height: 8),
-            Text(detail, style: const TextStyle(fontSize: 12)),
+            Text(detail, style: TextStyle(fontSize: 12, color: _onCard)),
           ],
         ),
       ),
@@ -588,7 +607,7 @@ class _ChampionshipBuildScreenState extends State<ChampionshipBuildScreen> {
     return DropdownButton<int>(
       value: tier,
       isExpanded: true,
-      style: const TextStyle(fontSize: 12),
+      style: TextStyle(fontSize: 12, color: _onCard),
       items: [
         for (var i = 0; i < 25; i++)
           DropdownMenuItem(
@@ -615,7 +634,10 @@ class _ChampionshipBuildScreenState extends State<ChampionshipBuildScreen> {
       children: [
         for (var c = 0; c < labels.length; c++)
           ChoiceChip(
-            label: Text(labels[c], style: const TextStyle(fontSize: 11)),
+            label: Text(
+              labels[c],
+              style: TextStyle(fontSize: 11, color: _onCard),
+            ),
             selected: combo == c,
             onSelected: (_) => onChanged(c),
             visualDensity: VisualDensity.compact,
@@ -632,7 +654,7 @@ class _ChampionshipBuildScreenState extends State<ChampionshipBuildScreen> {
     return DropdownButton<int>(
       value: index,
       isExpanded: true,
-      style: const TextStyle(fontSize: 12),
+      style: TextStyle(fontSize: 12, color: _onCard),
       items: [
         for (var i = 0; i < names.length; i++)
           DropdownMenuItem(
@@ -650,13 +672,13 @@ class _ChampionshipBuildScreenState extends State<ChampionshipBuildScreen> {
     if (!enabled) {
       return Text(
         _t('无类别技能', 'No class skill'),
-        style: const TextStyle(fontSize: 11, color: Colors.grey),
+        style: TextStyle(fontSize: 11, color: _onCard.withValues(alpha: 0.6)),
       );
     }
     return DropdownButton<int>(
       value: pct,
       isExpanded: true,
-      style: const TextStyle(fontSize: 12),
+      style: TextStyle(fontSize: 12, color: _onCard),
       items: [
         for (final p in kChampSkillPcts)
           DropdownMenuItem(
@@ -677,7 +699,7 @@ class _ChampionshipBuildScreenState extends State<ChampionshipBuildScreen> {
     return DropdownButton<int>(
       value: level,
       isExpanded: true,
-      style: const TextStyle(fontSize: 12),
+      style: TextStyle(fontSize: 12, color: _onCard),
       items: [
         for (var lv = 1; lv <= max; lv++)
           DropdownMenuItem(
@@ -698,7 +720,7 @@ class _ChampionshipBuildScreenState extends State<ChampionshipBuildScreen> {
     return DropdownButton<int>(
       value: value,
       isExpanded: true,
-      style: const TextStyle(fontSize: 12),
+      style: TextStyle(fontSize: 12, color: _onCard),
       items: [
         DropdownMenuItem(
           value: 0,
